@@ -35,8 +35,8 @@ local args = parser:parse()
 
 if args.command == "convert-glove" then
 
-  local words, word_vectors = glove.load_vectors(args.input, args.limit_words)
-  local word_numbers = cluster.cluster_vectors(words, word_vectors, args.num_clusters)
+  local words, word_vectors = glove.load_vectors(args.input, args.limit_words and tonumber(args.limit_words) or nil)
+  local word_numbers = cluster.cluster_vectors(words, word_vectors, tonumber(args.num_clusters))
 
   local handle = assert(io.open(args.output, "w"))
 
