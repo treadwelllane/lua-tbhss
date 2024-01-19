@@ -9,11 +9,7 @@ M.load_vectors = function (glove_file, limit_words)
   local n_words = 0
   local n_dimensions = nil
 
-  local handle = assert(io.open(glove_file, "r"), "Error opening glove file")
-  local data = assert(handle:read("*a"), "Error reading glove file")
-  handle:close()
-
-  for line in data:gmatch("[^\n]+") do
+  for line in io.lines(glove_file) do
 
     local iter = line:gmatch("%S+")
     local word = iter()

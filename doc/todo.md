@@ -1,5 +1,7 @@
 # Now
 
+- Use sqlite for computations
+
 - Library
     - Load model
     - Lookup of word cluster and bitmap
