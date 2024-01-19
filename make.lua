@@ -5,6 +5,7 @@ return {
     name = "tbhss",
     version = "0.0.1-1",
     variable_prefix = "TBHSS",
+    public = true,
 
     dependencies = {
       "lua == 5.1"
