@@ -1,12 +1,13 @@
 local env = {
 
   name = "tbhss",
-  version = "0.0.2-1",
+  version = "0.0.3-1",
   variable_prefix = "TBHSS",
   public = true,
 
   dependencies = {
-    "lua == 5.1"
+    "lua == 5.1",
+    "argparse >= 0.7.1-1"
   },
 
   test = {
