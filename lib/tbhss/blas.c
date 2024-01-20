@@ -1,7 +1,7 @@
 #include "lua.h"
 #include "lauxlib.h"
 
-#include "openblas/cblas.h"
+#include "cblas.h"
 #include <string.h>
 #include <math.h>
 
