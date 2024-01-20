@@ -7,7 +7,7 @@ local env = {
 
   dependencies = {
     "lua == 5.1",
-    "argparse >= 0.7.1-1"
+    "argparse >= 0.7.1-1",
   },
 
   test = {
@@ -19,7 +19,7 @@ local env = {
     }
   },
 
-  }
+}
 
 env.homepage = "https://github.com/treadwelllane/lua-" .. env.name
 env.tarball = env.name .. "-" .. env.version .. ".tar.gz"

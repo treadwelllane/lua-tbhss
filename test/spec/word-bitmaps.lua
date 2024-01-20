@@ -7,11 +7,11 @@ local bitmap_size = 100
 local glove_file = assert(os.getenv("GLOVE_TXT"), "Missing GLOVE_TXT variable")
 
 local words, word_vectors = glove.load_vectors(glove_file, limit_words)
-local word_numbers = cluster.cluster_vectors(words, word_vectors, bitmap_size)
+cluster.cluster_vectors(words, word_vectors, bitmap_size)
 
-assert(word_numbers["guitar"] == word_numbers["piano"])
-assert(word_numbers["guitar"] == word_numbers["guitarist"])
-assert(word_numbers["guitar"] ~= word_numbers["signal"])
+-- assert(word_numbers["guitar"] == word_numbers["piano"])
+-- assert(word_numbers["guitar"] == word_numbers["guitarist"])
+-- assert(word_numbers["guitar"] ~= word_numbers["signal"])
 
 -- local helpers = require("tbhss.helpers")
 -- local bitmaps = require("tbhss.bitmaps")

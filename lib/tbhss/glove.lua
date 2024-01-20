@@ -1,4 +1,5 @@
 local helpers = require("tbhss.helpers")
+local blas = require("tbhss.blas")
 
 local M = {}
 
@@ -25,9 +26,8 @@ M.load_vectors = function (glove_file, limit_words)
       error("Wrong number of dimensions for vector #" .. n_words + 1 .. ": " .. #floats)
     end
 
-    helpers.normalize(floats)
-
-    vectors[word] = floats
+    vectors[word] = blas.vector(floats)
+    vectors[word]:normalize()
 
     n_words = n_words + 1
 

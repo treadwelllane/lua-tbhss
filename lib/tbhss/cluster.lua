@@ -1,4 +1,5 @@
 local helpers = require("tbhss.helpers")
+local blas = require("tbhss.blas")
 
 local M = {}
 
@@ -9,7 +10,7 @@ local function find_nearest_centroid (word, vector, centroids, nearest_cache)
   if last then
 
     local new = centroids[#centroids]
-    local v = helpers.dot_product(vector, new)
+    local v = vector:dot(new)
 
     if v > last.value then
       last.value = v
@@ -27,7 +28,7 @@ local function find_nearest_centroid (word, vector, centroids, nearest_cache)
 
     for i = 1, #centroids do
 
-      local v = helpers.dot_product(vector, centroids[i])
+      local v = vector:dot(centroids[i])
 
       if v > max_value then
         max_idx = i
@@ -70,7 +71,7 @@ local function select_initial_centroids (words, word_vectors, n_clusters)
     for i = 1, #words do
       if not ignores[i] then
         local _, nearest = find_nearest_centroid(i, word_vectors[words[i]], centroids, nearest_cache)
-        distances[#distances + 1] = helpers.dot_product(word_vectors[words[i]], nearest)
+        distances[#distances + 1] = word_vectors[words[i]]:dot(nearest)
         ids[#ids + 1] = i
         sum = sum + (1 - distances[#distances])
       end
@@ -133,9 +134,8 @@ M.cluster_vectors = function (words, word_vectors, n_clusters)
         member_vectors[#member_vectors + 1] = word_vectors[centroid_words[i][j]]
       end
 
-      centroids[i] = helpers.average(member_vectors)
-
-      helpers.normalize(centroids[i])
+      centroids[i] = blas.average(member_vectors)
+      centroids[i]:normalize()
 
     end
 

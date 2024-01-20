@@ -1,6 +1,5 @@
 # Now
 
-- Use blas for computations and sqlite for offloading to disk
 - Produce clusters for bitmap sizes 2^7-13
 
 - Library
@@ -19,6 +18,10 @@
 # Later
 
 - Fuzzy c-means clustering
+- Multi-processing
+- Disk offloading for clustering of large models
+- Use matrix operations for word-cluster distance calculation instead of
+  individual dot-products
 
 - Bitmaps supporting multiple clusters
     - membership_min
