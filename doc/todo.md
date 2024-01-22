@@ -11,35 +11,22 @@
 - Support batching of max N words in memory
 
 - Produce clusters for Glove 6B/42B 300D
-    - 6B   128   todo
-    - 6B   256   todo
-    - 6B   512   running
-    - 6B   1024  todo
-    - 6B   2048  todo
-    - 6B   4096  todo
-    - 6B   8192  todo
-    - 42B  128   todo
-    - 42B  256   todo
-    - 42B  512   todo
-    - 42B  1024  todo
-    - 42B  2048  todo
-    - 42B  8192  todo
+    - 6B   50D   128   x
+    - 6B   300D  128   x
+    - 6B   300D  256   todo
+    - 6B   300D  512   x
+    - 6B   300D  1024  todo
+    - 6B   300D  2048  todo
+    - 6B   300D  4096  todo
+    - 6B   300D  8192  todo
+    - 42B  300D  128   todo
+    - 42B  300D  256   todo
+    - 42B  300D  512   todo
+    - 42B  300D  1024  todo
+    - 42B  300D  2048  todo
+    - 42B  300D  8192  todo
 
-- Library
-    - Switch to croaring bitmaps
-    - Load model as bitmaps
-    - Sentence similarity (option to get bitmaps or cluster IDs separate from
-      loading the model into memory, for use with sqlite, etc)
-
-# Next
-
-- Tsetlin Machine refinement of sentence representations
-
-- Potential bugs in tsetlin.md
-  - Ensure that when no literals are included, the clause evaluates to 1
-  - Hyper-parameter T(hreshold)
-
-# Later
+- Host processed files on S3
 
 - Bitmaps supporting multiple clusters
     - membership_min
@@ -63,9 +50,26 @@
         - default 0
         - if a fuzzy membership is less than this amount, it is ignored
 
+- Library
+    - Switch to croaring bitmaps
+    - Load model as bitmaps
+    - Sentence similarity (option to get bitmaps or cluster IDs separate from
+      loading the model into memory, for use with sqlite, etc)
+
+- Benchmark basic AND jaccard similarity
+
+# Next
+
+- Tsetlin Machine refinement of sentence representations
+
+- Potential bugs in tsetlin.md
+  - Ensure that when no literals are included, the clause evaluates to 1
+  - Hyper-parameter T(hreshold)
+
+# Later
+
 - Move various inner loops to C (see cluster.lua TODOs)
 - Multi-processing
-
 - Fuzzy c-means clustering, update multi-cluster bitmap logic accordingly
 
 # Eventually
@@ -78,3 +82,5 @@
   - Weighted (reduces memory footprint)
   - Multi-granular (eliminates hyper-parameter S(ensitivity))
   - Coalesced (reduces memory footprint for multi-output configurations)
+
+- Finetuning to a specific domain
