@@ -70,10 +70,10 @@ IDX.set = blas.set
 IDX.get = blas.get
 IDX.reshape = blas.reshape
 IDX.copy = blas.copy
-IDX.sum = blas.sum
+IDX.sums = blas.sums
 
 IDX.average = function (m, d, row)
-  m:sum(d, row)
+  m:sums(d, row)
   d:multiply(row, 1 / m:rows())
   return d
 end
@@ -151,9 +151,7 @@ IDX.add = function (a, b, c, d)
   elseif b then
     add = b
   end
-  for i = rowstart, rowend do
-    blas.radd(a, i, add)
-  end
+  blas.radd(a, rowstart, rowend, add)
   return a
 end
 
@@ -176,9 +174,7 @@ IDX.multiply = function (a, b, c, d)
     elseif b then
       mult = b
     end
-    for i = rowstart, rowend do
-      blas.rmult(a, i, mult)
-    end
+    blas.rmult(a, rowstart, rowend, mult)
     return a
   end
 end

@@ -1,8 +1,9 @@
 local blas = require("tbhss.blas")
 
 local m0 = blas.matrix({ { 1, 2, 3 }, { 4, 5, 6 } })
+
 print(m0)
-m0:add(1)
+m0:add(2)
 print(m0)
 
 -- print(m0)

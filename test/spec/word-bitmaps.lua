@@ -7,7 +7,7 @@ local bitmap_size = 256
 
 local glove_file = assert(os.getenv("GLOVE_TXT"), "Missing GLOVE_TXT variable")
 
-local word_matrix, word_numbers = glove.load_vectors(glove_file, limit_words)
+local word_matrix = glove.load_vectors(glove_file, limit_words)
 cluster.cluster_vectors(word_matrix, bitmap_size, max_iterations)
 
 -- assert(word_numbers["guitar"] == word_numbers["piano"])

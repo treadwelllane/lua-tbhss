@@ -1,4 +1,3 @@
-local helpers = require("tbhss.helpers")
 local blas = require("tbhss.blas")
 
 local M = {}
@@ -112,7 +111,7 @@ M.cluster_vectors = function (word_matrix, n_clusters, max_iterations)
 
   end
 
-  return word_clusters
+  return word_clusters, distance_matrix, cluster_matrix
 
 end
 

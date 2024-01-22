@@ -35,13 +35,28 @@ local args = parser:parse()
 
 if args.command == "convert-glove" then
 
-  local words, word_vectors = glove.load_vectors(args.input, args.limit_words and tonumber(args.limit_words) or nil)
-  local word_numbers = cluster.cluster_vectors(words, word_vectors, tonumber(args.num_clusters))
+  local word_matrix, _, word_names = glove.load_vectors(
+    args.input,
+    args.limit_words and tonumber(args.limit_words) or nil)
+
+  local _, distance_matrix = cluster.cluster_vectors(
+    word_matrix,
+    tonumber(args.num_clusters),
+    args.max_iterations and tonumber(args.max_iterations) or nil)
 
   local handle = assert(io.open(args.output, "w"))
+  local out = {}
 
-  for i = 1, #words do
-    handle:write(string.format("%s\t%d\n", words[i], word_numbers[words[i]]))
+  for i = 1, distance_matrix:rows() do
+    if i > 1 then
+      handle:write("\n")
+    end
+    out[1] = word_names[i]
+    for j = 1, distance_matrix:columns() do
+      out[1 + (j * 2 - 1)] = j
+      out[1 + (j * 2)] = distance_matrix:get(i, j)
+    end
+    handle:write(table.concat(out, "\t"))
   end
 
   handle:close()
