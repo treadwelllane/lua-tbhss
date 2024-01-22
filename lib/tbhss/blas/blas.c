@@ -98,10 +98,10 @@ int tbhss_blas_matrix_reshape (lua_State *L)
   luaL_checktype(L, 3, LUA_TNUMBER);
   lua_Integer rows = lua_tointeger(L, 2);
   lua_Integer columns = lua_tointeger(L, 3);
-  if (rows < 1)
-    luaL_error(L, "Error in reshape: rows less than 1");
-  if (columns < 1)
-    luaL_error(L, "Error in reshape: columns less than 1");
+  if (rows < 0)
+    luaL_error(L, "Error in reshape: rows less than 0");
+  if (columns < 0)
+    luaL_error(L, "Error in reshape: columns less than 0");
   (*m0p)->rows = rows;
   (*m0p)->columns = columns;
   if (rows * columns > (*m0p)->doubles) {

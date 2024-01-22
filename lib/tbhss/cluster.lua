@@ -3,6 +3,7 @@ local blas = require("tbhss.blas")
 
 local M = {}
 
+-- TODO: Move to C
 local function weighted_random_choice (probabilities, ids)
   local r = math.random()
   local sum = 0
@@ -32,6 +33,7 @@ local function select_initial_clusters (word_matrix, n_clusters)
     local distances = {}
     local ids = {}
 
+    -- TODO: Move to C
     for i = 1, distance_matrix:rows() do
       if not ignores[i] then
         local maxval = distance_matrix:max(i)
@@ -44,6 +46,7 @@ local function select_initial_clusters (word_matrix, n_clusters)
     distances = blas.matrix({ distances })
     distances:multiply(1 / sum)
 
+    -- TODO: Move to C
     local i = weighted_random_choice(distances, ids)
 
     ignores[i] = true
@@ -73,6 +76,7 @@ M.cluster_vectors = function (word_matrix, n_clusters, max_iterations)
 
     word_matrix:multiply(cluster_matrix, distance_matrix, { transpose_b = true })
 
+    -- TODO: Move to C
     for i = 1, distance_matrix:rows() do
       local _, maxcol = distance_matrix:max(i)
       if word_clusters[i] ~= maxcol then

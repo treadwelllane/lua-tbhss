@@ -1,12 +1,6 @@
 # Now
 
-- Use matrix operations
-    - Find nearest centroids
-    - Update centroids
-
-- Fuzzy c-means clustering
-- Multi-processing
-- Checkpointing and batching via sqlite
+- Checkpointing and batching
 - Switch to croaring bitmaps
 
 - Produce clusters for Glove 840B/300D with bitmap sizes 2^7-13
@@ -41,14 +35,17 @@
           flipped
     - membership_probability
         - if set, membership_threshold is ignored
-        - sets the probability a word will have a cluster bit flipped,
-          proportional to it's membership score
+        - sets the probability a word will have additional cluster bits flipped,
+          proportional to its distance the clusters in question
         - see ideas.md
     - membership_cutoff
         - default 0
         - if a fuzzy membership is less than this amount, it is ignored
 
-- Efficient C for bitmaps (AVX on x86, Accelerate on Apple Silicon)
+- Move various inner loops to C (see cluster.lua TODOs)
+- Multi-processing
+
+- Fuzzy c-means clustering, update multi-cluster bitmap logic accordingly
 
 # Eventually
 
