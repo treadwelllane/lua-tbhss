@@ -39,15 +39,4 @@ M.random_normal = function ()
   return math.max(-1, math.min(1, z))
 end
 
-M.weighted_random_choice = function (probabilities, ids)
-  local r = math.random()
-  local sum = 0
-  for i = 1, #probabilities do
-    sum = sum + probabilities[i]
-    if r <= sum then
-      return ids[i]
-    end
-  end
-end
-
 return M

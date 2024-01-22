@@ -1,6 +1,15 @@
 # Now
 
-- Produce clusters for bitmap sizes 2^7-13
+- Use matrix operations
+    - Find nearest centroids
+    - Update centroids
+
+- Fuzzy c-means clustering
+- Multi-processing
+- Checkpointing and batching via sqlite
+- Switch to croaring bitmaps
+
+- Produce clusters for Glove 840B/300D with bitmap sizes 2^7-13
 
 - Library
     - Load model as bitmaps
@@ -16,12 +25,6 @@
   - Hyper-parameter T(hreshold)
 
 # Later
-
-- Fuzzy c-means clustering
-- Multi-processing
-- Disk offloading for clustering of large models
-- Use matrix operations for word-cluster distance calculation instead of
-  individual dot-products
 
 - Bitmaps supporting multiple clusters
     - membership_min

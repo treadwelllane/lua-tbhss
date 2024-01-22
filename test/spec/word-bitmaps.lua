@@ -1,13 +1,14 @@
 local glove = require("tbhss.glove")
 local cluster = require("tbhss.cluster")
 
-local limit_words = 10000
-local bitmap_size = 100
+local max_iterations = nil
+local limit_words = 1000
+local bitmap_size = 64
 
 local glove_file = assert(os.getenv("GLOVE_TXT"), "Missing GLOVE_TXT variable")
 
-local words, word_vectors = glove.load_vectors(glove_file, limit_words)
-cluster.cluster_vectors(words, word_vectors, bitmap_size)
+local word_matrix, word_numbers = glove.load_vectors(glove_file, limit_words)
+cluster.cluster_vectors(word_matrix, bitmap_size, max_iterations)
 
 -- assert(word_numbers["guitar"] == word_numbers["piano"])
 -- assert(word_numbers["guitar"] == word_numbers["guitarist"])

@@ -3,122 +3,97 @@ local blas = require("tbhss.blas")
 
 local M = {}
 
-local function find_nearest_centroid (word, vector, centroids, nearest_cache)
-
-  local last = nearest_cache and nearest_cache[word]
-
-  if last then
-
-    local new = centroids[#centroids]
-    local v = vector:dot(new)
-
-    if v > last.value then
-      last.value = v
-      last.vector = new
-      last.idx = #centroids
+local function find_max_column (distance_matrix, row)
+  local maxcol = nil
+  local maxval = nil
+  for i = 1, distance_matrix:columns() do
+    local val = distance_matrix:get(row, i)
+    if not maxcol or val > maxval then
+      maxcol = i
+      maxval = val
     end
-
-    return last.idx, last.vector
-
-  else
-
-    local max_idx = nil
-    local max_value = -1
-    local max_vector = nil
-
-    for i = 1, #centroids do
-
-      local v = vector:dot(centroids[i])
-
-      if v > max_value then
-        max_idx = i
-        max_value = v
-        max_vector = centroids[i]
-      end
-
-    end
-
-    if nearest_cache then
-      nearest_cache[word] = { value = max_value, vector = max_vector, idx = max_idx }
-    end
-
-    return max_idx, max_vector
-
   end
-
+  return maxcol, maxval
 end
 
-local function select_initial_centroids (words, word_vectors, n_clusters)
+local function weighted_random_choice (probabilities, ids)
+  local r = math.random()
+  local sum = 0
+  for i = 1, probabilities:columns() do
+    sum = sum + probabilities:get(1, i)
+    if r <= sum then
+      return ids[i]
+    end
+  end
+end
 
-  local first = math.random(1, #words)
+local function select_initial_clusters (word_matrix, n_clusters)
+
+  local first = math.random(1, word_matrix:rows())
 
   local ignores = { [first] = true }
-  local centroids = { word_vectors[words[first]] }
-  local centroid_words = { words[first] }
+  local cluster_matrix = blas.matrix(word_matrix, first, first)
+  local distance_matrix = blas.matrix(word_matrix:rows(), cluster_matrix:rows())
 
-  print("Find Initial Centroids", #centroids, words[first])
-
-  local nearest_cache = {}
+  print("Find Initial Centroids", cluster_matrix:rows(), first)
 
   for _ = 1, n_clusters - 1 do
 
-    local distances = {}
-    local probabilities = {}
-    local ids = {}
+    word_matrix:multiply(cluster_matrix, distance_matrix, { transpose_b = true })
 
     local sum = 0
+    local distances = {}
+    local ids = {}
 
-    for i = 1, #words do
+    for i = 1, distance_matrix:rows() do
       if not ignores[i] then
-        local _, nearest = find_nearest_centroid(i, word_vectors[words[i]], centroids, nearest_cache)
-        distances[#distances + 1] = word_vectors[words[i]]:dot(nearest)
+        local _, maxval = find_max_column(distance_matrix, i)
+        distances[#distances + 1] = 1 - maxval
         ids[#ids + 1] = i
-        sum = sum + (1 - distances[#distances])
+        sum = sum + 1 - maxval
       end
     end
 
-    for i = 1, #distances do
-      probabilities[i] = (1 - distances[i]) / sum
-    end
+    distances = blas.matrix({ distances })
+    distances:multiply(1 / sum)
 
-    local i = helpers.weighted_random_choice(probabilities, ids)
+    local i = weighted_random_choice(distances, ids)
 
     ignores[i] = true
-    centroids[#centroids + 1] = word_vectors[words[i]]
-    centroid_words[#centroid_words + 1] = words[i]
+    cluster_matrix:extend(word_matrix, i, i)
+    distance_matrix:reshape(word_matrix:rows(), cluster_matrix:rows())
 
-    print("Find Initial Centroids", #centroids, words[i])
+    print("Find Initial Centroids", cluster_matrix:rows(), i)
 
   end
 
-  return centroids, centroid_words
+  return cluster_matrix, distance_matrix
 
 end
 
-M.cluster_vectors = function (words, word_vectors, n_clusters)
+M.cluster_vectors = function (word_matrix, n_clusters, max_iterations)
 
-  local centroids = select_initial_centroids(words, word_vectors, n_clusters)
-  local word_numbers = {}
+  local cluster_matrix, distance_matrix = select_initial_clusters(word_matrix, n_clusters)
+  local word_clusters = {}
+  local cluster_average_matrix = blas.matrix(0, 0)
 
   local n = 1
 
   while true do
 
     local words_changed = 0
-    local centroid_words = {}
+    local cluster_words = {}
 
-    for i = 1, #words do
+    word_matrix:multiply(cluster_matrix, distance_matrix, { transpose_b = true })
 
-      local idx = find_nearest_centroid(i, word_vectors[words[i]], centroids)
-
-      if word_numbers[words[i]] ~= idx then
+    for i = 1, distance_matrix:rows() do
+      local maxcol = find_max_column(distance_matrix, i)
+      if word_clusters[i] ~= maxcol then
         words_changed = words_changed + 1
-        word_numbers[words[i]] = idx
+        word_clusters[i] = maxcol
       end
-
-      centroid_words[idx] = centroid_words[idx] or {}
-      centroid_words[idx][#centroid_words[idx] + 1] = words[i]
-
+      cluster_words[maxcol] = cluster_words[maxcol] or {}
+      cluster_words[maxcol][#cluster_words[maxcol] + 1] = i
     end
 
     if words_changed == 0 then
@@ -126,26 +101,27 @@ M.cluster_vectors = function (words, word_vectors, n_clusters)
       break
     end
 
-    for i = 1, #centroids do
-
-      local member_vectors = {}
-
-      for j = 1, #centroid_words[i] do
-        member_vectors[#member_vectors + 1] = word_vectors[centroid_words[i][j]]
+    for i = 1, cluster_matrix:rows() do
+      cluster_average_matrix:reshape(#cluster_words[i], word_matrix:columns())
+      for j = 1, #cluster_words[i] do
+        cluster_average_matrix:copy(word_matrix, cluster_words[i][j], cluster_words[i][j], j)
       end
-
-      centroids[i] = blas.average(member_vectors)
-      centroids[i]:normalize()
-
+      cluster_average_matrix:average(cluster_matrix, i)
     end
+
+    cluster_matrix:normalize()
 
     print("Iteration", n, "Words Changed", words_changed)
 
     n = n + 1
 
+    if max_iterations and n > max_iterations then
+      break
+    end
+
   end
 
-  return word_numbers
+  return word_clusters
 
 end
 
