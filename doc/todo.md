@@ -1,11 +1,32 @@
 # Now
 
-- Checkpointing and batching
-- Switch to croaring bitmaps
+- Command to ingest text files to sqlite, tag is file name by default
+- Command to export text files from sqlite by tag
+- Command to merge sqlite databases
+- Migrate write-to-file logic to separate command: export-file
+- Migrate load and process logic to separate command: cluster (takes tag name
+  as argument, picks up where left off, etc)
+- Command to generate bitmaps
+- Extend export text files to support exporting bitmaps
+- Support batching of max N words in memory
 
-- Produce clusters for Glove 840B/300D with bitmap sizes 2^7-13
+- Produce clusters for Glove 6B/42B 300D
+    - 6B   128   todo
+    - 6B   256   todo
+    - 6B   512   running
+    - 6B   1024  todo
+    - 6B   2048  todo
+    - 6B   4096  todo
+    - 6B   8192  todo
+    - 42B  128   todo
+    - 42B  256   todo
+    - 42B  512   todo
+    - 42B  1024  todo
+    - 42B  2048  todo
+    - 42B  8192  todo
 
 - Library
+    - Switch to croaring bitmaps
     - Load model as bitmaps
     - Sentence similarity (option to get bitmaps or cluster IDs separate from
       loading the model into memory, for use with sqlite, etc)
