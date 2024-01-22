@@ -2,8 +2,8 @@ local glove = require("tbhss.glove")
 local cluster = require("tbhss.cluster")
 
 local max_iterations = nil
-local limit_words = 1000
-local bitmap_size = 64
+local limit_words = 100000
+local bitmap_size = 256
 
 local glove_file = assert(os.getenv("GLOVE_TXT"), "Missing GLOVE_TXT variable")
 

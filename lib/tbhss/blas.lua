@@ -62,7 +62,10 @@ IDX.columns = function (m)
   return (select(2, m:shape()))
 end
 
-IDX.amax = blas.amax
+-- TODO: Allow these to operate on whole matrix
+IDX.max = blas.rmax
+IDX.amax = blas.ramax
+
 IDX.set = blas.set
 IDX.get = blas.get
 IDX.reshape = blas.reshape

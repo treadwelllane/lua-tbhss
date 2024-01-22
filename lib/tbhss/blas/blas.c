@@ -187,7 +187,27 @@ int tbhss_blas_matrix_rmult (lua_State *L)
   return 0;
 }
 
-int tbhss_blas_matrix_amax (lua_State *L)
+int tbhss_blas_matrix_rmax (lua_State *L)
+{
+  lua_settop(L, 2);
+  tbhss_blas_matrix_t *m0 = tbhss_blas_matrix_peek(L, 1);
+  luaL_checktype(L, 2, LUA_TNUMBER);
+  lua_Integer row = lua_tointeger(L, 2);
+  size_t idx = tbhss_blas_matrix_index(L, m0, row, 1);
+  size_t maxcol = 1;
+  double maxval = m0->data[idx];
+  for (size_t i = 2; i <= m0->columns; i ++) {
+    if (m0->data[idx + i - 1] > maxval) {
+      maxcol = i;
+      maxval = m0->data[idx + i - 1];
+    }
+  }
+  lua_pushnumber(L, maxval);
+  lua_pushinteger(L, maxcol);
+  return 2;
+}
+
+int tbhss_blas_matrix_ramax (lua_State *L)
 {
   lua_settop(L, 2);
   tbhss_blas_matrix_t *m0 = tbhss_blas_matrix_peek(L, 1);
@@ -333,7 +353,8 @@ luaL_Reg tbhss_blas_fns[] =
   { "radd", tbhss_blas_matrix_radd },
   { "copy", tbhss_blas_matrix_copy },
   { "sum", tbhss_blas_matrix_sum },
-  { "amax", tbhss_blas_matrix_amax },
+  { "rmax", tbhss_blas_matrix_rmax },
+  { "ramax", tbhss_blas_matrix_ramax },
   { "reshape", tbhss_blas_matrix_reshape },
   { "shrink", tbhss_blas_matrix_shrink },
   { NULL, NULL }

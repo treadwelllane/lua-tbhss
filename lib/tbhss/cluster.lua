@@ -3,19 +3,6 @@ local blas = require("tbhss.blas")
 
 local M = {}
 
-local function find_max_column (distance_matrix, row)
-  local maxcol = nil
-  local maxval = nil
-  for i = 1, distance_matrix:columns() do
-    local val = distance_matrix:get(row, i)
-    if not maxcol or val > maxval then
-      maxcol = i
-      maxval = val
-    end
-  end
-  return maxcol, maxval
-end
-
 local function weighted_random_choice (probabilities, ids)
   local r = math.random()
   local sum = 0
@@ -47,7 +34,7 @@ local function select_initial_clusters (word_matrix, n_clusters)
 
     for i = 1, distance_matrix:rows() do
       if not ignores[i] then
-        local _, maxval = find_max_column(distance_matrix, i)
+        local maxval = distance_matrix:max(i)
         distances[#distances + 1] = 1 - maxval
         ids[#ids + 1] = i
         sum = sum + 1 - maxval
@@ -87,7 +74,7 @@ M.cluster_vectors = function (word_matrix, n_clusters, max_iterations)
     word_matrix:multiply(cluster_matrix, distance_matrix, { transpose_b = true })
 
     for i = 1, distance_matrix:rows() do
-      local maxcol = find_max_column(distance_matrix, i)
+      local _, maxcol = distance_matrix:max(i)
       if word_clusters[i] ~= maxcol then
         words_changed = words_changed + 1
         word_clusters[i] = maxcol
