@@ -48,6 +48,9 @@
   produce a set of cluster IDs for words based on the glove data and then
   basically re-write documents looking up words.
 
+- Translate words to single main cluster number, translate words to multiple
+  numbers corresponding to most similar clusters
+
 ## Adding Token Context
 
 - TODO: How to add additional data representing token context, part of speech

@@ -1,5 +1,7 @@
+local err = require("santoku.err")
 local argparse = require("argparse")
 
+local init_db = require("tbhss.db")
 local glove = require("tbhss.glove")
 local cluster = require("tbhss.cluster")
 
@@ -22,12 +24,24 @@ c_convert
   :count(1)
 
 c_convert
-  :option("--num-clusters", "total number of clusters")
+  :option("--tag", "cache db tag")
+  :args(1)
+  :count("0-1")
+
+c_convert
+  :option("--db-file", "cache db file")
   :args(1)
   :count(1)
 
 c_convert
-  :option("--limit-words", "limit the number of words")
+  :option("--num-clusters", "total number of clusters")
+  :convert(tonumber)
+  :args(1)
+  :count(1)
+
+c_convert
+  :option("--max-iterations", "max iterations for clustering")
+  :convert(tonumber)
   :args(1)
   :count("0-1")
 
@@ -35,14 +49,18 @@ local args = parser:parse()
 
 if args.command == "convert-glove" then
 
-  local word_matrix, _, word_names = glove.load_vectors(
-    args.input,
-    args.limit_words and tonumber(args.limit_words) or nil)
+  local db = err.check(init_db(args.db_file))
 
-  local _, distance_matrix = cluster.cluster_vectors(
-    word_matrix,
-    tonumber(args.num_clusters),
-    args.max_iterations and tonumber(args.max_iterations) or nil)
+  local model =
+    err.check(db.get_model_by_tag(args.tag or args.input))
+
+  local model, word_matrix, _, word_names =
+    err.check(glove.load_vectors(db, model, args.input, args.tag))
+
+  local _, distance_matrix =
+    err.check(cluster.cluster_vectors(db, model, word_matrix,
+      args.num_clusters,
+      args.max_iterations))
 
   local handle = assert(io.open(args.output, "w"))
   local out = {}

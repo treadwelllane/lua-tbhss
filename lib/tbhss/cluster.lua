@@ -1,3 +1,4 @@
+local err = require("santoku.err")
 local blas = require("tbhss.blas")
 
 local M = {}
@@ -60,58 +61,116 @@ local function select_initial_clusters (word_matrix, n_clusters)
 
 end
 
-M.cluster_vectors = function (word_matrix, n_clusters, max_iterations)
+local function load_clusters_from_db (check, db, clustering)
 
-  local cluster_matrix, distance_matrix = select_initial_clusters(word_matrix, n_clusters)
+  print("Loading word clusters from database")
+
+  check(db.db:begin())
+
+  local total_words = check(db.get_total_words(clustering.id_model))
+  local distance_matrix = blas.matrix(total_words, clustering.clusters)
+  local word_clusters_max = {}
   local word_clusters = {}
-  local cluster_average_matrix = blas.matrix(0, 0)
 
-  local n = 1
+  check(db.get_word_clusters(clustering.id_model)):map(check):each(function (wc)
 
-  while true do
+    if not word_clusters[wc.name] or wc.similarity > word_clusters_max[wc.name] then
+      word_clusters[wc.name] = wc.id_cluster
+      word_clusters_max[wc.name] = wc.similarity
+    end
 
-    local words_changed = 0
-    local cluster_words = {}
+    distance_matrix:set(wc.id, wc.id_cluster, wc.similarity)
 
-    word_matrix:multiply(cluster_matrix, distance_matrix, { transpose_b = true })
+  end)
 
-    -- TODO: Move to C
+  check(db.db:commit())
+
+  print("Loaded:", distance_matrix:rows())
+
+  return word_clusters, distance_matrix
+
+end
+
+M.cluster_vectors = function (db, model, word_matrix, n_clusters, max_iterations)
+  return err.pwrap(function (check)
+
+    if not (model and model.words_loaded) then
+      check(false, "Words not loaded")
+    end
+
+    local clustering = check(db.get_clustering(model.id, n_clusters))
+
+    if clustering and clustering.words_clustered then
+      return load_clusters_from_db(check, db, clustering)
+    end
+
+    local id_clustering = check(db.add_clustering(model.id, n_clusters))
+
+    print("Clustering")
+
+    local cluster_matrix, distance_matrix = select_initial_clusters(word_matrix, n_clusters)
+    local word_clusters = {}
+    local cluster_average_matrix = blas.matrix(0, 0)
+
+    local num_iterations = 1
+
+    while true do
+
+      local words_changed = 0
+      local cluster_words = {}
+
+      word_matrix:multiply(cluster_matrix, distance_matrix, { transpose_b = true })
+
+      -- TODO: Move to C
+      for i = 1, distance_matrix:rows() do
+        local _, maxcol = distance_matrix:max(i)
+        if word_clusters[i] ~= maxcol then
+          words_changed = words_changed + 1
+          word_clusters[i] = maxcol
+        end
+        cluster_words[maxcol] = cluster_words[maxcol] or {}
+        cluster_words[maxcol][#cluster_words[maxcol] + 1] = i
+      end
+
+      if words_changed == 0 then
+        print("Converged")
+        break
+      end
+
+      for i = 1, cluster_matrix:rows() do
+        cluster_average_matrix:reshape(#cluster_words[i], word_matrix:columns())
+        for j = 1, #cluster_words[i] do
+          cluster_average_matrix:copy(word_matrix, cluster_words[i][j], cluster_words[i][j], j)
+        end
+        cluster_average_matrix:average(cluster_matrix, i)
+      end
+
+      cluster_matrix:normalize()
+
+      print("Iteration", num_iterations, "Words Changed", words_changed)
+
+      num_iterations = num_iterations + 1
+
+      if max_iterations and num_iterations > max_iterations then
+        break
+      end
+
+    end
+
+    print("Persisting cluster distances")
+
+    check(db.db:begin())
     for i = 1, distance_matrix:rows() do
-      local _, maxcol = distance_matrix:max(i)
-      if word_clusters[i] ~= maxcol then
-        words_changed = words_changed + 1
-        word_clusters[i] = maxcol
+      for j = 1, distance_matrix:columns() do
+        check(db.set_word_cluster_similarity(id_clustering, i, j, distance_matrix:get(i, j)))
       end
-      cluster_words[maxcol] = cluster_words[maxcol] or {}
-      cluster_words[maxcol][#cluster_words[maxcol] + 1] = i
     end
+    check(db.set_words_clustered(id_clustering, num_iterations))
+    check(db.db:commit())
 
-    if words_changed == 0 then
-      print("Converged")
-      break
-    end
+    return word_clusters, distance_matrix
 
-    for i = 1, cluster_matrix:rows() do
-      cluster_average_matrix:reshape(#cluster_words[i], word_matrix:columns())
-      for j = 1, #cluster_words[i] do
-        cluster_average_matrix:copy(word_matrix, cluster_words[i][j], cluster_words[i][j], j)
-      end
-      cluster_average_matrix:average(cluster_matrix, i)
-    end
-
-    cluster_matrix:normalize()
-
-    print("Iteration", n, "Words Changed", words_changed)
-
-    n = n + 1
-
-    if max_iterations and n > max_iterations then
-      break
-    end
-
-  end
-
-  return word_clusters, distance_matrix, cluster_matrix
+  end)
 
 end
 

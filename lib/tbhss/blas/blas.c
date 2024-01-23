@@ -324,13 +324,45 @@ int tbhss_blas_matrix_shape (lua_State *L)
   return 2;
 }
 
+int tbhss_blas_matrix_extend_raw (lua_State *L)
+{
+  lua_settop(L, 2);
+  tbhss_blas_matrix_t *m0 = tbhss_blas_matrix_peek(L, 1);
+  luaL_checktype(L, 2, LUA_TSTRING);
+  size_t size;
+  const char *data = lua_tolstring(L, 2, &size);
+  if (size % sizeof(double) != 0)
+    luaL_error(L, "Length of raw string is not a multiple of sizeof(double)");
+  size_t doubles = size / sizeof(double);
+  if (doubles % m0->columns != 0)
+    luaL_error(L, "Length of raw string is not a multiple of matrix columns");
+  size_t extend_rows = doubles / m0->columns;
+  size_t extend_rowstart = m0->rows + 1;
+  size_t newrows = m0->rows + extend_rows;
+  lua_pop(L, 1);
+  lua_pushinteger(L, newrows);
+  lua_pushinteger(L, m0->columns);
+  tbhss_blas_matrix_reshape(L);
+  m0 = tbhss_blas_matrix_peek(L, 1);
+  size_t idxextend = tbhss_blas_matrix_index(L, m0, extend_rowstart, 1);
+  memcpy(&m0->data[idxextend], data, size);
+  return 0;
+}
+
 int tbhss_blas_matrix_to_raw (lua_State *L)
 {
-  lua_settop(L, 1);
+  lua_settop(L, 3);
   tbhss_blas_matrix_t *m0 = tbhss_blas_matrix_peek(L, 1);
-  lua_pushlstring(L, (char *) m0->data, sizeof(double) * m0->rows * m0->columns);
-  tbhss_blas_matrix_shape(L);
-  return 3;
+  luaL_checktype(L, 2, LUA_TNUMBER);
+  luaL_checktype(L, 3, LUA_TNUMBER);
+  size_t rowstart = lua_tointeger(L, 2);
+  size_t rowend = lua_tointeger(L, 3);
+  if (rowstart > rowend)
+    luaL_error(L, "Error in copy: start row is greater than end row");
+  size_t idxstart = tbhss_blas_matrix_index(L, m0, rowstart, 1);
+  size_t idxend = tbhss_blas_matrix_index(L, m0, rowend, m0->columns);
+  lua_pushlstring(L, (char *) &m0->data[idxstart], sizeof(double) * (idxend - idxstart + 1));
+  return 1;
 }
 
 int tbhss_blas_matrix_from_raw (lua_State *L)
@@ -354,6 +386,7 @@ luaL_Reg tbhss_blas_fns[] =
   { "matrix", tbhss_blas_matrix },
   { "from_raw", tbhss_blas_matrix_from_raw },
   { "to_raw", tbhss_blas_matrix_to_raw },
+  { "extend_raw", tbhss_blas_matrix_extend_raw },
   { "get", tbhss_blas_matrix_get },
   { "set", tbhss_blas_matrix_set },
   { "shape", tbhss_blas_matrix_shape },
