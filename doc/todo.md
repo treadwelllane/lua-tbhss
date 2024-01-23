@@ -1,14 +1,16 @@
 # Now
 
+- Migrate write-to-file logic to separate command: export-txt
+- Migrate load words logic to separate command: load-glove-model
+- Migrate cluster logic to separate command: cluster-words
+
 - Command to ingest text files to sqlite, tag is file name by default
-- Command to export text files from sqlite by tag
 - Command to merge sqlite databases
-- Migrate write-to-file logic to separate command: export-file
-- Migrate load and process logic to separate command: cluster (takes tag name
-  as argument, picks up where left off, etc)
-- Command to generate bitmaps
-- Extend export text files to support exporting bitmaps
+- Command to generate bitmaps in DB
+- Command to write bitmaps to file
+
 - Support batching of max N words in memory
+- Support incremental runs (picking up where you left off)
 
 - Produce clusters for Glove 6B/42B 300D
     - 6B   50D   128   x
@@ -71,6 +73,15 @@
 - Move various inner loops to C (see cluster.lua TODOs)
 - Multi-processing
 - Fuzzy c-means clustering, update multi-cluster bitmap logic accordingly
+
+- Benchmarks
+  - TF-IDF standard
+  - TF-IDF (translate words to clusters)
+  - TF-IDF (translate words to multiple clusters)
+  - Average of word embeddings
+  - Bitmap Jaccard (single bit)
+  - Bitmap Jaccard (multi-bit randomized)
+  - Bitmap Jaccard (Tsetlin optimized)
 
 # Eventually
 

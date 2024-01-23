@@ -1,10 +1,8 @@
-local blas = require("tbhss.blas")
+-- local blas = require("tbhss.blas")
 
-local m0 = blas.matrix({ { 1, 2, 3 }, { 4, 5, 6 } })
+-- local m0 = blas.matrix({ { 1, 2, 3 }, { 4, 5, 6 } })
 
-print(m0)
-m0:add(2)
-print(m0)
+-- m0:add(2)
 
 -- print(m0)
 -- m0:normalize()

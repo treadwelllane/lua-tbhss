@@ -18,6 +18,10 @@ M.matrix = function (t, n, m)
     end
   end
 
+  if type(t) == "string" then
+    return blas.from_raw(t, n)
+  end
+
   if type(t) == "number" and type(n) == "number" then
     return blas.matrix(t, n)
   end
@@ -26,19 +30,19 @@ M.matrix = function (t, n, m)
     error("Unexpected non-table argument to matrix: " .. type(t))
   end
 
-  if #t < 1 then
-    error("Can't create a matrix with fewer than 1 rows")
+  if #t < 0 then
+    error("Can't create a matrix with fewer than 0 rows")
   end
 
-  if type(t[1]) ~= "table" then
+  if type(t[1]) ~= nil and type(t[1]) ~= "table" then
     error("Unexpected non-table argument to matrix: " .. type(t[1]))
   end
 
-  if #t[1] < 1 then
-    error("Can't create a matrix with fewer than 1 column")
+  if t[1] and #t[1] < 0 then
+    error("Can't create a matrix with fewer than 0 columns")
   end
 
-  local m = blas.matrix(#t, #t[1])
+  local m = blas.matrix(#t, t[1] and #t[1] or 0)
 
   local rows, columns = m:shape()
 
@@ -89,6 +93,11 @@ IDX.extend = function (m, t, rowstart, rowend)
     return m
   end
 
+  if type(t) == "string" then
+    blas.extend_raw(m, t)
+    return m
+  end
+
   if type(t) == "number" then
     blas.reshape(m, m:rows() + t, m:columns())
     return m
@@ -124,6 +133,7 @@ IDX.extend = function (m, t, rowstart, rowend)
 
 end
 
+-- TODO: Loop in C
 IDX.normalize = function (m, rowstart, rowend)
   if rowstart == nil and rowend == nil then
     rowstart = 1
@@ -134,6 +144,16 @@ IDX.normalize = function (m, rowstart, rowend)
   for i = rowstart, rowend do
     m:multiply(i, 1 / m:magnitude(i))
   end
+end
+
+IDX.raw = function (m, rowstart, rowend)
+  if rowstart == nil and rowend == nil then
+    rowstart = 1
+    rowend = m:rows()
+  elseif rowstart ~= nil and rowend == nil then
+    rowend = rowstart
+  end
+  return blas.to_raw(m, rowstart, rowend)
 end
 
 IDX.add = function (a, b, c, d)
