@@ -408,6 +408,8 @@ int luaopen_tbhss_blas_blas (lua_State *L)
   lua_newtable(L); // t
   luaL_register(L, NULL, tbhss_blas_fns); // t
   luaL_newmetatable(L, TBHSS_BLAS_MATRIX_MT); // t mt
+  lua_pushcfunction(L, tbhss_blas_matrix_gc);
+  lua_setfield(L, -2, "__gc");
   lua_pushvalue(L, -1); // t mt mt
   lua_setfield(L, -3, "mt_matrix"); // t mt
   lua_pop(L, 1); // t
