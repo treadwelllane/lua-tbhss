@@ -28,5 +28,5 @@ create table clusters (
   id_word integer references words (id) on delete cascade,
   id_cluster integer not null,
   similarity real not null,
-  primary key (id_cluster, id_word)
+  primary key (id_clustering, id_cluster, id_word)
 );

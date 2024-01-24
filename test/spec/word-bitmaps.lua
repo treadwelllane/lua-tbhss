@@ -14,6 +14,8 @@ err.check(err.pwrap(function(check)
 
   check(fs.mkdirp(fs.dirname(db_file)))
   check(fs.rm(db_file, true))
+  check(fs.rm(db_file .. "-wal", true))
+  check(fs.rm(db_file .. "-shm", true))
 
   local db = check(init_db(db_file))
   local model, word_matrix = check(glove.load_vectors(db, nil, glove_file, nil))

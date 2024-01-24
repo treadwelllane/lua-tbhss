@@ -100,7 +100,7 @@ M.cluster_vectors = function (db, model, word_matrix, n_clusters, max_iterations
 
     local clustering = check(db.get_clustering(model.id, n_clusters))
 
-    if clustering and clustering.words_clustered then
+    if clustering and clustering.words_clustered == 1 then
       return load_clusters_from_db(check, db, clustering)
     end
 
