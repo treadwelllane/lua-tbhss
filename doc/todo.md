@@ -1,5 +1,7 @@
 # Now
 
+- set_words_clustered not working, but simple exec does
+
 - Migrate write-to-file logic to separate command: export-txt
 - Migrate load words logic to separate command: load-glove-model
 - Migrate cluster logic to separate command: cluster-words
