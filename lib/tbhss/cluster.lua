@@ -104,8 +104,6 @@ M.cluster_vectors = function (db, model, word_matrix, n_clusters, max_iterations
       return load_clusters_from_db(check, db, clustering)
     end
 
-    local id_clustering = check(db.add_clustering(model.id, n_clusters))
-
     print("Clustering")
 
     local cluster_matrix, distance_matrix = select_initial_clusters(word_matrix, n_clusters)
@@ -160,11 +158,17 @@ M.cluster_vectors = function (db, model, word_matrix, n_clusters, max_iterations
     print("Persisting cluster distances")
 
     check(db.db:begin())
+
+    local id_clustering = clustering
+      and clustering.id
+      or check(db.add_clustering(model.id, n_clusters))
+
     for i = 1, distance_matrix:rows() do
       for j = 1, distance_matrix:columns() do
         check(db.set_word_cluster_similarity(id_clustering, i, j, distance_matrix:get(i, j)))
       end
     end
+
     check(db.set_words_clustered(id_clustering, num_iterations))
     check(db.db:commit())
 

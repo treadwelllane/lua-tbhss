@@ -1,6 +1,6 @@
 # Now
 
-- set_words_clustered not working, but simple exec does
+- ensure commit is rolled back on error via pwrap handler
 
 - Migrate write-to-file logic to separate command: export-txt
 - Migrate load words logic to separate command: load-glove-model
