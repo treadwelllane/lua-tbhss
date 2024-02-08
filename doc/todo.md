@@ -1,7 +1,5 @@
 # Now
 
-- ensure commit is rolled back on error via pwrap handler
-
 - Migrate write-to-file logic to separate command: export-txt
 - Migrate load words logic to separate command: load-glove-model
 - Migrate cluster logic to separate command: cluster-words

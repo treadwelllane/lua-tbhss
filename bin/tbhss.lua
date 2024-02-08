@@ -1,9 +1,12 @@
-local err = require("santoku.err")
 local argparse = require("argparse")
 
 local init_db = require("tbhss.db")
 local glove = require("tbhss.glove")
 local cluster = require("tbhss.cluster")
+
+local fs = require("santoku.fs")
+local arr = require("santoku.array")
+local mtx = require("tbhss.blas")
 
 local parser = argparse()
   :name("tbhss")
@@ -49,34 +52,35 @@ local args = parser:parse()
 
 if args.command == "convert-glove" then
 
-  local db = err.check(init_db(args.db_file))
+  local db = init_db(args.db_file)
 
   local model =
-    err.check(db.get_model_by_tag(args.tag or args.input))
+    db.get_model_by_tag(args.tag or args.input)
 
   local model, word_matrix, _, word_names =
-    err.check(glove.load_vectors(db, model, args.input, args.tag))
+    glove.load_vectors(db, model, args.input, args.tag)
 
   local _, distance_matrix =
-    err.check(cluster.cluster_vectors(db, model, word_matrix,
+    cluster.cluster_vectors(db, model, word_matrix,
       args.num_clusters,
-      args.max_iterations))
+      args.max_iterations)
 
-  local handle = assert(io.open(args.output, "w"))
+  print("Writing output file")
+
   local out = {}
 
-  for i = 1, distance_matrix:rows() do
-    if i > 1 then
-      handle:write("\n")
+  fs.with(args.output, "w", function (fh)
+    for i = 1, mtx.rows(distance_matrix) do
+      if i > 1 then
+        fs.write(fh, "\n")
+      end
+      out[1] = word_names[i]
+      for j = 1, mtx.columns(distance_matrix) do
+        out[1 + (j * 2 - 1)] = j
+        out[1 + (j * 2)] = mtx.get(distance_matrix, i, j)
+      end
+      fs.write(fh, arr.concat(out, "\t"))
     end
-    out[1] = word_names[i]
-    for j = 1, distance_matrix:columns() do
-      out[1 + (j * 2 - 1)] = j
-      out[1 + (j * 2)] = distance_matrix:get(i, j)
-    end
-    handle:write(table.concat(out, "\t"))
-  end
-
-  handle:close()
+  end)
 
 end

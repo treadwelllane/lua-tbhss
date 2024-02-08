@@ -1,96 +1,135 @@
-local fs = require("santoku.fs")
-local err = require("santoku.err")
-local str = require("santoku.string")
-local vec = require("santoku.vector")
+local err = require("santoku.error")
+local error = err.error
+local assert = err.assert
+
 local blas = require("tbhss.blas")
+local matrix = blas.matrix
+local mreshape = blas.reshape
+local mextend = blas.extend
+local mset = blas.set
+local mrows = blas.rows
+local mcolumns = blas.columns
+local mnormalize = blas.normalize
+local mto_raw = blas.to_raw
 
-local M = {}
+local fs = require("santoku.fs")
+local flines = fs.lines
 
-local function load_vectors_from_file (check, db, model, glove_file, tag)
+local varg = require("santoku.varg")
+local vtup = varg.tup
+
+local str = require("santoku.string")
+local smatch = str.match
+local ssub = str.sub
+local snumber = str.number
+
+local iter = require("santoku.iter")
+local imap = iter.map
+local icollect = iter.collect
+
+local function load_vectors_from_file (db, model, glove_file, tag)
+
+  local add_model = db.add_model
+  local get_model_by_id = db.get_model_by_id
+  local add_word = db.add_word
+  local set_words_loaded = db.set_words_loaded
 
   print("Loading words from file:", glove_file)
 
   local word_numbers = {}
-  local word_names = vec()
-  local word_matrix = blas.matrix(0, 0)
-  local n_dims = 0
+  local word_names = {}
+  local n_dims = nil
+  local floats = {}
 
-  check(fs.lines(glove_file)):each(function (line)
+  local mtx = matrix(0, 0)
 
-    local floats = str.split(line)
-    local word = floats[1]
-    floats:remove(1, 1):map(tonumber)
+  for line, s, e in flines(glove_file) do
 
-    if word_names.n > 0 and floats.n ~= n_dims then
-      error("Wrong number of dimensions for vector #" .. word_names.n .. ": " .. floats.n)
-    elseif word_names.n == 0 then
-      word_matrix:reshape(word_names.n, floats.n)
-      n_dims = floats.n
+    local chunks = smatch(line, "%S+", false, s, e)
+    local word = ssub(chunks())
+
+    icollect(imap(snumber, chunks), floats, 1)
+
+    if #word_names > 0 and #floats ~= n_dims then
+      error("Wrong number of dimensions for vector", #word_names, #floats)
+    elseif #word_names == 0 then
+      mreshape(mtx, #word_names, #floats)
+      n_dims = #floats
     end
 
-    word_names:append(word)
-    word_numbers[word] = word_names.n
-    word_matrix:extend({ floats })
+    word_names[#word_names + 1] = word
+    word_numbers[word] = #word_names
+    mreshape(mtx, mrows(mtx) + 1, n_dims)
+    mset(mtx, #word_names, floats)
 
-    if word_matrix:rows() % 5000 == 0 then
-      print("Loaded:", word_matrix:rows())
+    if mrows(mtx) % 5000 == 0 then
+      print("Loaded:", mrows(mtx))
     end
 
-  end)
+  end
 
-  word_matrix:normalize()
+  mnormalize(mtx)
 
-  print("Loaded:", word_matrix:rows())
+  print("Loaded:", mrows(mtx), mcolumns(mtx))
   print("Persisting word vectors")
 
-  check(db.db:begin())
-  if not model then
-    local id_model = check(db.add_model(tag or glove_file, n_dims))
-    model = check(db.get_model_by_id(id_model))
-  end
-  for i = 1, word_matrix:rows() do
-    check(db.add_word(model.id, word_names[i], i, word_matrix:raw(i)))
-  end
-  check(db.set_words_loaded(model.id))
-  check(db.db:commit())
+  local id_model = model and model.id
 
-  return model, word_matrix, word_numbers, word_names
+  if not id_model then
+    id_model = add_model(tag or glove_file, n_dims)
+    model = get_model_by_id(id_model)
+  end
+
+  for i = 1, mrows(mtx) do
+    add_word(id_model, word_names[i], i, mto_raw(mtx, i))
+  end
+
+  set_words_loaded(id_model)
+
+  return model, mtx, word_numbers, word_names
 
 end
 
-local function load_vectors_from_db (check, db, model)
+local function load_vectors_from_db (db, model)
 
   print("Loading words from database")
 
   local word_matrix = blas.matrix(0, model.dimensions)
   local word_numbers = {}
-  local word_names = vec()
+  local word_names = {}
 
-  check(db.db:begin())
-  check(db.get_words(model.id)):map(check):each(function (word)
-    word_matrix:extend(word.vector)
-    word_names:append(word.name)
-    assert(word_names.n == word.id, "Word order/id mismatch")
+  for word in db.get_words(model.id) do
+    mextend(word_matrix, word.vector)
+    word_names[#word_names + 1] = word.name
+    assert(#word_names == word.id, "Word order/id mismatch")
     word_numbers[word.name] = word.id
-  end)
-  check(db.db:commit())
+  end
 
-  print("Loaded:", word_matrix:rows())
+  print("Loaded:", mrows(word_matrix))
 
   return model, word_matrix, word_numbers, word_names
 
 end
 
-M.load_vectors = function (db, model, glove_file, tag)
-  return err.pwrap(function (check)
-
-    if model and model.words_loaded == 1 then
-      return load_vectors_from_db(check, db, model)
+local function load_vectors (db, model, glove_file, tag)
+  db.begin()
+  return vtup(function (ok, ...)
+    if not ok then
+      db.rollback()
+      error(...)
     else
-      return load_vectors_from_file(check, db, model, glove_file, tag)
+      db.commit()
+      return ...
     end
-
-  end)
+  end, pcall(function ()
+    if model and model.words_loaded == 1 then
+      return load_vectors_from_db(db, model)
+    else
+      return load_vectors_from_file(db, model, glove_file, tag)
+    end
+  end))
 end
 
-return M
+return {
+  load_vectors = load_vectors
+}

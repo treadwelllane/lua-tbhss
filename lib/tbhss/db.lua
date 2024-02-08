@@ -1,108 +1,125 @@
+<%
+    fs = require("santoku.fs")
+    files = fs.files
+    basename = fs.basename
+
+    iter = require("santoku.iter")
+    tabulate = iter.tabulate
+    map = iter.map
+
+    serialize = require("santoku.serialize")
+%>
+
 local sqlite = require("santoku.sqlite")
+local open = sqlite.open
+
 local migrate = require("santoku.sqlite.migrate")
-local err = require("santoku.err")
 
 return function (db_file)
-  return err.pwrap(function (check)
 
-    local db = check(sqlite.open(db_file))
+  local db = open(db_file)
+  local exec = db.exec
+  local inserter = db.inserter
+  local runner = db.runner
+  local getter = db.getter
+  local iter = db.iter
+  local begin = db.begin
+  local commit = db.commit
+  local rollback = db.rollback
 
-    check(db:exec("pragma journal_mode = WAL"))
-    check(db:exec("pragma synchronous = NORMAL"))
+  exec("pragma journal_mode = WAL")
+  exec("pragma synchronous = NORMAL")
 
-    check(migrate.migrate(db, <%
-      local fs = require("santoku.fs")
-      local str = require("santoku.string")
-      local serialize = require("santoku.serialize")
-      return serialize(fs.files("res/migrations")
-        :map(check)
-        :map(function (fp)
-          template.deps:append(fp)
-          return fs.basename(fp), check(fs.readfile(fp))
-        end)
-        :tabulate()), { prefix = false }
-    %>)) -- luacheck: ignore
+  -- luacheck: push ignore
+  migrate(db, <%
+    return serialize(tabulate(map(function (fp)
+      return basename(fp), readfile(fp)
+    end, files("res/migrations")))), false
+  %>)
+  -- luacheck: pop
 
-    local M = { db = db }
+  return {
 
-    M.add_model = check(db:inserter([[
+    begin = begin,
+    commit = commit,
+    rollback = rollback,
+
+    add_model = inserter([[
       insert into models (tag, dimensions)
       values (?, ?)
-    ]]))
+    ]]),
 
-    M.add_clustering = check(db:inserter([[
+    add_clustering = inserter([[
       insert into clusterings (id_model, clusters)
       values (?, ?)
-    ]]))
+    ]]),
 
-    M.set_words_loaded = check(db:runner([[
+    set_words_loaded = runner([[
       update models
       set words_loaded = true
       where id = ?
-    ]]))
+    ]]),
 
-    M.set_words_clustered = check(db:runner([[
+    set_words_clustered = runner([[
       update clusterings
       set words_clustered = true,
           iterations = ?2
       where id = ?1
-    ]]))
+    ]]),
 
-    M.get_model_by_tag = check(db:getter([[
+    get_model_by_tag = getter([[
       select *
       from models
       where tag = ?
-    ]]))
+    ]]),
 
-    M.get_model_by_id = check(db:getter([[
+    get_model_by_id = getter([[
       select *
       from models
       where id = ?
-    ]]))
+    ]]),
 
-    M.get_clustering = check(db:getter([[
+    get_clustering = getter([[
       select *
       from clusterings
       where id_model = ?
       and clusters = ?
-    ]]))
+    ]]),
 
-    M.add_word = check(db:inserter([[
+    add_word = inserter([[
       insert into words (id_model, name, id, vector)
       values (?, ?, ?, ?)
-    ]]))
+    ]]),
 
-    M.set_word_cluster_similarity = check(db:inserter([[
+    set_word_cluster_similarity = inserter([[
       insert into clusters (id_clustering, id_word, id_cluster, similarity)
       values (?, ?, ?, ?)
-    ]]))
+    ]]),
 
-    M.get_words = check(db:iter([[
+    get_words = iter([[
       select id, name, vector from words
       where id_model = ?
       order by id asc
-    ]]))
+    ]]),
 
-    M.get_total_words = check(db:getter([[
+    get_total_words = getter([[
       select count(*) as n
       from words
       where id_model = ?
-    ]], "n"))
+    ]], "n"),
 
-    M.get_word_clusters = check(db:iter([[
+    get_word_clusters = iter([[
       select w.name, w.id, c.id_cluster, c.similarity
       from models m, words w, clusters c
       where m.tag = ?
       and w.id_model = m.id
       and c.id_word = w.id
-    ]]))
+    ]]),
 
-    M.delete_model_by_tag = check(db:runner([[
+    delete_model_by_tag = runner([[
       delete from models
       where tag = ?
-    ]]))
+    ]]),
 
-    return M
-
-  end)
+  }
 end

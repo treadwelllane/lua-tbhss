@@ -1,14 +1,33 @@
-local err = require("santoku.err")
 local blas = require("tbhss.blas")
+local matrix = blas.matrix
+local mreshape = blas.reshape
+local mcopy = blas.copy
+local mcolumns = blas.columns
+local maverage = blas.average
+local mget = blas.get
+local mmultiply = blas.multiply
+local mrmax = blas.rmax
+local msum = blas.sum
+local mextend = blas.extend
+local mset = blas.set
+local mrows = blas.rows
+local mnormalize = blas.normalize
 
-local M = {}
+local err = require("santoku.error")
+local error = err.error
+
+local varg = require("santoku.varg")
+local vtup = varg.tup
+
+local rand = require("santoku.random")
+local random = rand.num
 
 -- TODO: Move to C
 local function weighted_random_choice (probabilities, ids)
-  local r = math.random()
+  local r = random()
   local sum = 0
-  for i = 1, probabilities:columns() do
-    sum = sum + probabilities:get(1, i)
+  for i = 1, mcolumns(probabilities) do
+    sum = sum + mget(probabilities, 1, i)
     if r <= sum then
       return ids[i]
     end
@@ -17,43 +36,44 @@ end
 
 local function select_initial_clusters (word_matrix, n_clusters)
 
-  local first = math.random(1, word_matrix:rows())
+  local first = random(1, mrows(word_matrix))
 
   local ignores = { [first] = true }
-  local cluster_matrix = blas.matrix(word_matrix, first, first)
-  local distance_matrix = blas.matrix(word_matrix:rows(), cluster_matrix:rows())
+  local cluster_matrix = matrix(word_matrix, first, first)
+  local distance_matrix = matrix(mrows(word_matrix), mrows(cluster_matrix))
+  local distances = matrix(1, 0)
+  local ids = {}
+  local n_ids
 
-  print("Find Initial Centroids", cluster_matrix:rows(), first)
+  print("Find Initial Centroids", mrows(cluster_matrix), first)
 
   for _ = 1, n_clusters - 1 do
 
-    word_matrix:multiply(cluster_matrix, distance_matrix, { transpose_b = true })
-
-    local sum = 0
-    local distances = {}
-    local ids = {}
+    n_ids = 0
+    mmultiply(word_matrix, cluster_matrix, distance_matrix, false, true)
 
     -- TODO: Move to C
-    for i = 1, distance_matrix:rows() do
+    for i = 1, mrows(distance_matrix) do
       if not ignores[i] then
-        local maxval = distance_matrix:max(i)
-        distances[#distances + 1] = 1 - maxval
-        ids[#ids + 1] = i
-        sum = sum + 1 - maxval
+        n_ids = n_ids + 1
+        ids[n_ids] = i
+        local maxval = mrmax(distance_matrix, i)
+        mreshape(distances, 1, n_ids)
+        mset(distances, 1, n_ids, 1 - maxval)
       end
     end
 
-    distances = blas.matrix({ distances })
-    distances:multiply(1 / sum)
+    local sum = msum(distances)
+    mmultiply(distances, 1 / sum)
 
     -- TODO: Move to C
     local i = weighted_random_choice(distances, ids)
 
     ignores[i] = true
-    cluster_matrix:extend(word_matrix, i, i)
-    distance_matrix:reshape(word_matrix:rows(), cluster_matrix:rows())
+    mextend(cluster_matrix, word_matrix, i, i)
+    mreshape(distance_matrix, mrows(word_matrix), mrows(cluster_matrix))
 
-    print("Find Initial Centroids", cluster_matrix:rows(), i)
+    print("Find Initial Centroids", mrows(cluster_matrix), i)
 
   end
 
@@ -61,54 +81,61 @@ local function select_initial_clusters (word_matrix, n_clusters)
 
 end
 
-local function load_clusters_from_db (check, db, clustering)
+local function load_clusters_from_db (db, clustering)
 
   print("Loading word clusters from database")
 
-  check(db.db:begin())
-
-  local total_words = check(db.get_total_words(clustering.id_model))
-  local distance_matrix = blas.matrix(total_words, clustering.clusters)
+  local total_words = db.get_total_words(clustering.id_model)
+  local distance_matrix = matrix(total_words, clustering.clusters)
   local word_clusters_max = {}
   local word_clusters = {}
 
-  check(db.get_word_clusters(clustering.id_model)):map(check):each(function (wc)
+  for wc in db.get_word_clusters(clustering.id_model) do
 
     if not word_clusters[wc.name] or wc.similarity > word_clusters_max[wc.name] then
       word_clusters[wc.name] = wc.id_cluster
       word_clusters_max[wc.name] = wc.similarity
     end
 
-    distance_matrix:set(wc.id, wc.id_cluster, wc.similarity)
+    mset(distance_matrix, wc.id, wc.id_cluster, wc.similarity)
 
-  end)
+  end
 
-  check(db.db:commit())
-
-  print("Loaded:", distance_matrix:rows())
+  print("Loaded:", mrows(distance_matrix))
 
   return word_clusters, distance_matrix
 
 end
 
-M.cluster_vectors = function (db, model, word_matrix, n_clusters, max_iterations)
-  return err.pwrap(function (check)
+local function cluster_vectors (db, model, word_matrix, n_clusters, max_iterations)
+
+  db.begin()
+
+  return vtup(function (ok, ...)
+    if not ok then
+      db.rollback()
+      error(...)
+    else
+      db.commit()
+      return ...
+    end
+  end, pcall(function ()
 
     if not (model and model.words_loaded) then
-      check(false, "Words not loaded")
+      error("Words not loaded")
     end
 
-    local clustering = check(db.get_clustering(model.id, n_clusters))
+    local clustering = db.get_clustering(model.id, n_clusters)
 
     if clustering and clustering.words_clustered == 1 then
-      return load_clusters_from_db(check, db, clustering)
+      return load_clusters_from_db(db, clustering)
     end
 
     print("Clustering")
 
     local cluster_matrix, distance_matrix = select_initial_clusters(word_matrix, n_clusters)
     local word_clusters = {}
-    local cluster_average_matrix = blas.matrix(0, 0)
+    local cluster_average_matrix = matrix(0, 0)
 
     local num_iterations = 1
 
@@ -117,11 +144,11 @@ M.cluster_vectors = function (db, model, word_matrix, n_clusters, max_iterations
       local words_changed = 0
       local cluster_words = {}
 
-      word_matrix:multiply(cluster_matrix, distance_matrix, { transpose_b = true })
+      mmultiply(word_matrix, cluster_matrix, distance_matrix, false, true)
 
       -- TODO: Move to C
-      for i = 1, distance_matrix:rows() do
-        local _, maxcol = distance_matrix:max(i)
+      for i = 1, mrows(distance_matrix) do
+        local _, maxcol = mrmax(distance_matrix, i)
         if word_clusters[i] ~= maxcol then
           words_changed = words_changed + 1
           word_clusters[i] = maxcol
@@ -135,15 +162,15 @@ M.cluster_vectors = function (db, model, word_matrix, n_clusters, max_iterations
         break
       end
 
-      for i = 1, cluster_matrix:rows() do
-        cluster_average_matrix:reshape(#cluster_words[i], word_matrix:columns())
+      for i = 1, mrows(cluster_matrix) do
+        mreshape(cluster_average_matrix, #cluster_words[i], mcolumns(word_matrix))
         for j = 1, #cluster_words[i] do
-          cluster_average_matrix:copy(word_matrix, cluster_words[i][j], cluster_words[i][j], j)
+          mcopy(cluster_average_matrix, word_matrix, cluster_words[i][j], cluster_words[i][j], j)
         end
-        cluster_average_matrix:average(cluster_matrix, i)
+        maverage(cluster_average_matrix, cluster_matrix, i)
       end
 
-      cluster_matrix:normalize()
+      mnormalize(cluster_matrix)
 
       print("Iteration", num_iterations, "Words Changed", words_changed)
 
@@ -157,25 +184,24 @@ M.cluster_vectors = function (db, model, word_matrix, n_clusters, max_iterations
 
     print("Persisting cluster distances")
 
-    check(db.db:begin())
-
     local id_clustering = clustering
       and clustering.id
-      or check(db.add_clustering(model.id, n_clusters))
+      or db.add_clustering(model.id, n_clusters)
 
-    for i = 1, distance_matrix:rows() do
-      for j = 1, distance_matrix:columns() do
-        check(db.set_word_cluster_similarity(id_clustering, i, j, distance_matrix:get(i, j)))
+    for i = 1, mrows(distance_matrix) do
+      for j = 1, mcolumns(distance_matrix) do
+        db.set_word_cluster_similarity(id_clustering, i, j, mget(distance_matrix, i, j))
       end
     end
 
-    check(db.set_words_clustered(id_clustering, num_iterations))
-    check(db.db:commit())
+    db.set_words_clustered(id_clustering, num_iterations)
 
     return word_clusters, distance_matrix
 
-  end)
+  end))
 
 end
 
-return M
+return {
+  cluster_vectors = cluster_vectors
+}

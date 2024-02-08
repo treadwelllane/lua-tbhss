@@ -1,22 +1,5 @@
--- local blas = require("tbhss.blas")
+-- local gen = require("santoku.gen")
 
--- local m0 = blas.matrix({ { 1, 2, 3 }, { 4, 5, 6 } })
+-- local v = gen.pack(1, 2, 3):vec()
 
--- m0:add(2)
-
--- print(m0)
--- m0:normalize()
--- print(m0)
--- m0:normalize()
--- print(m0)
--- m0:normalize()
--- print(m0)
-
--- m0:average(m1, 1)
-
--- print(m1)
-
--- m:normalize()
-
--- print(m)
--- print(m:shape())
+-- print(v.n, v[1], v[2], v[3], v[4])

@@ -1,29 +1,57 @@
 local blas = require("tbhss.blas.blas")
+local mt_matrix = blas.mt_matrix
+local bmatrix = blas.matrix
+local bset = blas.set
+local bsums = blas.sums
+local bcopy = blas.copy
+local breshape = blas.reshape
+local bextend_raw = blas.extend_raw
+local brows = blas.rows
+local bcolumns = blas.columns
+local bmagnitude = blas.magnitude
+local bradd = blas.radd
+local bsum = blas.sum
+local bto_raw = blas.to_raw
+local bmmult = blas.mmult
+local brmult = blas.rmult
+local bget = blas.get
+local bshape = blas.shape
+local bfrom_raw = blas.from_raw
 
-local M = {}
-local IDX = {}
-blas.mt_matrix.__index = IDX
+local validate = require("santoku.validate")
+local isnumber = validate.isnumber
+local hasmeta = validate.hasmetatable
+local hasindex = validate.hasindex
+local ge = validate.ge
 
-M.matrix = function (t, n, m)
+local tbl = require("santoku.table")
+local assign = tbl.assign
 
-  if getmetatable(t) == blas.mt_matrix then
+local arr = require("santoku.array")
+local acat = arr.concat
+
+local sformat = string.format
+
+local function matrix (t, n, m)
+
+  if hasmeta(t, mt_matrix) then
     if n ~= nil then
-      local t0 = blas.matrix(m - n + 1, t:columns())
-      t0:copy(t, n, m, 1)
+      local t0 = matrix(m - n + 1, bcolumns(t))
+      bcopy(t0, t, n, m, 1)
       return t0
     else
-      local t0 = blas.matrix(t:rows(), t:columns())
-      t0:copy(t, 1, t:rows(), 1)
+      local t0 = matrix(brows(t), bcolumns(t))
+      bcopy(t0, t, 1, brows(t), 1)
       return t0
     end
   end
 
   if type(t) == "string" then
-    return blas.from_raw(t, n)
+    return bfrom_raw(t, n)
   end
 
   if type(t) == "number" and type(n) == "number" then
-    return blas.matrix(t, n)
+    return bmatrix(t, n)
   end
 
   if type(t) ~= "table" then
@@ -42,13 +70,13 @@ M.matrix = function (t, n, m)
     error("Can't create a matrix with fewer than 0 columns")
   end
 
-  local m = blas.matrix(#t, t[1] and #t[1] or 0)
+  local m = matrix(#t, t[1] and #t[1] or 0)
 
-  local rows, columns = m:shape()
+  local rows, columns = bshape(m)
 
   for i = 1, rows do
     for j = 1, columns do
-      m:set(i, j, t[i][j])
+      bset(m, i, j, t[i][j])
     end
   end
 
@@ -56,50 +84,24 @@ M.matrix = function (t, n, m)
 
 end
 
-IDX.shape = blas.shape
+local function extend (m, t, rowstart, rowend)
 
-IDX.rows = function (m)
-  return (m:shape())
-end
-
-IDX.columns = function (m)
-  return (select(2, m:shape()))
-end
-
--- TODO: Allow these to operate on whole matrix
-IDX.max = blas.rmax
-IDX.amax = blas.ramax
-
-IDX.set = blas.set
-IDX.get = blas.get
-IDX.reshape = blas.reshape
-IDX.copy = blas.copy
-IDX.sums = blas.sums
-
-IDX.average = function (m, d, row)
-  m:sums(d, row)
-  d:multiply(row, 1 / m:rows())
-  return d
-end
-
-IDX.extend = function (m, t, rowstart, rowend)
-
-  if getmetatable(t) == blas.mt_matrix then
-    local mrows = m:rows()
+  if getmetatable(t) == mt_matrix then
+    local mrows = brows(m)
     rowstart = rowstart or 1
-    rowend = rowend or t:rows()
-    blas.reshape(m, m:rows() + rowend - rowstart + 1, m:columns())
-    m:copy(t, rowstart, rowend, mrows + 1)
+    rowend = rowend or brows(t)
+    breshape(m, brows(m) + rowend - rowstart + 1, bcolumns(m))
+    bcopy(m, t, rowstart, rowend, mrows + 1)
     return m
   end
 
   if type(t) == "string" then
-    blas.extend_raw(m, t)
+    bextend_raw(m, t)
     return m
   end
 
   if type(t) == "number" then
-    blas.reshape(m, m:rows() + t, m:columns())
+    breshape(m, brows(m) + t, bcolumns(m))
     return m
   end
 
@@ -109,22 +111,22 @@ IDX.extend = function (m, t, rowstart, rowend)
 
   if type(t[1]) == "table" then
 
-    local rows = m:rows()
+    local rows = brows(m)
 
-    blas.reshape(m, m:rows() + #t, m:columns())
+    breshape(m, brows(m) + #t, bcolumns(m))
 
     for i = 1, #t do
-      for j = 1, m:columns() do
-        m:set(rows + i, j, t[i][j])
+      for j = 1, bcolumns(m) do
+        bset(m, rows + i, j, t[i][j])
       end
     end
 
   else
 
-    blas.reshape(m, m:rows() + 1, m:columns())
+    breshape(m, brows(m) + 1, bcolumns(m))
 
     for i = 1, #t do
-      m:set(m:rows(), i, t[i])
+      bset(m, brows(m), i, t[i])
     end
 
   end
@@ -133,32 +135,44 @@ IDX.extend = function (m, t, rowstart, rowend)
 
 end
 
--- TODO: Loop in C
-IDX.normalize = function (m, rowstart, rowend)
-  if rowstart == nil and rowend == nil then
-    rowstart = 1
-    rowend = m:rows()
-  elseif rowstart ~= nil and rowend == nil then
-    rowend = rowstart
-  end
-  for i = rowstart, rowend do
-    m:multiply(i, 1 / m:magnitude(i))
+local function set (m, r, c, v)
+  assert(isnumber(r))
+  assert(ge(r, 1))
+  if isnumber(c) then
+    bset(m, r, c, v)
+    return m
+  else
+    assert(hasindex(c))
+    for i = 1, #c do
+      bset(m, r, i, c[i])
+    end
+    return m
   end
 end
 
-IDX.raw = function (m, rowstart, rowend)
+local function to_raw (m, rowstart, rowend)
   if rowstart == nil and rowend == nil then
     rowstart = 1
-    rowend = m:rows()
+    rowend = brows(m)
   elseif rowstart ~= nil and rowend == nil then
     rowend = rowstart
   end
-  return blas.to_raw(m, rowstart, rowend)
+  return bto_raw(m, rowstart, rowend)
 end
 
-IDX.add = function (a, b, c, d)
+local function sum (m, rowstart, rowend)
+  if rowstart == nil and rowend == nil then
+    rowstart = 1
+    rowend = brows(m)
+  elseif rowstart ~= nil and rowend == nil then
+    rowend = rowstart
+  end
+  return bsum(m, rowstart, rowend)
+end
+
+local function add (a, b, c, d)
   local rowstart = 1
-  local rowend = a:rows()
+  local rowend = brows(a)
   local add = nil
   if b and c and d then
     rowstart = b
@@ -171,17 +185,17 @@ IDX.add = function (a, b, c, d)
   elseif b then
     add = b
   end
-  blas.radd(a, rowstart, rowend, add)
+  bradd(a, rowstart, rowend, add)
   return a
 end
 
-IDX.multiply = function (a, b, c, d)
-  if getmetatable(b) == blas.mt_matrix then
-    blas.mmult(a, b, c, d and d.transpose_a, d and d.transpose_b)
+local function multiply (a, b, c, d, e)
+  if getmetatable(b) == mt_matrix then
+    bmmult(a, b, c, d, e)
     return c
   else
     local rowstart = 1
-    local rowend = a:rows()
+    local rowend = brows(a)
     local mult = nil
     if b and c and d then
       rowstart = b
@@ -194,24 +208,50 @@ IDX.multiply = function (a, b, c, d)
     elseif b then
       mult = b
     end
-    blas.rmult(a, rowstart, rowend, mult)
+    brmult(a, rowstart, rowend, mult)
     return a
   end
 end
 
-IDX.magnitude = blas.magnitude
+local function average (m, d, row)
+  bsums(m, d, row)
+  multiply(d, row, 1 / brows(m))
+  return d
+end
 
-blas.mt_matrix.__tostring = function (m)
-  local out = { "matrix(", m:rows(), ", ", m:columns(), ") " }
-  for i = 1, m:rows() do
-    for j = 1, m:columns() do
-      out[#out + 1] = string.format("%.2f", m:get(i, j))
+local function normalize (m, rowstart, rowend)
+  if rowstart == nil and rowend == nil then
+    rowstart = 1
+    rowend = brows(m)
+  elseif rowstart ~= nil and rowend == nil then
+    rowend = rowstart
+  end
+  for i = rowstart, rowend do
+    multiply(m, i, 1 / bmagnitude(m, i))
+  end
+end
+
+mt_matrix.__tostring = function (m)
+  local out = { "matrix(", brows(m), ", ", bcolumns(m), ") " }
+  for i = 1, brows(m) do
+    for j = 1, bcolumns(m) do
+      out[#out + 1] = sformat("%.2f", bget(m, i, j))
       out[#out + 1] = " "
     end
     out[#out + 1] = "// "
   end
   out[#out] = nil
-  return table.concat(out)
+  return acat(out)
 end
 
-return M
+return assign({
+  matrix = matrix,
+  average = average,
+  normalize = normalize,
+  multiply = multiply,
+  extend = extend,
+  to_raw = to_raw,
+  set = set,
+  sum = sum,
+  add = add,
+}, blas, false)
