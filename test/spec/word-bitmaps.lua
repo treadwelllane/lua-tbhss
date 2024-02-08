@@ -1,24 +1,26 @@
-local fs = require("santoku.fs")
-local err = require("santoku.err")
+local test = require("santoku.test")
 
-local init_db = require("tbhss.db")
-local glove = require("tbhss.glove")
-local cluster = require("tbhss.cluster")
+test("word bitmaps", function ()
 
-local glove_file = "test/res/glove.txt"
-local db_file = "tmp/test.db"
+  local fs = require("santoku.fs")
+  local env = require("santoku.env")
 
-local clusters = 32
+  local init_db = require("tbhss.db")
+  local glove = require("tbhss.glove")
+  local cluster = require("tbhss.cluster")
 
-err.check(err.pwrap(function(check)
+  local glove_file = env.var("GLOVE_TXT", "test/res/glove.2500.txt")
+  local db_file = "tmp/test.db"
 
-  check(fs.mkdirp(fs.dirname(db_file)))
-  check(fs.rm(db_file, true))
-  check(fs.rm(db_file .. "-wal", true))
-  check(fs.rm(db_file .. "-shm", true))
+  local clusters = 16
 
-  local db = check(init_db(db_file))
-  local model, word_matrix = check(glove.load_vectors(db, nil, glove_file, nil))
-  check(cluster.cluster_vectors(db, model, word_matrix, clusters))
+  fs.mkdirp(fs.dirname(db_file))
+  fs.rm(db_file, true)
+  fs.rm(db_file .. "-wal", true)
+  fs.rm(db_file .. "-shm", true)
 
-end))
+  local db = init_db(db_file)
+  local model, word_matrix = glove.load_vectors(db, nil, glove_file, nil)
+  cluster.cluster_vectors(db, model, word_matrix, clusters)
+
+end)

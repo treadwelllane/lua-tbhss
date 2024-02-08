@@ -230,6 +230,25 @@ int tbhss_blas_matrix_ramax (lua_State *L)
   return 2;
 }
 
+int tbhss_blas_matrix_sum (lua_State *L)
+{
+  lua_settop(L, 3);
+  tbhss_blas_matrix_t *m0 = tbhss_blas_matrix_peek(L, 1);
+  luaL_checktype(L, 2, LUA_TNUMBER);
+  luaL_checktype(L, 3, LUA_TNUMBER);
+  size_t rowstart = lua_tointeger(L, 2);
+  size_t rowend = lua_tointeger(L, 3);
+  if (rowstart > rowend)
+    luaL_error(L, "Error in sum: start row is greater than end row");
+  size_t idxstart = tbhss_blas_matrix_index(L, m0, rowstart, 1);
+  size_t idxend = tbhss_blas_matrix_index(L, m0, rowend, m0->columns);
+  double sum = 0;
+  for (size_t i = idxstart; i < idxend; i ++)
+    sum += m0->data[i];
+  lua_pushnumber(L, sum);
+  return 1;
+}
+
 int tbhss_blas_matrix_sums (lua_State *L)
 {
   lua_settop(L, 3);
@@ -315,6 +334,22 @@ int tbhss_blas_matrix_magnitude (lua_State *L)
   return 1;
 }
 
+int tbhss_blas_matrix_rows (lua_State *L)
+{
+  lua_settop(L, 1);
+  tbhss_blas_matrix_t *m0 = tbhss_blas_matrix_peek(L, 1);
+  lua_pushinteger(L, m0->rows);
+  return 1;
+}
+
+int tbhss_blas_matrix_columns (lua_State *L)
+{
+  lua_settop(L, 1);
+  tbhss_blas_matrix_t *m0 = tbhss_blas_matrix_peek(L, 1);
+  lua_pushinteger(L, m0->columns);
+  return 1;
+}
+
 int tbhss_blas_matrix_shape (lua_State *L)
 {
   lua_settop(L, 1);
@@ -390,12 +425,15 @@ luaL_Reg tbhss_blas_fns[] =
   { "get", tbhss_blas_matrix_get },
   { "set", tbhss_blas_matrix_set },
   { "shape", tbhss_blas_matrix_shape },
+  { "rows", tbhss_blas_matrix_rows },
+  { "columns", tbhss_blas_matrix_columns },
   { "magnitude", tbhss_blas_matrix_magnitude },
   { "mmult", tbhss_blas_matrix_mmult },
   { "rmult", tbhss_blas_matrix_rmult },
   { "radd", tbhss_blas_matrix_radd },
   { "copy", tbhss_blas_matrix_copy },
   { "sums", tbhss_blas_matrix_sums },
+  { "sum", tbhss_blas_matrix_sum },
   { "rmax", tbhss_blas_matrix_rmax },
   { "ramax", tbhss_blas_matrix_ramax },
   { "reshape", tbhss_blas_matrix_reshape },
