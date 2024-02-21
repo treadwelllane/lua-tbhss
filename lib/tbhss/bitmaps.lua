@@ -11,7 +11,6 @@ local mcopy = mtx.copy
 local mexp = mtx.exp
 local mmult = mtx.multiply
 local mrmax = mtx.rmax
-local msum = mtx.sum
 local madd = mtx.add
 
 local rand = math.random

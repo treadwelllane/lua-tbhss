@@ -126,6 +126,7 @@ local function cluster_vectors (db, model, word_matrix, n_clusters, max_iteratio
 
     local cluster_matrix, distance_matrix = select_initial_clusters(word_matrix, n_clusters)
     local cluster_average_matrix = matrix(0, 0)
+    local word_clusters = {}
 
     local num_iterations = 1
 
@@ -139,6 +140,10 @@ local function cluster_vectors (db, model, word_matrix, n_clusters, max_iteratio
       -- TODO: Move to C
       for i = 1, mrows(distance_matrix) do
         local _, maxcol = mrmax(distance_matrix, i)
+        if word_clusters[i] ~= maxcol then
+          words_changed = words_changed + 1
+          word_clusters[i] = maxcol
+        end
         cluster_words[maxcol] = cluster_words[maxcol] or {}
         cluster_words[maxcol][#cluster_words[maxcol] + 1] = i
       end
