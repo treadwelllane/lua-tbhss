@@ -211,7 +211,7 @@ int tk_matrix_exp (lua_State *L)
     luaL_error(L, "Error in rmult: start row is greater than end row");
   size_t idxstart = tk_matrix_index(L, m0, rowstart, 1);
   size_t idxend = tk_matrix_index(L, m0, rowend, m0->columns);
-  for (size_t i = idxstart; i <= idxend; i ++)
+  for (size_t i = idxstart; i < idxend; i ++)
     m0->data[i] = pow(m0->data[i], exp);
   return 0;
 }
