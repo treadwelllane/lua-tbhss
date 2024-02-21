@@ -1,17 +1,17 @@
-local blas = require("tbhss.blas")
-local matrix = blas.matrix
-local mreshape = blas.reshape
-local mcopy = blas.copy
-local mcolumns = blas.columns
-local maverage = blas.average
-local mget = blas.get
-local mmultiply = blas.multiply
-local mrmax = blas.rmax
-local msum = blas.sum
-local mextend = blas.extend
-local mset = blas.set
-local mrows = blas.rows
-local mnormalize = blas.normalize
+local mtx = require("santoku.matrix")
+local matrix = mtx.matrix
+local mreshape = mtx.reshape
+local mcopy = mtx.copy
+local mcolumns = mtx.columns
+local maverage = mtx.average
+local mget = mtx.get
+local mmultiply = mtx.multiply
+local mrmax = mtx.rmax
+local msum = mtx.sum
+local mextend = mtx.extend
+local mset = mtx.set
+local mrows = mtx.rows
+local mnormalize = mtx.normalize
 
 local err = require("santoku.error")
 local error = err.error
@@ -87,23 +87,14 @@ local function load_clusters_from_db (db, clustering)
 
   local total_words = db.get_total_words(clustering.id_model)
   local distance_matrix = matrix(total_words, clustering.clusters)
-  local word_clusters_max = {}
-  local word_clusters = {}
 
-  for wc in db.get_word_clusters(clustering.id_model) do
-
-    if not word_clusters[wc.name] or wc.similarity > word_clusters_max[wc.name] then
-      word_clusters[wc.name] = wc.id_cluster
-      word_clusters_max[wc.name] = wc.similarity
-    end
-
-    mset(distance_matrix, wc.id, wc.id_cluster, wc.similarity)
-
+  for wc in db.get_word_clusters(clustering.id) do
+    mset(distance_matrix, wc.id_word, wc.id_cluster, wc.similarity)
   end
 
   print("Loaded:", mrows(distance_matrix))
 
-  return word_clusters, distance_matrix
+  return distance_matrix
 
 end
 
@@ -134,7 +125,6 @@ local function cluster_vectors (db, model, word_matrix, n_clusters, max_iteratio
     print("Clustering")
 
     local cluster_matrix, distance_matrix = select_initial_clusters(word_matrix, n_clusters)
-    local word_clusters = {}
     local cluster_average_matrix = matrix(0, 0)
 
     local num_iterations = 1
@@ -149,10 +139,6 @@ local function cluster_vectors (db, model, word_matrix, n_clusters, max_iteratio
       -- TODO: Move to C
       for i = 1, mrows(distance_matrix) do
         local _, maxcol = mrmax(distance_matrix, i)
-        if word_clusters[i] ~= maxcol then
-          words_changed = words_changed + 1
-          word_clusters[i] = maxcol
-        end
         cluster_words[maxcol] = cluster_words[maxcol] or {}
         cluster_words[maxcol][#cluster_words[maxcol] + 1] = i
       end
@@ -196,7 +182,7 @@ local function cluster_vectors (db, model, word_matrix, n_clusters, max_iteratio
 
     db.set_words_clustered(id_clustering, num_iterations)
 
-    return word_clusters, distance_matrix
+    return distance_matrix
 
   end))
 

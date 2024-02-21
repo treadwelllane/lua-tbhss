@@ -2,15 +2,15 @@ local err = require("santoku.error")
 local error = err.error
 local assert = err.assert
 
-local blas = require("tbhss.blas")
-local matrix = blas.matrix
-local mreshape = blas.reshape
-local mextend = blas.extend
-local mset = blas.set
-local mrows = blas.rows
-local mcolumns = blas.columns
-local mnormalize = blas.normalize
-local mto_raw = blas.to_raw
+local mtx = require("santoku.matrix")
+local matrix = mtx.matrix
+local mreshape = mtx.reshape
+local mextend = mtx.extend
+local mset = mtx.set
+local mrows = mtx.rows
+local mcolumns = mtx.columns
+local mnormalize = mtx.normalize
+local mto_raw = mtx.to_raw
 
 local fs = require("santoku.fs")
 local flines = fs.lines
@@ -94,7 +94,7 @@ local function load_vectors_from_db (db, model)
 
   print("Loading words from database")
 
-  local word_matrix = blas.matrix(0, model.dimensions)
+  local word_matrix = matrix(0, model.dimensions)
   local word_numbers = {}
   local word_names = {}
 

@@ -8,11 +8,13 @@ test("word bitmaps", function ()
   local init_db = require("tbhss.db")
   local glove = require("tbhss.glove")
   local cluster = require("tbhss.cluster")
+  local bitmaps = require("tbhss.bitmaps")
 
   local glove_file = env.var("GLOVE_TXT", "test/res/glove.2500.txt")
   local db_file = "tmp/test.db"
 
   local clusters = 16
+  local bitmap_scale_factor = 8
 
   fs.mkdirp(fs.dirname(db_file))
   fs.rm(db_file, true)
@@ -21,6 +23,7 @@ test("word bitmaps", function ()
 
   local db = init_db(db_file)
   local model, word_matrix = glove.load_vectors(db, nil, glove_file, nil)
-  cluster.cluster_vectors(db, model, word_matrix, clusters)
+  local distance_matrix = cluster.cluster_vectors(db, model, word_matrix, clusters)
+  bitmaps.create_bitmaps(distance_matrix, bitmap_scale_factor)
 
 end)
