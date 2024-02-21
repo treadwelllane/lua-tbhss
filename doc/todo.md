@@ -1,16 +1,15 @@
 # Now
 
-- Split blas into santoku-matrix
-- Split bitmap into santoku-bitmap
+- Move santoku/matrix to separate lib
+- Move santoku/bitmap to separate lib
 
-- Migrate write-to-file logic to separate command: export-txt
+- Migrate write distances file logic to separate commands: export-distances
+- Migrate generate bitmaps file logic to separate commands: generate-bitmaps
 - Migrate load words logic to separate command: load-glove-model
 - Migrate cluster logic to separate command: cluster-words
 
 - Command to ingest text files to sqlite, tag is file name by default
 - Command to merge sqlite databases
-- Command to generate bitmaps in DB
-- Command to write bitmaps to file
 
 - Support batching of max N words in memory
 - Support incremental runs (picking up where you left off)

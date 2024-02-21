@@ -10,14 +10,15 @@
     serialize = require("santoku.serialize")
 %>
 
-local sqlite = require("santoku.sqlite")
+local sql = require("santoku.sqlite")
+local sqlite = require("lsqlite3")
 local open = sqlite.open
 
 local migrate = require("santoku.sqlite.migrate")
 
 return function (db_file)
 
-  local db = open(db_file)
+  local db = sql(open(db_file))
   local exec = db.exec
   local inserter = db.inserter
   local runner = db.runner
@@ -109,11 +110,9 @@ return function (db_file)
     ]], "n"),
 
     get_word_clusters = iter([[
-      select w.name, w.id, c.id_cluster, c.similarity
-      from models m, words w, clusters c
-      where m.tag = ?
-      and w.id_model = m.id
-      and c.id_word = w.id
+      select c.id_word, c.id_cluster, c.similarity
+      from clusters c
+      where c.id_clustering = ?
     ]]),
 
     delete_model_by_tag = runner([[

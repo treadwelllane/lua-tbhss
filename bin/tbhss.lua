@@ -3,10 +3,12 @@ local argparse = require("argparse")
 local init_db = require("tbhss.db")
 local glove = require("tbhss.glove")
 local cluster = require("tbhss.cluster")
+local bitmaps = require("tbhss.bitmaps")
 
 local fs = require("santoku.fs")
 local arr = require("santoku.array")
-local mtx = require("tbhss.blas")
+local mtx = require("santoku.matrix")
+local bmp = require("santoku.bitmap")
 
 local parser = argparse()
   :name("tbhss")
@@ -43,6 +45,12 @@ c_convert
   :count(1)
 
 c_convert
+  :option("--bitmap-scale-factor", "bitmap bit set probability scale factor")
+  :convert(tonumber)
+  :args(1)
+  :count(1)
+
+c_convert
   :option("--max-iterations", "max iterations for clustering")
   :convert(tonumber)
   :args(1)
@@ -60,12 +68,12 @@ if args.command == "convert-glove" then
   local model, word_matrix, _, word_names =
     glove.load_vectors(db, model, args.input, args.tag)
 
-  local _, distance_matrix =
+  local distance_matrix =
     cluster.cluster_vectors(db, model, word_matrix,
       args.num_clusters,
       args.max_iterations)
 
-  print("Writing output file")
+  print("Writing distance matrix to file")
 
   local out = {}
 
@@ -80,6 +88,26 @@ if args.command == "convert-glove" then
         out[1 + (j * 2)] = mtx.get(distance_matrix, i, j)
       end
       fs.write(fh, arr.concat(out, "\t"))
+    end
+  end)
+
+  print("Writing bitmaps to file")
+
+  local word_bitmaps = bitmaps.create_bitmaps(distance_matrix, args.bitmap_scale_factor)
+
+  out = {}
+
+  fs.with(args.output .. ".bitmaps", "w", function (fh)
+    for i = 1, #word_bitmaps do
+      if i > 1 then
+        fs.write(fh, "\n")
+      end
+      out[1] = word_names[i]
+      out[2] = "\t"
+      for j = 1, bmp.size(word_bitmaps[i]) do
+        out[2 + j] = bmp.get(word_bitmaps[i], j) and "1" or "0"
+      end
+      fs.write(fh, arr.concat(out))
     end
   end)
 

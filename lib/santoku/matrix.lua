@@ -1,22 +1,23 @@
-local blas = require("tbhss.blas.blas")
-local mt_matrix = blas.mt_matrix
-local bmatrix = blas.matrix
-local bset = blas.set
-local bsums = blas.sums
-local bcopy = blas.copy
-local breshape = blas.reshape
-local bextend_raw = blas.extend_raw
-local brows = blas.rows
-local bcolumns = blas.columns
-local bmagnitude = blas.magnitude
-local bradd = blas.radd
-local bsum = blas.sum
-local bto_raw = blas.to_raw
-local bmmult = blas.mmult
-local brmult = blas.rmult
-local bget = blas.get
-local bshape = blas.shape
-local bfrom_raw = blas.from_raw
+local mtx = require("santoku.matrix.matrix")
+local mt_matrix = mtx.mt_matrix
+local bmatrix = mtx.matrix
+local bset = mtx.set
+local bsums = mtx.sums
+local bcopy = mtx.copy
+local breshape = mtx.reshape
+local bextend_raw = mtx.extend_raw
+local brows = mtx.rows
+local bcolumns = mtx.columns
+local bmagnitude = mtx.magnitude
+local bradd = mtx.radd
+local bexp = mtx.exp
+local bsum = mtx.sum
+local bto_raw = mtx.to_raw
+local bmmult = mtx.mmult
+local brmult = mtx.rmult
+local bget = mtx.get
+local bshape = mtx.shape
+local bfrom_raw = mtx.from_raw
 
 local validate = require("santoku.validate")
 local isnumber = validate.isnumber
@@ -189,6 +190,25 @@ local function add (a, b, c, d)
   return a
 end
 
+local function exp (a, b, c, d)
+  local rowstart = 1
+  local rowend = brows(a)
+  local exp = nil
+  if b and c and d then
+    rowstart = b
+    rowend = c
+    exp = d
+  elseif b and c then
+    rowstart = b
+    rowend = b
+    exp = c
+  elseif b then
+    exp = b
+  end
+  bexp(a, rowstart, rowend, exp)
+  return a
+end
+
 local function multiply (a, b, c, d, e)
   if getmetatable(b) == mt_matrix then
     bmmult(a, b, c, d, e)
@@ -254,4 +274,5 @@ return assign({
   set = set,
   sum = sum,
   add = add,
-}, blas, false)
+  exp = exp,
+}, mtx, false)
