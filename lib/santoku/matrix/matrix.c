@@ -175,7 +175,7 @@ int tk_matrix_radd (lua_State *L)
   size_t idxstart = tk_matrix_index(L, m0, rowstart, 1);
   size_t idxend = tk_matrix_index(L, m0, rowend, m0->columns);
   double x[1] = { add };
-  cblas_daxpy(idxend - idxstart + 1, add, x, 0, &m0->data[idxstart], 1);
+  cblas_daxpy(idxend - idxstart + 1, 1, x, 0, &m0->data[idxstart], 1);
   return 0;
 }
 
@@ -211,9 +211,29 @@ int tk_matrix_exp (lua_State *L)
     luaL_error(L, "Error in rmult: start row is greater than end row");
   size_t idxstart = tk_matrix_index(L, m0, rowstart, 1);
   size_t idxend = tk_matrix_index(L, m0, rowend, m0->columns);
-  for (size_t i = idxstart; i < idxend; i ++)
+  for (size_t i = idxstart; i <= idxend; i ++)
     m0->data[i] = pow(m0->data[i], exp);
   return 0;
+}
+
+int tk_matrix_rmin (lua_State *L)
+{
+  lua_settop(L, 2);
+  tk_matrix_t *m0 = tk_matrix_peek(L, 1);
+  luaL_checktype(L, 2, LUA_TNUMBER);
+  lua_Integer row = lua_tointeger(L, 2);
+  size_t idx = tk_matrix_index(L, m0, row, 1);
+  size_t mincol = 1;
+  double minval = m0->data[idx];
+  for (size_t i = 2; i <= m0->columns; i ++) {
+    if (m0->data[idx + i - 1] < minval) {
+      mincol = i;
+      minval = m0->data[idx + i - 1];
+    }
+  }
+  lua_pushnumber(L, minval);
+  lua_pushinteger(L, mincol);
+  return 2;
 }
 
 int tk_matrix_rmax (lua_State *L)
@@ -262,7 +282,7 @@ int tk_matrix_sum (lua_State *L)
   size_t idxstart = tk_matrix_index(L, m0, rowstart, 1);
   size_t idxend = tk_matrix_index(L, m0, rowend, m0->columns);
   double sum = 0;
-  for (size_t i = idxstart; i < idxend; i ++)
+  for (size_t i = idxstart; i <= idxend; i ++)
     sum += m0->data[i];
   lua_pushnumber(L, sum);
   return 1;
@@ -455,6 +475,7 @@ luaL_Reg tk_matrix_fns[] =
   { "sum", tk_matrix_sum },
   { "exp", tk_matrix_exp },
   { "rmax", tk_matrix_rmax },
+  { "rmin", tk_matrix_rmin },
   { "ramax", tk_matrix_ramax },
   { "reshape", tk_matrix_reshape },
   { "shrink", tk_matrix_shrink },
