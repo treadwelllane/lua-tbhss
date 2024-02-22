@@ -11,6 +11,7 @@ local mcopy = mtx.copy
 local mexp = mtx.exp
 local mmult = mtx.multiply
 local mrmax = mtx.rmax
+local mrmin = mtx.rmin
 local madd = mtx.add
 
 local rand = math.random
@@ -28,14 +29,14 @@ local function create_bitmaps (distance_matrix, scale_factor)
     local bm = bcreate(bitmap_size)
     word_bitmaps[i] = bm
     mcopy(distances_scaled, distance_matrix, i, i, 1)
-    local _, maxcol = mrmax(distances_scaled, 1)
     madd(distances_scaled, 1)
-    mmult(distances_scaled, 1 / 2)
+    local minval = mrmin(distances_scaled, 1)
+    madd(distances_scaled, -minval)
     mexp(distances_scaled, scale_factor)
-    bset(bm, maxcol)
-    -- TODO: use weighted random choice implemented in c
+    local maxval = mrmax(distances_scaled, 1)
+    mmult(distances_scaled, 1 / maxval)
     for j = 1, bitmap_size do
-      if rand() ^ scale_factor < mget(distances_scaled, 1, j) then
+      if rand() < mget(distances_scaled, 1, j) then
         bset(bm, j)
       end
     end
