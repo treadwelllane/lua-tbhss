@@ -10,7 +10,6 @@ local arr = require("santoku.array")
 rand.seed()
 
 local FEATURES = 12
-local CLASSES = 1
 local CLAUSES = 10
 local STATES = 100
 local THRESHOLD = 15
@@ -33,9 +32,7 @@ local function read_data (fp)
       end
     end
     arr.push(problems, b)
-    local s = bm.create(CLASSES)
-    bm.set(s, bits())
-    arr.push(solutions, s)
+    arr.push(solutions, bits())
   end
   return problems, solutions
 end
@@ -48,7 +45,7 @@ test("tsetlin", function ()
   local test_problems, test_solutions =
     read_data("test/res/santoku/tsetlin/NoisyXORTestData.txt")
 
-  local t = tm.create(FEATURES, CLASSES, CLAUSES, STATES, THRESHOLD, BOOST_TRUE_POSITIVE)
+  local t = tm.create(FEATURES, CLAUSES, STATES, THRESHOLD, BOOST_TRUE_POSITIVE)
 
   for epoch = 1, MAX_EPOCHS do
     tm.train(t, train_problems, train_solutions, SPECIFICITY)
