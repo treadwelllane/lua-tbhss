@@ -13,7 +13,7 @@ local FEATURES = 12
 local CLAUSES = 10
 local STATES = 100
 local THRESHOLD = 15
-local SPECIFICITY = 3.9
+local SPECIFICITY = 5
 local BOOST_TRUE_POSITIVE = false
 
 local MAX_EPOCHS = 100
@@ -44,10 +44,10 @@ end
 test("tsetlin", function ()
 
   local train_problems, train_solutions =
-    read_data("test/res/santoku/tsetlin/NoisyXORTrainingData.txt", 100)
+    read_data("test/res/santoku/tsetlin/NoisyXORTrainingData.txt")
 
   local test_problems, test_solutions =
-    read_data("test/res/santoku/tsetlin/NoisyXORTestData.txt", 100)
+    read_data("test/res/santoku/tsetlin/NoisyXORTestData.txt")
 
   local t = tm.create(FEATURES, CLAUSES, STATES, THRESHOLD, BOOST_TRUE_POSITIVE)
 
