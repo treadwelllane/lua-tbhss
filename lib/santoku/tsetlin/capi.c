@@ -24,17 +24,32 @@ typedef struct {
 #define tk_tsetlin_clause_idx(t, l) (l)
 #define tk_tsetlin_action(t, n) (n > (t)->states)
 
+tk_tsetlin_t **tk_tsetlin_peekp (lua_State *L, int i)
+{
+  return (tk_tsetlin_t **) luaL_checkudata(L, i, TK_TSETLIN_MT);
+}
+
 tk_tsetlin_t *tk_tsetlin_peek (lua_State *L, int i)
 {
-  return *((tk_tsetlin_t **) luaL_checkudata(L, i, TK_TSETLIN_MT));
+  return *tk_tsetlin_peekp(L, i);
 }
 
 int tk_tsetlin_destroy (lua_State *L)
 {
   lua_settop(L, 1);
-  tk_tsetlin_t *tm0 = tk_tsetlin_peek(L, 1);
+  tk_tsetlin_t **tm0p = tk_tsetlin_peekp(L, 1);
+  tk_tsetlin_t *tm0 = *tm0p;
+  if (tm0 == NULL)
+    return 0;
+  free(tm0->automata_states);
+  free(tm0->clause_outputs);
+  free(tm0->clause_feedback);
+  tm0->automata_states = NULL;
+  tm0->clause_outputs = NULL;
+  tm0->clause_feedback = NULL;
   free(tm0);
-  return 1;
+  *tm0p = NULL;
+  return 0;
 }
 
 int tk_tsetlin_create (lua_State *L)
@@ -108,9 +123,13 @@ void _tk_tsetlin_calculate_clause_output (lua_State *L, tk_tsetlin_t *tm0, bool 
 	lua_Integer action_include, action_include_negated;
 	lua_Integer all_exclude;
 	for (lua_Integer l = 0; l < tm0->clauses; l ++) {
+    fprintf(stderr, "test 1\n");
     lua_Integer clause_idx = tk_tsetlin_clause_idx(tm0, l);
+    fprintf(stderr, "test 2 %ld\n", clause_idx);
     tm0->clause_outputs[clause_idx] = 1;
+    fprintf(stderr, "test 3\n");
 		all_exclude = 1;
+    fprintf(stderr, "test 4\n");
 		for (lua_Integer f = 0; f < tm0->features; f ++) {
 			action_include = tk_tsetlin_action(tm0, tm0->automata_states[tk_tsetlin_automata_idx(tm0, f, l, 0)]);
 			action_include_negated = tk_tsetlin_action(tm0, tm0->automata_states[tk_tsetlin_automata_idx(tm0, f, l, 1)]);
@@ -121,23 +140,32 @@ void _tk_tsetlin_calculate_clause_output (lua_State *L, tk_tsetlin_t *tm0, bool 
       bool is_set = lua_toboolean(L, -1);
       lua_pop(L, 1); // problem
 			if ((action_include == 1 && !is_set) || (action_include_negated == 1 && is_set)) {
+        fprintf(stderr, "test 5\n");
         tm0->clause_outputs[clause_idx] = 0;
+        fprintf(stderr, "test 6\n");
 				break;
 			}
 		}
+    fprintf(stderr, "test 7\n");
     tm0->clause_outputs[clause_idx] = tm0->clause_outputs[clause_idx] && !(predict && all_exclude == 1);
+    fprintf(stderr, "test 8\n");
 	}
 }
 
 lua_Integer _tk_tsetlin_sum_class_votes (lua_State *L, tk_tsetlin_t *tm0)
 {
+  fprintf(stderr, "sum 1\n");
   lua_Integer class_sum = 0;
+  fprintf(stderr, "sum 2\n");
   for (lua_Integer l = 0; l < tm0->clauses; l ++) {
     int sign = 1 - 2 * (l & 1);
     class_sum += tm0->clause_outputs[tk_tsetlin_clause_idx(tm0, l)] * sign;
   }
+  fprintf(stderr, "sum 3\n");
   class_sum = (class_sum > tm0->threshold) ? tm0->threshold : class_sum;
+  fprintf(stderr, "sum 4\n");
   class_sum = (class_sum < -tm0->threshold) ? -tm0->threshold : class_sum;
+  fprintf(stderr, "sum 5\n");
   return class_sum;
 }
 
@@ -191,10 +219,11 @@ void _tk_tsetlin_type_i_feedback (lua_State *L, tk_tsetlin_t *tm0, lua_Integer l
 	}
 }
 
-void _tk_tsetlin_update (lua_State *L, tk_tsetlin_t *tm0, lua_Integer tgt, lua_Number s)
+void _tk_tsetlin_update (lua_State *L, tk_tsetlin_t *tm0, bool tgt, lua_Number s)
 {
 	_tk_tsetlin_calculate_clause_output(L, tm0, false); // problem
 	lua_Integer class_sum = _tk_tsetlin_sum_class_votes(L, tm0); // problem
+  tgt = tgt ? 1 : 0;
 	for (lua_Integer l = 0; l < tm0->clauses; l ++) {
     tm0->clause_feedback[tk_tsetlin_clause_idx(tm0, l)] =
 		  (2 * tgt - 1) *
@@ -215,7 +244,7 @@ void _tk_tsetlin_update (lua_State *L, tk_tsetlin_t *tm0, lua_Integer tgt, lua_N
 
 lua_Integer _tk_tsetlin_score (lua_State *L, tk_tsetlin_t *tm0)
 {
-	_tk_tsetlin_calculate_clause_output(L, tm0, false);
+	_tk_tsetlin_calculate_clause_output(L, tm0, true);
   return _tk_tsetlin_sum_class_votes(L, tm0);
 }
 
@@ -224,8 +253,10 @@ int tk_tsetlin_predict (lua_State *L)
   lua_settop(L, 2);
   tk_tsetlin_t *tm0 = tk_tsetlin_peek(L, 1);
   luaL_checkudata(L, 2, "santoku_bitmap");
-  lua_pushboolean(L, tk_tsetlin_action(tm0, _tk_tsetlin_score(L, tm0)));
-  return 1;
+  lua_Integer score = _tk_tsetlin_score(L, tm0);
+  lua_pushboolean(L, tk_tsetlin_action(tm0, score));
+  lua_pushinteger(L, score);
+  return 2;
 }
 
 int tk_tsetlin_update (lua_State *L)
@@ -233,7 +264,8 @@ int tk_tsetlin_update (lua_State *L)
   lua_settop(L, 4);
   tk_tsetlin_t *tm0 = tk_tsetlin_peek(L, 1);
   luaL_checkudata(L, 2, "santoku_bitmap");
-  lua_Integer tgt = luaL_checknumber(L, 3);
+  luaL_checktype(L, 3, LUA_TBOOLEAN);
+  bool tgt = lua_toboolean(L, 3);
   lua_Number s = luaL_checknumber(L, 4);
   lua_pushvalue(L, 2);
   _tk_tsetlin_update(L, tm0, tgt, s);

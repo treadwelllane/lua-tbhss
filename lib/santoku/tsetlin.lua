@@ -7,6 +7,7 @@ local t_assign = tbl.assign
 
 local function train (t, ps, ss, s)
   for i = 1, #ps do
+    print("train", i, t, ps[i], ss[i])
     tm_update(t, ps[i], ss[i], s)
   end
 end
@@ -14,6 +15,7 @@ end
 local function evaluate (t, ps, ss)
   local correct = 0
   for i = 1, #ps do
+    print("evaluate", i, t, ps[i], ss[i])
     if tm_predict(t, ps[i]) == ss[i] then
       correct = correct + 1
     end
