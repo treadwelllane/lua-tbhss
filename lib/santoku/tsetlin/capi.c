@@ -123,13 +123,9 @@ void _tk_tsetlin_calculate_clause_output (lua_State *L, tk_tsetlin_t *tm0, bool 
 	lua_Integer action_include, action_include_negated;
 	lua_Integer all_exclude;
 	for (lua_Integer l = 0; l < tm0->clauses; l ++) {
-    fprintf(stderr, "test 1\n");
     lua_Integer clause_idx = tk_tsetlin_clause_idx(tm0, l);
-    fprintf(stderr, "test 2 %ld\n", clause_idx);
     tm0->clause_outputs[clause_idx] = 1;
-    fprintf(stderr, "test 3\n");
 		all_exclude = 1;
-    fprintf(stderr, "test 4\n");
 		for (lua_Integer f = 0; f < tm0->features; f ++) {
 			action_include = tk_tsetlin_action(tm0, tm0->automata_states[tk_tsetlin_automata_idx(tm0, f, l, 0)]);
 			action_include_negated = tk_tsetlin_action(tm0, tm0->automata_states[tk_tsetlin_automata_idx(tm0, f, l, 1)]);
@@ -140,32 +136,23 @@ void _tk_tsetlin_calculate_clause_output (lua_State *L, tk_tsetlin_t *tm0, bool 
       bool is_set = lua_toboolean(L, -1);
       lua_pop(L, 1); // problem
 			if ((action_include == 1 && !is_set) || (action_include_negated == 1 && is_set)) {
-        fprintf(stderr, "test 5\n");
         tm0->clause_outputs[clause_idx] = 0;
-        fprintf(stderr, "test 6\n");
 				break;
 			}
 		}
-    fprintf(stderr, "test 7\n");
     tm0->clause_outputs[clause_idx] = tm0->clause_outputs[clause_idx] && !(predict && all_exclude == 1);
-    fprintf(stderr, "test 8\n");
 	}
 }
 
 lua_Integer _tk_tsetlin_sum_class_votes (lua_State *L, tk_tsetlin_t *tm0)
 {
-  fprintf(stderr, "sum 1\n");
   lua_Integer class_sum = 0;
-  fprintf(stderr, "sum 2\n");
   for (lua_Integer l = 0; l < tm0->clauses; l ++) {
     int sign = 1 - 2 * (l & 1);
     class_sum += tm0->clause_outputs[tk_tsetlin_clause_idx(tm0, l)] * sign;
   }
-  fprintf(stderr, "sum 3\n");
   class_sum = (class_sum > tm0->threshold) ? tm0->threshold : class_sum;
-  fprintf(stderr, "sum 4\n");
   class_sum = (class_sum < -tm0->threshold) ? -tm0->threshold : class_sum;
-  fprintf(stderr, "sum 5\n");
   return class_sum;
 }
 
