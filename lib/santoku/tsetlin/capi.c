@@ -20,7 +20,7 @@ typedef struct {
 
 } tk_tsetlin_t;
 
-#define tk_tsetlin_automata_idx(t, f, l, p) (f + (l * (t)->features * (p ? 2 : 1)))
+#define tk_tsetlin_automata_idx(t, f, l, p) (f + (l * (t)->features * 2) + (p ? (t)->features : 0))
 #define tk_tsetlin_clause_idx(t, l) (l)
 #define tk_tsetlin_action(t, n) (n > (t)->states)
 
@@ -68,9 +68,9 @@ int tk_tsetlin_create (lua_State *L)
   luaL_checktype(L, 5, LUA_TBOOLEAN);
   tm0->boost_true_positive = lua_toboolean(L, 5);
 
-  tm0->automata_states = malloc(sizeof(*tm0->automata_states) * tm0->features * tm0->clauses * 2);
-  tm0->clause_outputs = malloc(sizeof(*tm0->clause_outputs) * tm0->clauses);
-  tm0->clause_feedback = malloc(sizeof(*tm0->clause_feedback) * tm0->clauses);
+  tm0->automata_states = malloc(sizeof(lua_Integer) * tm0->features * tm0->clauses * 2);
+  tm0->clause_outputs = malloc(sizeof(lua_Integer) * tm0->clauses);
+  tm0->clause_feedback = malloc(sizeof(lua_Integer) * tm0->clauses);
 
   if (!(tm0->automata_states || tm0->clause_outputs || tm0->clause_feedback))
     goto err_mem;
@@ -177,10 +177,10 @@ void _tk_tsetlin_type_i_feedback (lua_State *L, tk_tsetlin_t *tm0, lua_Integer l
   lua_Integer clause_idx = tk_tsetlin_clause_idx(tm0, l);
 	if (tm0->clause_outputs[clause_idx] == 0)	{
 		for (int f = 0; f < tm0->features; f ++) {
-      lua_Integer idx0 = tk_tsetlin_automata_idx(tm0, l, f, 0);
-      lua_Integer idx1 = tk_tsetlin_automata_idx(tm0, l, f, 1);
-      tm0->automata_states[idx0] -= tm0->automata_states[idx0] && (1.0 * rand() / RAND_MAX <= 1.0 / s);
-      tm0->automata_states[idx1] -= tm0->automata_states[idx1] && (1.0 * rand() / RAND_MAX <= 1.0 / s);
+      lua_Integer idx0 = tk_tsetlin_automata_idx(tm0, f, l, 0);
+      lua_Integer idx1 = tk_tsetlin_automata_idx(tm0, f, l, 1);
+      tm0->automata_states[idx0] -= (tm0->automata_states[idx0] > 1) && (1.0 * rand() / RAND_MAX <= 1.0 / s);
+      tm0->automata_states[idx1] -= (tm0->automata_states[idx1] > 1) && (1.0 * rand() / RAND_MAX <= 1.0 / s);
 		}
 	} else if (tm0->clause_outputs[clause_idx] == 1) {
 		for (int f = 0; f < tm0->features; f ++) {
@@ -189,8 +189,8 @@ void _tk_tsetlin_type_i_feedback (lua_State *L, tk_tsetlin_t *tm0, lua_Integer l
       tk_tsetlin_callmod(L, 2, 1, "santoku.bitmap", "get"); // problem bool
       bool is_set = lua_toboolean(L, -1);
       lua_pop(L, 1); // problem
-      lua_Integer idx0 = tk_tsetlin_automata_idx(tm0, l, f, 0);
-      lua_Integer idx1 = tk_tsetlin_automata_idx(tm0, l, f, 1);
+      lua_Integer idx0 = tk_tsetlin_automata_idx(tm0, f, l, 0);
+      lua_Integer idx1 = tk_tsetlin_automata_idx(tm0, f, l, 1);
 			if (is_set) {
 				tm0->automata_states[idx0] += (tm0->automata_states[idx0] < tm0->states * 2)
           && (tm0->boost_true_positive == 1 || 1.0 * rand() / RAND_MAX <= (s - 1) / s);
@@ -241,7 +241,7 @@ int tk_tsetlin_predict (lua_State *L)
   tk_tsetlin_t *tm0 = tk_tsetlin_peek(L, 1);
   luaL_checkudata(L, 2, "santoku_bitmap");
   lua_Integer score = _tk_tsetlin_score(L, tm0);
-  lua_pushboolean(L, tk_tsetlin_action(tm0, score));
+  lua_pushboolean(L, score >= 0);
   lua_pushinteger(L, score);
   return 2;
 }
