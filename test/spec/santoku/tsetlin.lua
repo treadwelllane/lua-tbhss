@@ -13,11 +13,9 @@ local FEATURES = 12
 local CLAUSES = 10
 local STATES = 100
 local THRESHOLD = 15
-local SPECIFICITY = 5
+local SPECIFICITY = 4
 local BOOST_TRUE_POSITIVE = false
-
-local MAX_EPOCHS = 100
-local MAX_SCORE = 1
+local MAX_EPOCHS = 1000
 
 local function read_data (fp, max)
   local problems = {}
@@ -55,9 +53,6 @@ test("tsetlin", function ()
     tm.train(t, train_problems, train_solutions, SPECIFICITY)
     local score = tm.evaluate(t, test_problems, test_solutions)
     str.printf("Epoch %d:  %.2f\n", epoch, score)
-    if score >= MAX_SCORE then
-      break
-    end
   end
 
 end)

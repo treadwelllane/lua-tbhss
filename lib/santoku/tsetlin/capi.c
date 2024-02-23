@@ -166,9 +166,14 @@ void _tk_tsetlin_type_ii_feedback (lua_State *L, tk_tsetlin_t *tm0, lua_Integer 
       lua_Integer idx1 = tk_tsetlin_automata_idx(tm0, f, l, 1);
 			action_include = tk_tsetlin_action(tm0, tm0->automata_states[idx0]);
 			action_include_negated = tk_tsetlin_action(tm0, tm0->automata_states[idx1]);
-      tm0->automata_states[idx0] += (action_include == 0 && tm0->automata_states[idx0] < tm0->states * 2);
-      tm0->automata_states[idx1] += (action_include_negated == 0 && tm0->automata_states[idx1] < tm0->states * 2);
-		}
+      lua_pushvalue(L, -1); // problem problem
+      lua_pushinteger(L, f + 1); // problem problem idx
+      tk_tsetlin_callmod(L, 2, 1, "santoku.bitmap", "get"); // problem bool
+      bool is_set = lua_toboolean(L, -1);
+      lua_pop(L, 1); // problem
+      tm0->automata_states[idx0] += (action_include == 0 && tm0->automata_states[idx0] < tm0->states * 2) && !is_set;
+      tm0->automata_states[idx1] += (action_include_negated == 0 && tm0->automata_states[idx1] < tm0->states * 2) && is_set;
+    }
 	}
 }
 
