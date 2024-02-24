@@ -12,10 +12,10 @@ rand.seed()
 local FEATURES = 12
 local CLAUSES = 10
 local STATES = 100
-local THRESHOLD = 15
-local SPECIFICITY = 4
+local THRESHOLD = 40
+local SPECIFICITY = 3.9
 local BOOST_TRUE_POSITIVE = false
-local MAX_EPOCHS = 1000
+local MAX_EPOCHS = 40
 
 local function read_data (fp, max)
   local problems = {}
@@ -51,8 +51,9 @@ test("tsetlin", function ()
 
   for epoch = 1, MAX_EPOCHS do
     tm.train(t, train_problems, train_solutions, SPECIFICITY)
-    local score = tm.evaluate(t, test_problems, test_solutions)
-    str.printf("Epoch %d:  %.2f\n", epoch, score)
+    local test_score = tm.evaluate(t, test_problems, test_solutions)
+    local train_score = tm.evaluate(t, train_problems, train_solutions)
+    str.printf("Epoch\t%-4d\tTest\t%4.2f\tTrain\t%4.2f\n", epoch, test_score, train_score)
   end
 
 end)
