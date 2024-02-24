@@ -1,4 +1,4 @@
-local tm = require("santoku.tsetlin.capi")
+local tm = require("santoku.tsetlin.vanilla.capi")
 local tm_update = tm.update
 local tm_predict = tm.predict
 
@@ -18,7 +18,7 @@ local function evaluate (t, ps, ss)
       correct = correct + 1
     end
   end
-  return correct / #ps
+  return correct / #ps, correct, #ps
 end
 
 return t_assign({

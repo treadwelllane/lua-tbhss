@@ -5,6 +5,7 @@
 #include <stdlib.h>
 
 #define TK_TSETLIN_MT "santoku_tsetlin"
+#define TK_TSETLIN_UPVALUE_BGET 1
 
 typedef struct {
 
@@ -14,9 +15,9 @@ typedef struct {
   lua_Number threshold;
   bool boost_true_positive;
 
-  lua_Integer *automata_states; // [features][clauses][polarity]
-  lua_Integer *clause_outputs; // [clauses]
-  lua_Integer *clause_feedback; // [clauses]
+  lua_Integer *automata_states;
+  lua_Integer *clause_outputs;
+  lua_Integer *clause_feedback;
 
 } tk_tsetlin_t;
 
@@ -75,11 +76,6 @@ int tk_tsetlin_create (lua_State *L)
   if (!(tm0->automata_states || tm0->clause_outputs || tm0->clause_feedback))
     goto err_mem;
 
-  // TODO: Configurable random memory range.
-  // Instead of setting states to either tm0->states and tm0->states + 1 we can
-  // randomly select between
-  //   [0, tm0->states] and
-  //   [tm0->states, tm0->states * 2]
   for (lua_Integer f = 0; f < tm0->features; f ++) {
     for (lua_Integer l = 0; l < tm0->clauses; l ++) {
       if (1.0 * rand() / RAND_MAX <= 0.5) {
@@ -106,6 +102,17 @@ err_mem:
 }
 
 // TODO: Duplicated across various libraries, need to consolidate
+void tk_tsetlin_import (lua_State *L, const char *smod, const char *sfn)
+{
+  lua_getglobal(L, "require"); // req
+  lua_pushstring(L, smod); // req smod
+  lua_call(L, 1, 1); // mod
+  lua_pushstring(L, sfn); // mod sfn
+  lua_gettable(L, -2); // mod fn
+  lua_remove(L, -2); // fn
+}
+
+// TODO: Duplicated across various libraries, need to consolidate
 void tk_tsetlin_callmod (lua_State *L, int nargs, int nret, const char *smod, const char *sfn)
 {
   lua_getglobal(L, "require"); // arg req
@@ -116,6 +123,28 @@ void tk_tsetlin_callmod (lua_State *L, int nargs, int nret, const char *smod, co
   lua_remove(L, -2); // args fn
   lua_insert(L, - nargs - 1); // fn args
   lua_call(L, nargs, nret); // results
+}
+
+// TODO: Duplicated across various libraries, need to consolidate
+void tk_tsetlin_callupvalue (lua_State *L, int nargs, int nret, int idx)
+{
+  lua_pushvalue(L, lua_upvalueindex(idx)); // args fn
+  lua_insert(L, - nargs - 1); // fn args
+  lua_call(L, nargs, nret); // results
+}
+
+void tk_tsetlin_register (lua_State *L, luaL_Reg *regs, int nup)
+{
+  while (true) {
+    if ((*regs).name == NULL)
+      break;
+    for (int i = 0; i < nup; i ++)
+      lua_pushvalue(L, -nup); // t upsa upsb
+    lua_pushcclosure(L, (*regs).func, nup); // t upsa fn
+    lua_setfield(L, -nup - 2, (*regs).name); // t
+    regs ++;
+  }
+  lua_pop(L, nup);
 }
 
 void _tk_tsetlin_calculate_clause_output (lua_State *L, tk_tsetlin_t *tm0, bool predict)
@@ -132,7 +161,7 @@ void _tk_tsetlin_calculate_clause_output (lua_State *L, tk_tsetlin_t *tm0, bool 
 			all_exclude = all_exclude && !(action_include == 1 || action_include_negated == 1);
       lua_pushvalue(L, -1); // problem problem
       lua_pushinteger(L, f + 1); // problem problem idx
-      tk_tsetlin_callmod(L, 2, 1, "santoku.bitmap", "get"); // problem bool
+      tk_tsetlin_callupvalue(L, 2, 1, TK_TSETLIN_UPVALUE_BGET); // problem bool
       bool is_set = lua_toboolean(L, -1);
       lua_pop(L, 1); // problem
 			if ((action_include == 1 && !is_set) || (action_include_negated == 1 && is_set)) {
@@ -160,7 +189,8 @@ void _tk_tsetlin_type_ii_feedback (lua_State *L, tk_tsetlin_t *tm0, lua_Integer 
 {
 	lua_Integer action_include;
 	lua_Integer action_include_negated;
-  if (tm0->clause_outputs[tk_tsetlin_clause_idx(tm0, l)]) {
+  lua_Integer clause_idx = tk_tsetlin_clause_idx(tm0, l);
+  if (tm0->clause_outputs[clause_idx]) {
 		for (lua_Integer f = 0; f < tm0->features; f ++) {
       lua_Integer idx0 = tk_tsetlin_automata_idx(tm0, f, l, 0);
       lua_Integer idx1 = tk_tsetlin_automata_idx(tm0, f, l, 1);
@@ -168,7 +198,7 @@ void _tk_tsetlin_type_ii_feedback (lua_State *L, tk_tsetlin_t *tm0, lua_Integer 
 			action_include_negated = tk_tsetlin_action(tm0, tm0->automata_states[idx1]);
       lua_pushvalue(L, -1); // problem problem
       lua_pushinteger(L, f + 1); // problem problem idx
-      tk_tsetlin_callmod(L, 2, 1, "santoku.bitmap", "get"); // problem bool
+      tk_tsetlin_callupvalue(L, 2, 1, TK_TSETLIN_UPVALUE_BGET); // problem bool
       bool is_set = lua_toboolean(L, -1);
       lua_pop(L, 1); // problem
       tm0->automata_states[idx0] += (action_include == 0 && tm0->automata_states[idx0] < tm0->states * 2) && !is_set;
@@ -191,7 +221,7 @@ void _tk_tsetlin_type_i_feedback (lua_State *L, tk_tsetlin_t *tm0, lua_Integer l
 		for (int f = 0; f < tm0->features; f ++) {
       lua_pushvalue(L, -1); // problem problem
       lua_pushinteger(L, f + 1); // problem problem idx
-      tk_tsetlin_callmod(L, 2, 1, "santoku.bitmap", "get"); // problem bool
+      tk_tsetlin_callupvalue(L, 2, 1, TK_TSETLIN_UPVALUE_BGET); // problem bool
       bool is_set = lua_toboolean(L, -1);
       lua_pop(L, 1); // problem
       lua_Integer idx0 = tk_tsetlin_automata_idx(tm0, f, l, 0);
@@ -217,7 +247,8 @@ void _tk_tsetlin_update (lua_State *L, tk_tsetlin_t *tm0, bool tgt, lua_Number s
 	lua_Integer class_sum = _tk_tsetlin_sum_class_votes(L, tm0); // problem
   tgt = tgt ? 1 : 0;
 	for (lua_Integer l = 0; l < tm0->clauses; l ++) {
-    tm0->clause_feedback[tk_tsetlin_clause_idx(tm0, l)] =
+    lua_Integer clause_idx = tk_tsetlin_clause_idx(tm0, l);
+    tm0->clause_feedback[clause_idx] =
 		  (2 * tgt - 1) *
       (1 - 2 * (l & 1)) *
       (1.0 * rand() / RAND_MAX <=
@@ -225,7 +256,8 @@ void _tk_tsetlin_update (lua_State *L, tk_tsetlin_t *tm0, bool tgt, lua_Number s
         (tm0->threshold + (1 - 2 * tgt) * class_sum));
   }
 	for (int l = 0; l < tm0->clauses; l ++) {
-    lua_Integer fb = tm0->clause_feedback[tk_tsetlin_clause_idx(tm0, l)];
+    lua_Integer clause_idx = tk_tsetlin_clause_idx(tm0, l);
+    lua_Integer fb = tm0->clause_feedback[clause_idx];
 		if (fb > 0) {
 			_tk_tsetlin_type_i_feedback(L, tm0, l, s); // problem
     } else if (fb < 0) {
@@ -273,10 +305,11 @@ luaL_Reg tk_tsetlin_fns[] =
   { NULL, NULL }
 };
 
-int luaopen_santoku_tsetlin_capi (lua_State *L)
+int luaopen_santoku_tsetlin_vanilla_capi (lua_State *L)
 {
   lua_newtable(L); // t
-  luaL_register(L, NULL, tk_tsetlin_fns); // t
+  tk_tsetlin_import(L, "santoku.bitmap", "get"); // t fn
+  tk_tsetlin_register(L, tk_tsetlin_fns, 1); // t
   luaL_newmetatable(L, TK_TSETLIN_MT); // t mt
   lua_pushcfunction(L, tk_tsetlin_destroy); // t mt fn
   lua_setfield(L, -2, "__gc"); // t mt

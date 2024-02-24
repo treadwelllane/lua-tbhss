@@ -1,5 +1,7 @@
 # Now
 
+- Bitmap representation with roaring bitmaps
+
 - Move santoku/matrix to separate lib
 - Move santoku/bitmap to separate lib
 
@@ -90,6 +92,7 @@
 - See ideas.md
 
 - Tsetlin Machine advancements
+  - Multi-class
   - Drop clause (increases accuracy and learning speed)
   - Indexed (improves learning and classification speed)
   - Weighted (reduces memory footprint)

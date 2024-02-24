@@ -1,6 +1,7 @@
 local rand = require("santoku.random")
 local test = require("santoku.test")
-local tm = require("santoku.tsetlin")
+local tm_vanilla = require("santoku.tsetlin.vanilla")
+local tm_bitwise = require("santoku.tsetlin.bitwise")
 local bm = require("santoku.bitmap")
 local fs = require("santoku.fs")
 local it = require("santoku.iter")
@@ -11,11 +12,12 @@ rand.seed()
 
 local FEATURES = 12
 local CLAUSES = 10
-local STATES = 100
-local THRESHOLD = 15
-local SPECIFICITY = 4
+local STATES = 128
+local STATE_BITS = 8
+local THRESHOLD = 20
+local SPECIFICITY = 3.9
 local BOOST_TRUE_POSITIVE = false
-local MAX_EPOCHS = 1000
+local MAX_EPOCHS = 40
 
 local function read_data (fp, max)
   local problems = {}
@@ -39,20 +41,26 @@ local function read_data (fp, max)
   return problems, solutions
 end
 
-test("tsetlin", function ()
+local train_problems, train_solutions =
+  read_data("test/res/santoku/tsetlin/NoisyXORTrainingData.txt")
 
-  local train_problems, train_solutions =
-    read_data("test/res/santoku/tsetlin/NoisyXORTrainingData.txt")
+local test_problems, test_solutions =
+  read_data("test/res/santoku/tsetlin/NoisyXORTestData.txt")
 
-  local test_problems, test_solutions =
-    read_data("test/res/santoku/tsetlin/NoisyXORTestData.txt")
+local function run (model, ...)
 
-  local t = tm.create(FEATURES, CLAUSES, STATES, THRESHOLD, BOOST_TRUE_POSITIVE)
+  local t = model.create(...)
 
   for epoch = 1, MAX_EPOCHS do
-    tm.train(t, train_problems, train_solutions, SPECIFICITY)
-    local score = tm.evaluate(t, test_problems, test_solutions)
-    str.printf("Epoch %d:  %.2f\n", epoch, score)
+    model.train(t, train_problems, train_solutions, SPECIFICITY)
+    local score_train = model.evaluate(t, train_problems, train_solutions)
+    local score_test = model.evaluate(t, test_problems, test_solutions)
+    str.printf("%-4d\t%.2f\t%.2f\n", epoch, score_train, score_test)
   end
 
+end
+
+test("tsetlin", function ()
+  run(tm_vanilla, FEATURES, CLAUSES, STATES, THRESHOLD, BOOST_TRUE_POSITIVE)
+  run(tm_bitwise, FEATURES, CLAUSES, STATE_BITS, THRESHOLD, BOOST_TRUE_POSITIVE)
 end)
