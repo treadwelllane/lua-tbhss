@@ -1,4 +1,4 @@
-local tm = require("santoku.tsetlin.capi")
+local tm = require("santoku.tsetlin.vanilla.capi")
 local tm_update = tm.update
 local tm_predict = tm.predict
 

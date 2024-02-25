@@ -1,6 +1,6 @@
 local rand = require("santoku.random")
 local test = require("santoku.test")
-local tm = require("santoku.tsetlin")
+local tm = require("santoku.tsetlin.vanilla")
 local bm = require("santoku.bitmap")
 local fs = require("santoku.fs")
 local it = require("santoku.iter")

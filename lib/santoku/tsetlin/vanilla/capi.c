@@ -1,6 +1,7 @@
 #include "lua.h"
 #include "lauxlib.h"
 
+#include "roaring.c"
 #include <stdbool.h>
 #include <stdlib.h>
 
@@ -81,16 +82,9 @@ tk_tsetlin_t *tk_tsetlin_peek (lua_State *L, int i)
   return *tk_tsetlin_peekp(L, i);
 }
 
-char *tk_tsetlin_peek_raw_bitmap (lua_State *L, tk_tsetlin_t *tm, int i)
+roaring_bitmap_t *tk_tsetlin_peek_raw_bitmap (lua_State *L, tk_tsetlin_t *tm, int i)
 {
-  luaL_checkudata(L, i, "santoku_bitmap");
-  lua_pushvalue(L, i); // bm
-  tk_tsetlin_callupvalue(L, 1, 2, TK_TSETLIN_UPVALUE_BRAW); // raw bits
-  char *raw = (char *) lua_touserdata(L, -2);
-  lua_Integer bits = luaL_checkinteger(L, -1);
-  if (bits != tm->features)
-    luaL_error(L, "input bitmap is the wrong size");
-  return raw;
+  return *((roaring_bitmap_t **) luaL_checkudata(L, i, "santoku_bitmap"));;
 }
 
 int tk_tsetlin_destroy (lua_State *L)
@@ -164,7 +158,7 @@ err_mem:
   return 0;
 }
 
-void _tk_tsetlin_calculate_clause_output (lua_State *L, tk_tsetlin_t *tm0, char *bm, bool predict)
+void _tk_tsetlin_calculate_clause_output (lua_State *L, tk_tsetlin_t *tm0, roaring_bitmap_t *bm, bool predict)
 {
 	lua_Integer action_include, action_include_negated;
 	lua_Integer all_exclude;
@@ -176,7 +170,7 @@ void _tk_tsetlin_calculate_clause_output (lua_State *L, tk_tsetlin_t *tm0, char 
 			action_include = tk_tsetlin_action(tm0, tm0->automata_states[tk_tsetlin_automata_idx(tm0, f, l, 0)]);
 			action_include_negated = tk_tsetlin_action(tm0, tm0->automata_states[tk_tsetlin_automata_idx(tm0, f, l, 1)]);
 			all_exclude = all_exclude && !(action_include == 1 || action_include_negated == 1);
-      bool is_set = bm[f / CHAR_BIT] & (1 << (f % CHAR_BIT));
+      bool is_set = roaring_bitmap_contains(bm, f);
 			if ((action_include == 1 && !is_set) || (action_include_negated == 1 && is_set)) {
         tm0->clause_outputs[clause_idx] = 0;
 				break;
@@ -198,7 +192,7 @@ lua_Integer _tk_tsetlin_sum_class_votes (lua_State *L, tk_tsetlin_t *tm0)
   return class_sum;
 }
 
-void _tk_tsetlin_type_ii_feedback (lua_State *L, tk_tsetlin_t *tm0, char *bm, lua_Integer l)
+void _tk_tsetlin_type_ii_feedback (lua_State *L, tk_tsetlin_t *tm0, roaring_bitmap_t *bm, lua_Integer l)
 {
 	lua_Integer action_include;
 	lua_Integer action_include_negated;
@@ -208,14 +202,14 @@ void _tk_tsetlin_type_ii_feedback (lua_State *L, tk_tsetlin_t *tm0, char *bm, lu
       lua_Integer idx1 = tk_tsetlin_automata_idx(tm0, f, l, 1);
 			action_include = tk_tsetlin_action(tm0, tm0->automata_states[idx0]);
 			action_include_negated = tk_tsetlin_action(tm0, tm0->automata_states[idx1]);
-      bool is_set = bm[f / CHAR_BIT] & (1 << (f % CHAR_BIT));
+      bool is_set = roaring_bitmap_contains(bm, f);
       tm0->automata_states[idx0] += (action_include == 0 && tm0->automata_states[idx0] < tm0->states * 2) && !is_set;
       tm0->automata_states[idx1] += (action_include_negated == 0 && tm0->automata_states[idx1] < tm0->states * 2) && is_set;
     }
 	}
 }
 
-void _tk_tsetlin_type_i_feedback (lua_State *L, tk_tsetlin_t *tm0, char *bm, lua_Integer l, lua_Number s)
+void _tk_tsetlin_type_i_feedback (lua_State *L, tk_tsetlin_t *tm0, roaring_bitmap_t *bm, lua_Integer l, lua_Number s)
 {
   lua_Integer clause_idx = tk_tsetlin_clause_idx(tm0, l);
 	if (tm0->clause_outputs[clause_idx] == 0)	{
@@ -227,7 +221,7 @@ void _tk_tsetlin_type_i_feedback (lua_State *L, tk_tsetlin_t *tm0, char *bm, lua
 		}
 	} else if (tm0->clause_outputs[clause_idx] == 1) {
 		for (int f = 0; f < tm0->features; f ++) {
-      bool is_set = bm[f / CHAR_BIT] & (1 << (f % CHAR_BIT));
+      bool is_set = roaring_bitmap_contains(bm, f);
       lua_Integer idx0 = tk_tsetlin_automata_idx(tm0, f, l, 0);
       lua_Integer idx1 = tk_tsetlin_automata_idx(tm0, f, l, 1);
 			if (is_set) {
@@ -245,7 +239,7 @@ void _tk_tsetlin_type_i_feedback (lua_State *L, tk_tsetlin_t *tm0, char *bm, lua
 	}
 }
 
-void _tk_tsetlin_update (lua_State *L, tk_tsetlin_t *tm0, char *bm, bool tgt, lua_Number s)
+void _tk_tsetlin_update (lua_State *L, tk_tsetlin_t *tm0, roaring_bitmap_t *bm, bool tgt, lua_Number s)
 {
 	_tk_tsetlin_calculate_clause_output(L, tm0, bm, false);
 	lua_Integer class_sum = _tk_tsetlin_sum_class_votes(L, tm0);
@@ -268,7 +262,7 @@ void _tk_tsetlin_update (lua_State *L, tk_tsetlin_t *tm0, char *bm, bool tgt, lu
 	}
 }
 
-lua_Integer _tk_tsetlin_score (lua_State *L, tk_tsetlin_t *tm0, char *bm)
+lua_Integer _tk_tsetlin_score (lua_State *L, tk_tsetlin_t *tm0, roaring_bitmap_t *bm)
 {
 	_tk_tsetlin_calculate_clause_output(L, tm0, bm, true);
   return _tk_tsetlin_sum_class_votes(L, tm0);
@@ -278,7 +272,7 @@ int tk_tsetlin_predict (lua_State *L)
 {
   lua_settop(L, 2);
   tk_tsetlin_t *tm0 = tk_tsetlin_peek(L, 1);
-  char *bm = tk_tsetlin_peek_raw_bitmap(L, tm0, 2);
+  roaring_bitmap_t *bm = tk_tsetlin_peek_raw_bitmap(L, tm0, 2);
   lua_Integer score = _tk_tsetlin_score(L, tm0, bm);
   lua_pushboolean(L, score >= 0);
   lua_pushinteger(L, score);
@@ -289,7 +283,7 @@ int tk_tsetlin_update (lua_State *L)
 {
   lua_settop(L, 4);
   tk_tsetlin_t *tm0 = tk_tsetlin_peek(L, 1);
-  char *bm = tk_tsetlin_peek_raw_bitmap(L, tm0, 2);
+  roaring_bitmap_t *bm = tk_tsetlin_peek_raw_bitmap(L, tm0, 2);
   luaL_checktype(L, 3, LUA_TBOOLEAN);
   bool tgt = lua_toboolean(L, 3);
   lua_Number s = luaL_checknumber(L, 4);
@@ -307,7 +301,7 @@ luaL_Reg tk_tsetlin_fns[] =
   { NULL, NULL }
 };
 
-int luaopen_santoku_tsetlin_capi (lua_State *L)
+int luaopen_santoku_tsetlin_vanilla_capi (lua_State *L)
 {
   lua_newtable(L); // t
   tk_tsetlin_import(L, "santoku.bitmap", "raw"); // t fn
