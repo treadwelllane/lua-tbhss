@@ -1,8 +1,5 @@
 # Now
 
-- Move santoku/matrix to separate lib
-- Move santoku/bitmap to separate lib
-
 - Migrate write distances file logic to separate commands: export-distances
 - Migrate generate bitmaps file logic to separate commands: generate-bitmaps
 - Migrate load words logic to separate command: load-glove-model
@@ -84,12 +81,5 @@
 # Eventually
 
 - See ideas.md
-
-- Tsetlin Machine advancements
-  - Drop clause (increases accuracy and learning speed)
-  - Indexed (improves learning and classification speed)
-  - Weighted (reduces memory footprint)
-  - Multi-granular (eliminates hyper-parameter S(ensitivity))
-  - Coalesced (reduces memory footprint for multi-output configurations)
 
 - Finetuning to a specific domain
