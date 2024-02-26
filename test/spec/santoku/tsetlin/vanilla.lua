@@ -1,4 +1,3 @@
-local rand = require("santoku.random")
 local test = require("santoku.test")
 local tm = require("santoku.tsetlin.vanilla")
 local bm = require("santoku.bitmap")
@@ -7,15 +6,13 @@ local it = require("santoku.iter")
 local str = require("santoku.string")
 local arr = require("santoku.array")
 
-rand.seed()
-
 local FEATURES = 12
 local CLAUSES = 10
-local STATES = 100
+local STATES = 128
 local THRESHOLD = 40
 local SPECIFICITY = 3.9
 local BOOST_TRUE_POSITIVE = false
-local MAX_EPOCHS = 40
+local MAX_EPOCHS = 300
 
 local function read_data (fp, max)
   local problems = {}
@@ -27,7 +24,7 @@ local function read_data (fp, max)
     records = it.take(max, records)
   end
   for bits in records do
-    local b = bm.create(FEATURES)
+    local b = bm.create()
     for i = 1, FEATURES do
       if bits() == 1 then
         bm.set(b, i)

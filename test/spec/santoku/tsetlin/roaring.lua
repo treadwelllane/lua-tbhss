@@ -1,19 +1,21 @@
+local rand = require("santoku.random")
 local test = require("santoku.test")
-local tm = require("santoku.tsetlin.bitwise")
+local tm = require("santoku.tsetlin.roaring")
 local bm = require("santoku.bitmap")
 local fs = require("santoku.fs")
 local it = require("santoku.iter")
 local str = require("santoku.string")
 local arr = require("santoku.array")
 
-local CLASSES = 2
+rand.seed()
+
 local FEATURES = 12
 local CLAUSES = 10
 local STATE_BITS = 8
 local THRESHOLD = 40
 local SPECIFICITY = 3.9
 local BOOST_TRUE_POSITIVE = false
-local MAX_EPOCHS = 300
+local MAX_EPOCHS = 40
 
 local function read_data (fp, max)
   local problems = {}
@@ -29,14 +31,10 @@ local function read_data (fp, max)
     for i = 1, FEATURES do
       if bits() == 1 then
         bm.set(b, i)
-      else
-        -- NOTE: Setting the inverted features here. This is essential!
-        -- TODO: Consider throwing an error if this is not done.
-        bm.set(b, i + FEATURES)
       end
     end
-    arr.push(problems, bm.raw(b, FEATURES))
-    arr.push(solutions, bits())
+    arr.push(problems, b)
+    arr.push(solutions, bits() == 1)
   end
   return problems, solutions
 end
@@ -49,12 +47,12 @@ test("tsetlin", function ()
   local test_problems, test_solutions =
     read_data("test/res/santoku/tsetlin/NoisyXORTestData.txt")
 
-  local t = tm.create(CLASSES, FEATURES, CLAUSES, STATE_BITS, THRESHOLD, BOOST_TRUE_POSITIVE)
+  local t = tm(FEATURES, CLAUSES, STATE_BITS, THRESHOLD, BOOST_TRUE_POSITIVE)
 
   for epoch = 1, MAX_EPOCHS do
-    tm.train(t, train_problems, train_solutions, SPECIFICITY)
-    local test_score = tm.evaluate(t, test_problems, test_solutions)
-    local train_score = tm.evaluate(t, train_problems, train_solutions)
+    t.train(train_problems, train_solutions, SPECIFICITY)
+    local test_score = t.evaluate(test_problems, test_solutions)
+    local train_score = t.evaluate(train_problems, train_solutions)
     str.printf("Epoch\t%-4d\tTest\t%4.2f\tTrain\t%4.2f\n", epoch, test_score, train_score)
   end
 

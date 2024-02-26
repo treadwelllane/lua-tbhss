@@ -6,7 +6,7 @@ local assert = err.assert
 local validate = require("santoku.validate")
 local eq = validate.isequal
 
-local au = require("santoku.tsetlin.bitwise.automata")
+local au = require("santoku.tsetlin.roaring.automata")
 local bm = require("santoku.bitmap")
 
 test("tsetlin automata", function ()

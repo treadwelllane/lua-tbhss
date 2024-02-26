@@ -66,10 +66,6 @@
 
 - Tsetlin Machine refinement of sentence representations
 
-- Potential bugs in tsetlin.md
-  - Ensure that when no literals are included, the clause evaluates to 1
-  - Hyper-parameter T(hreshold)
-
 # Later
 
 - Move various inner loops to C (see cluster.lua TODOs)
