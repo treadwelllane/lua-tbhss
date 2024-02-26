@@ -6,7 +6,6 @@
 #include <stdlib.h>
 
 #define TK_TSETLIN_MT "santoku_tsetlin"
-#define TK_TSETLIN_UPVALUE_BRAW 1
 
 typedef struct {
 
@@ -16,9 +15,9 @@ typedef struct {
   lua_Number threshold;
   bool boost_true_positive;
 
-  lua_Integer *automata_states; // [features][clauses][polarity]
-  lua_Integer *clause_outputs; // [clauses]
-  lua_Integer *clause_feedback; // [clauses]
+  lua_Integer *automata_states;
+  lua_Integer *clause_outputs;
+  lua_Integer *clause_feedback;
 
 } tk_tsetlin_t;
 
@@ -58,6 +57,7 @@ void tk_tsetlin_callupvalue (lua_State *L, int nargs, int nret, int idx)
   lua_call(L, nargs, nret); // results
 }
 
+// TODO: Duplicated across various libraries, need to consolidate
 void tk_tsetlin_register (lua_State *L, luaL_Reg *regs, int nup)
 {
   while (true) {
@@ -84,7 +84,7 @@ tk_tsetlin_t *tk_tsetlin_peek (lua_State *L, int i)
 
 roaring_bitmap_t *tk_tsetlin_peek_raw_bitmap (lua_State *L, tk_tsetlin_t *tm, int i)
 {
-  return *((roaring_bitmap_t **) luaL_checkudata(L, i, "santoku_bitmap"));;
+  return *((roaring_bitmap_t **) luaL_checkudata(L, i, "santoku_bitmap"));
 }
 
 int tk_tsetlin_destroy (lua_State *L)
@@ -128,11 +128,6 @@ int tk_tsetlin_create (lua_State *L)
   if (!(tm0->automata_states || tm0->clause_outputs || tm0->clause_feedback))
     goto err_mem;
 
-  // TODO: Configurable random memory range.
-  // Instead of setting states to either tm0->states and tm0->states + 1 we can
-  // randomly select between
-  //   [0, tm0->states] and
-  //   [tm0->states, tm0->states * 2]
   for (lua_Integer f = 0; f < tm0->features; f ++) {
     for (lua_Integer l = 0; l < tm0->clauses; l ++) {
       if (1.0 * rand() / RAND_MAX <= 0.5) {
@@ -304,8 +299,7 @@ luaL_Reg tk_tsetlin_fns[] =
 int luaopen_santoku_tsetlin_vanilla_capi (lua_State *L)
 {
   lua_newtable(L); // t
-  tk_tsetlin_import(L, "santoku.bitmap", "raw"); // t fn
-  tk_tsetlin_register(L, tk_tsetlin_fns, 1); // t
+  tk_tsetlin_register(L, tk_tsetlin_fns, 0); // t
   luaL_newmetatable(L, TK_TSETLIN_MT); // t mt
   lua_pushcfunction(L, tk_tsetlin_destroy); // t mt fn
   lua_setfield(L, -2, "__gc"); // t mt

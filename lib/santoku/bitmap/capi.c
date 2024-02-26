@@ -1,7 +1,7 @@
 #include "lua.h"
 #include "lauxlib.h"
-
 #include "roaring.c"
+#include <string.h>
 
 #define TK_BITMAP_MT "santoku_bitmap"
 
@@ -91,6 +91,69 @@ int tk_bitmap_clear (lua_State *L)
   return 0;
 }
 
+typedef struct {
+  unsigned int *raw;
+} tk_bitmap_raw_state_t;
+
+bool tk_bitmap_raw_iter (uint32_t val, void *statepv)
+{
+  tk_bitmap_raw_state_t *statep = (tk_bitmap_raw_state_t *) statepv;
+  unsigned int byte = val / (sizeof(unsigned int) * CHAR_BIT);
+  unsigned int bit = val % (sizeof(unsigned int) * CHAR_BIT);
+  statep->raw[byte] |= 1 << bit;
+  return true;
+}
+
+int tk_bitmap_raw (lua_State *L)
+{
+  lua_settop(L, 2);
+  roaring_bitmap_t *bm = tk_bitmap_peek(L, 1);
+  size_t chunks;
+  if (lua_type(L, 2) != LUA_TNIL) {
+    lua_Integer bits = luaL_checkinteger(L, 2);
+    if (bits == 0) {
+      chunks = 0;
+    } else if (bits < 0) {
+      return luaL_error(L, "number of bits can't be negative");
+    } else if (bits > UINT32_MAX) {
+      return luaL_error(L, "number of bits can't be greater than UINT32_MAX");
+    } else {
+      chunks = bits / (sizeof(unsigned int) * CHAR_BIT) + 1;
+    }
+  } else if (roaring_bitmap_get_cardinality(bm) == 0) {
+    chunks = 0;
+  } else {
+    uint32_t max = roaring_bitmap_maximum(bm);
+    chunks = max / (sizeof(unsigned int) * CHAR_BIT) + 1;
+  }
+  tk_bitmap_raw_state_t state;
+  state.raw = malloc(sizeof(unsigned int) * chunks);
+  memset(state.raw, 0, sizeof(unsigned int) * chunks);
+  roaring_iterate(bm, tk_bitmap_raw_iter, &state);
+  if (state.raw == NULL)
+    luaL_error(L, "error in malloc");
+  lua_pushlstring(L, (char *) state.raw, sizeof(unsigned int) * chunks);
+  free(state.raw);
+  return 1;
+}
+
+int tk_bitmap_tostring (lua_State *L)
+{
+  lua_settop(L, 2);
+  tk_bitmap_raw(L);
+  size_t size_c;
+  const char *raw_c = luaL_checklstring(L, -1, &size_c);
+  size_t size_u = size_c ? size_c / sizeof(unsigned int) : 0;
+  unsigned int *raw_u = (unsigned int *) raw_c;
+  luaL_Buffer buf;
+  luaL_buffinit(L, &buf);
+  for (size_t i = 0; i < size_u; i ++)
+    for (unsigned int c = 0; c < sizeof(unsigned int) * CHAR_BIT; c ++)
+      luaL_addchar(&buf, (raw_u[i] & (1 << c)) ? '1' : '0');
+  luaL_pushresult(&buf);
+  return 1;
+}
+
 int tk_bitmap_and (lua_State *L)
 {
   lua_settop(L, 2);
@@ -98,6 +161,15 @@ int tk_bitmap_and (lua_State *L)
   roaring_bitmap_t *bm1 = tk_bitmap_peek(L, 2);
   roaring_bitmap_and_inplace(bm0, bm1);
   return 0;
+}
+
+int tk_bitmap_equals (lua_State *L)
+{
+  lua_settop(L, 2);
+  roaring_bitmap_t *bm0 = tk_bitmap_peek(L, 1);
+  roaring_bitmap_t *bm1 = tk_bitmap_peek(L, 2);
+  lua_pushboolean(L, roaring_bitmap_equals(bm0, bm1));
+  return 1;
 }
 
 int tk_bitmap_or (lua_State *L)
@@ -118,6 +190,34 @@ int tk_bitmap_xor (lua_State *L)
   return 0;
 }
 
+typedef struct {
+  uint32_t n;
+  roaring_bitmap_t *bm;
+} tk_bitmap_extend_state_t;
+
+bool tk_bitmap_extend_iter (uint32_t val, void *statepv)
+{
+  tk_bitmap_extend_state_t *statep = (tk_bitmap_extend_state_t *) statepv;
+  roaring_bitmap_add(statep->bm, val + statep->n);
+  return true;
+}
+
+int tk_bitmap_extend (lua_State *L)
+{
+  lua_settop(L, 3);
+  roaring_bitmap_t *bm0 = tk_bitmap_peek(L, 1);
+  roaring_bitmap_t *bm1 = tk_bitmap_peek(L, 2);
+  lua_Integer n = luaL_checkinteger(L, 3);
+  n --;
+  if (n < 0)
+    luaL_error(L, "extension starting index must be greater than 0");
+  tk_bitmap_extend_state_t state;
+  state.n = n;
+  state.bm = bm0;
+  roaring_iterate(bm1, tk_bitmap_extend_iter, &state);
+  return 0;
+}
+
 luaL_Reg tk_bitmap_fns[] =
 {
   { "create", tk_bitmap_create },
@@ -127,9 +227,13 @@ luaL_Reg tk_bitmap_fns[] =
   { "unset", tk_bitmap_unset },
   { "cardinality", tk_bitmap_cardinality },
   { "clear", tk_bitmap_clear },
+  { "raw", tk_bitmap_raw },
+  { "tostring", tk_bitmap_tostring },
+  { "equals", tk_bitmap_equals },
   { "and", tk_bitmap_and },
   { "or", tk_bitmap_or },
   { "xor", tk_bitmap_xor },
+  { "extend", tk_bitmap_extend },
   { NULL, NULL }
 };
 

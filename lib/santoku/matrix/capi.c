@@ -482,7 +482,7 @@ luaL_Reg tk_matrix_fns[] =
   { NULL, NULL }
 };
 
-int luaopen_santoku_matrix_matrix (lua_State *L)
+int luaopen_santoku_matrix_capi (lua_State *L)
 {
   lua_newtable(L); // t
   luaL_register(L, NULL, tk_matrix_fns); // t

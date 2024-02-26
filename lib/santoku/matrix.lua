@@ -1,4 +1,4 @@
-local mtx = require("santoku.matrix.matrix")
+local mtx = require("santoku.matrix.capi")
 local mt_matrix = mtx.mt_matrix
 local bmatrix = mtx.matrix
 local bset = mtx.set
