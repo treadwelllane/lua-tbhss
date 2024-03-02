@@ -102,6 +102,7 @@ local function cluster_vectors (db, model, word_matrix, n_clusters, max_iteratio
 
   db.begin()
 
+  -- TODO: use db.transaction
   return vtup(function (ok, ...)
     if not ok then
       db.rollback()

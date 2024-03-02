@@ -113,6 +113,7 @@ end
 
 local function load_vectors (db, model, glove_file, tag)
   db.begin()
+  -- TODO: use db.transaction
   return vtup(function (ok, ...)
     if not ok then
       db.rollback()

@@ -8,7 +8,7 @@ local bitmaps = require("tbhss.bitmaps")
 local fs = require("santoku.fs")
 local arr = require("santoku.array")
 local mtx = require("santoku.matrix")
-local bmp = require("santoku.bitmap")
+local bm = require("santoku.bitmap")
 
 local parser = argparse()
   :name("tbhss")
@@ -104,9 +104,7 @@ if args.command == "convert-glove" then
       end
       out[1] = word_names[i]
       out[2] = "\t"
-      for j = 1, bmp.size(word_bitmaps[i]) do
-        out[2 + j] = bmp.get(word_bitmaps[i], j) and "1" or "0"
-      end
+      out[3] = bm.tostring(word_bitmaps[i], args.num_clusters)
       fs.write(fh, arr.concat(out))
     end
   end)
