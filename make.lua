@@ -8,9 +8,9 @@ local env = {
   dependencies = {
     "lua == 5.1",
     "argparse >= 0.7.1-1",
-    "santoku >= 0.0.195-1",
+    "santoku >= 0.0.200-1",
     "santoku-fs >= 0.0.29-1",
-    "santoku-tsetlin >= 0.0.1-1",
+    "santoku-tsetlin >= 0.0.5-1",
     "santoku-bitmap >= 0.0.2-1",
     "santoku-matrix >= 0.0.3-1",
     "santoku-sqlite >= 0.0.13-1",
