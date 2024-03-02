@@ -20,11 +20,12 @@ fs.rm(db_file .. "-wal", true)
 fs.rm(db_file .. "-shm", true)
 
 local db = init_db(db_file)
-local model, word_matrix--[[, _, word_names]] = glove.load_vectors(db, nil, glove_file, nil)
+local model, word_matrix, _, word_names = glove.load_vectors(db, nil, glove_file, nil)
 local distance_matrix = cluster.cluster_vectors(db, model, word_matrix, clusters)
---[[local word_bitmaps = ]]bitmaps.create_bitmaps(distance_matrix, bitmap_scale_factor)
+local word_bitmaps = bitmaps.create_bitmaps(distance_matrix, bitmap_scale_factor)
 
--- local it = require("santoku.iter")
--- it.each(print, it.map(function (k, v)
---   return k, string.format("%-15s", v), word_bitmaps[k]
--- end, it.ipairs(word_names)))
+local bm = require("santoku.bitmap")
+local it = require("santoku.iter")
+it.each(print, it.map(function (k, v)
+  return k, string.format("%-15s", v), bm.tostring(word_bitmaps[k], clusters)
+end, it.ipairs(word_names)))
