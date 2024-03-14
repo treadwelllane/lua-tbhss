@@ -62,3 +62,11 @@
   bloom filters as to improve performance of nearest neighbor search? In other
   words, can we use bloom filters to, given an input sentence, eliminate a
   subset of documents that would have Jaccard Similarities of 0?
+
+## Next Token Prediction
+
+- Input: sequence of words
+- Encode: sequence of word-cluster bitmaps
+- Compress: sequence of sentence bitmaps
+- Feed forward: concatenated N sentence bitmaps, producing cluster number
+- Decode: concatenate cluster number to N sentence bitmaps, producing word?
