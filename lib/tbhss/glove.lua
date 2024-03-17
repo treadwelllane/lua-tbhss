@@ -3,14 +3,14 @@ local error = err.error
 local assert = err.assert
 
 local mtx = require("santoku.matrix")
-local matrix = mtx.matrix
+local create = mtx.create
 local mreshape = mtx.reshape
 local mextend = mtx.extend
 local mset = mtx.set
 local mrows = mtx.rows
 local mcolumns = mtx.columns
 local mnormalize = mtx.normalize
-local mto_raw = mtx.to_raw
+local mraw = mtx.raw
 
 local fs = require("santoku.fs")
 local flines = fs.lines
@@ -19,7 +19,7 @@ local varg = require("santoku.varg")
 local vtup = varg.tup
 
 local str = require("santoku.string")
-local smatch = str.match
+local smatches = str.matches
 local ssub = str.sub
 local snumber = str.number
 
@@ -41,11 +41,11 @@ local function load_vectors_from_file (db, model, glove_file, tag)
   local n_dims = nil
   local floats = {}
 
-  local mtx = matrix(0, 0)
+  local mtx = create(0, 0)
 
   for line, s, e in flines(glove_file) do
 
-    local chunks = smatch(line, "%S+", false, s, e)
+    local chunks = smatches(line, "%S+", false, s, e)
     local word = ssub(chunks())
 
     icollect(imap(snumber, chunks), floats, 1)
@@ -81,7 +81,7 @@ local function load_vectors_from_file (db, model, glove_file, tag)
   end
 
   for i = 1, mrows(mtx) do
-    add_word(id_model, word_names[i], i, mto_raw(mtx, i))
+    add_word(id_model, word_names[i], i, mraw(mtx, i))
   end
 
   set_words_loaded(id_model)
@@ -94,7 +94,7 @@ local function load_vectors_from_db (db, model)
 
   print("Loading words from database")
 
-  local word_matrix = matrix(0, model.dimensions)
+  local word_matrix = create(0, model.dimensions)
   local word_numbers = {}
   local word_names = {}
 
