@@ -1,5 +1,5 @@
 local mtx = require("santoku.matrix")
-local matrix = mtx.matrix
+local create = mtx.create
 local mreshape = mtx.reshape
 local mcopy = mtx.copy
 local mcolumns = mtx.columns
@@ -39,9 +39,9 @@ local function select_initial_clusters (word_matrix, n_clusters)
   local first = random(1, mrows(word_matrix))
 
   local ignores = { [first] = true }
-  local cluster_matrix = matrix(word_matrix, first, first)
-  local distance_matrix = matrix(mrows(word_matrix), mrows(cluster_matrix))
-  local distances = matrix(1, 0)
+  local cluster_matrix = create(word_matrix, first, first)
+  local distance_matrix = create(mrows(word_matrix), mrows(cluster_matrix))
+  local distances = create(1, 0)
   local ids = {}
   local n_ids
 
@@ -86,7 +86,7 @@ local function load_clusters_from_db (db, clustering)
   print("Loading word clusters from database")
 
   local total_words = db.get_total_words(clustering.id_model)
-  local distance_matrix = matrix(total_words, clustering.clusters)
+  local distance_matrix = create(total_words, clustering.clusters)
 
   for wc in db.get_word_clusters(clustering.id) do
     mset(distance_matrix, wc.id_word, wc.id_cluster, wc.similarity)
@@ -126,7 +126,7 @@ local function cluster_vectors (db, model, word_matrix, n_clusters, max_iteratio
     print("Clustering")
 
     local cluster_matrix, distance_matrix = select_initial_clusters(word_matrix, n_clusters)
-    local cluster_average_matrix = matrix(0, 0)
+    local cluster_average_matrix = create(0, 0)
     local word_clusters = {}
 
     local num_iterations = 1

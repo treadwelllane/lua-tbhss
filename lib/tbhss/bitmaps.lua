@@ -3,7 +3,7 @@ local bcreate = bitmap.create
 local bset = bitmap.set
 
 local mtx = require("santoku.matrix")
-local matrix = mtx.matrix
+local create = mtx.create
 local mrows = mtx.rows
 local mcolumns = mtx.columns
 local mget = mtx.get
@@ -23,10 +23,10 @@ local function create_bitmaps (distance_matrix, scale_factor)
   local n_words = mrows(distance_matrix)
   local bitmap_size = mcolumns(distance_matrix)
 
-  local distances_scaled = matrix(1, bitmap_size)
+  local distances_scaled = create(1, bitmap_size)
 
   for i = 1, n_words do
-    local bm = bcreate(bitmap_size)
+    local bm = bcreate()
     word_bitmaps[i] = bm
     mcopy(distances_scaled, distance_matrix, i, i, 1)
     madd(distances_scaled, 1)
