@@ -1,5 +1,30 @@
 # Now
 
+- Clean up todo.md and ideas.md now that README.md is restructured
+
+- Persist clustered bitmaps in db
+- Library functions for use of clusters and clustered bitmaps
+
+- Copy encoder code from tsetlin library
+- CLI for training encoder
+- CLI for creating encoded bitmaps
+- Library functions for use of encoded bitmaps
+
+- Implement positional encoding and contextualizer
+- Explore training on NLI data instead of (or before) STS data
+- Explore triplet loss instead of contrastive loss
+
+- Allow & document passing of custom sentence pairs (via a table or similar) to
+  contextualizer training
+
+- It seems like stopwords are represented with more bits than rare words. Is
+  that right? A side-effect of this is that stopwords fill up the sentence
+  bitmap rapidly when merged.
+
+----
+
+# Now
+
 - Migrate write distances file logic to separate commands: export-distances
 - Migrate generate bitmaps file logic to separate commands: generate-bitmaps
 - Migrate load words logic to separate command: load-glove-model
