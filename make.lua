@@ -1,20 +1,22 @@
 local env = {
 
   name = "tbhss",
-  version = "0.0.22-1",
+  version = "0.0.23-1",
   variable_prefix = "TBHSS",
   public = true,
 
   dependencies = {
     "lua == 5.1",
+    "lua-cjson >= 2.1.0.10-1",
     "argparse >= 0.7.1-1",
-    "santoku >= 0.0.200-1",
-    "santoku-fs >= 0.0.29-1",
-    "santoku-tsetlin >= 0.0.5-1",
-    "santoku-bitmap >= 0.0.2-1",
-    "santoku-matrix >= 0.0.3-1",
-    "santoku-sqlite >= 0.0.13-1",
-    "santoku-sqlite-migrate >= 0.0.13-1",
+    "santoku == 0.0.204-1",
+    "santoku-fs == 0.0.32-1",
+    "santoku-system == 0.0.23-1",
+    "santoku-tsetlin == 0.0.26-1",
+    "santoku-bitmap == 0.0.8-1",
+    "santoku-matrix == 0.0.8-1",
+    "santoku-sqlite == 0.0.13-1",
+    "santoku-sqlite-migrate == 0.0.13-1",
     "lsqlite3 >= 0.9.5-1"
   },
 

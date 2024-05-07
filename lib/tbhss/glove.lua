@@ -1,9 +1,7 @@
 local err = require("santoku.error")
-local error = err.error
-local assert = err.assert
 
 local mtx = require("santoku.matrix")
-local create = mtx.create
+local mcreate = mtx.create
 local mreshape = mtx.reshape
 local mextend = mtx.extend
 local mset = mtx.set
@@ -15,9 +13,6 @@ local mraw = mtx.raw
 local fs = require("santoku.fs")
 local flines = fs.lines
 
-local varg = require("santoku.varg")
-local vtup = varg.tup
-
 local str = require("santoku.string")
 local smatches = str.matches
 local ssub = str.sub
@@ -27,31 +22,26 @@ local iter = require("santoku.iter")
 local imap = iter.map
 local icollect = iter.collect
 
-local function load_vectors_from_file (db, model, glove_file, tag)
+local function load_embeddings_from_file (db, model, args)
 
-  local add_model = db.add_model
-  local get_model_by_id = db.get_model_by_id
-  local add_word = db.add_word
-  local set_words_loaded = db.set_words_loaded
-
-  print("Loading words from file:", glove_file)
+  print("Loading words from file:", args.file)
 
   local word_numbers = {}
   local word_names = {}
   local n_dims = nil
   local floats = {}
 
-  local mtx = create(0, 0)
+  local mtx = mcreate(0, 0)
 
-  for line, s, e in flines(glove_file) do
+  for line in flines(args.file) do
 
-    local chunks = smatches(line, "%S+", false, s, e)
+    local chunks = smatches(line, "%S+")
     local word = ssub(chunks())
 
     icollect(imap(snumber, chunks), floats, 1)
 
     if #word_names > 0 and #floats ~= n_dims then
-      error("Wrong number of dimensions for vector", #word_names, #floats)
+      err.error("Wrong number of dimensions for embedding", #word_names, #floats)
     elseif #word_names == 0 then
       mreshape(mtx, #word_names, #floats)
       n_dims = #floats
@@ -71,37 +61,43 @@ local function load_vectors_from_file (db, model, glove_file, tag)
   mnormalize(mtx)
 
   print("Loaded:", mrows(mtx), mcolumns(mtx))
-  print("Persisting word vectors")
+  print("Persisting word embeddings")
 
   local id_model = model and model.id
 
   if not id_model then
-    id_model = add_model(tag or glove_file, n_dims)
-    model = get_model_by_id(id_model)
+    id_model = db.add_embeddings_model(args.name, n_dims)
+    model = db.get_embeddings_model_by_id(id_model)
   end
 
   for i = 1, mrows(mtx) do
-    add_word(id_model, word_names[i], i, mraw(mtx, i))
+    db.add_embedding(id_model, i, word_names[i], mraw(mtx, i))
   end
 
-  set_words_loaded(id_model)
+  db.set_embeddings_loaded(id_model)
 
   return model, mtx, word_numbers, word_names
 
 end
 
-local function load_vectors_from_db (db, model)
+local function get_embeddings (db, name)
+
+  local model = db.get_embeddings_model_by_name(name)
+
+  if not model then
+    return
+  end
 
   print("Loading words from database")
 
-  local word_matrix = create(0, model.dimensions)
+  local word_matrix = mcreate(0, model.dimensions)
   local word_numbers = {}
   local word_names = {}
 
-  for word in db.get_words(model.id) do
-    mextend(word_matrix, word.vector)
+  for word in db.get_embeddings(model.id) do
+    mextend(word_matrix, word.embedding)
     word_names[#word_names + 1] = word.name
-    assert(#word_names == word.id, "Word order/id mismatch")
+    err.assert(#word_names == word.id, "Word order/id mismatch")
     word_numbers[word.name] = word.id
   end
 
@@ -111,26 +107,18 @@ local function load_vectors_from_db (db, model)
 
 end
 
-local function load_vectors (db, model, glove_file, tag)
-  db.begin()
-  -- TODO: use db.transaction
-  return vtup(function (ok, ...)
-    if not ok then
-      db.rollback()
-      error(...)
+local function load_embeddings (db, args)
+  return db.db.transaction(function ()
+    local model = db.get_embeddings_model_by_name(args.name)
+    if not model or model.loaded ~= 1 then
+      return load_embeddings_from_file(db, model, args)
     else
-      db.commit()
-      return ...
+      err.error("Embeddings already loaded")
     end
-  end, pcall(function ()
-    if model and model.words_loaded == 1 then
-      return load_vectors_from_db(db, model)
-    else
-      return load_vectors_from_file(db, model, glove_file, tag)
-    end
-  end))
+  end)
 end
 
 return {
-  load_vectors = load_vectors
+  load_embeddings = load_embeddings,
+  get_embeddings = get_embeddings,
 }

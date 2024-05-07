@@ -1,112 +1,123 @@
 local argparse = require("argparse")
+local serialize = require("santoku.serialize") -- luacheck: ignore
 
 local init_db = require("tbhss.db")
 local glove = require("tbhss.glove")
-local cluster = require("tbhss.cluster")
+local clusters = require("tbhss.clusters")
 local bitmaps = require("tbhss.bitmaps")
+local sts = require("tbhss.sts")
+local encoder = require("tbhss.encoder")
+local contextualizer = require("tbhss.contextualizer")
 
-local fs = require("santoku.fs")
-local arr = require("santoku.array")
-local mtx = require("santoku.matrix")
-local bm = require("santoku.bitmap")
+local fun = require("santoku.functional")
+local op = require("santoku.op")
 
 local parser = argparse()
   :name("tbhss")
   :description("TBHSS sentence similarity")
 
-parser:command_target("command")
+parser:command_target("cmd")
 
-local c_convert = parser:command("convert-glove", "convert a glove model")
+local function base_flags (cmd)
+  cmd:option("--cache", "cache db file", nil, nil, 1, 1)
+end
 
-c_convert
-  :option("--input", "input glove file")
-  :args(1)
-  :count(1)
+local cmd_load = parser:command("load", "load data into the cache")
+cmd_load:command_target("cmd_load")
 
-c_convert
-  :option("--output", "output glove file")
-  :args(1)
-  :count(1)
+local cmd_load_embeddings = cmd_load:command("embeddings", "load embeddings")
+base_flags(cmd_load_embeddings)
+cmd_load_embeddings:option("--name", "name of loaded embeddings", nil, nil, 1, 1)
+cmd_load_embeddings:option("--file", "path to input embeddings file", nil, nil, 1, 1)
 
-c_convert
-  :option("--tag", "cache db tag")
-  :args(1)
-  :count("0-1")
+local cmd_load_sts = cmd_load:command("sts", "load sentence similarity dataset")
+base_flags(cmd_load_sts)
+cmd_load_sts:option("--name", "name of loaded dataset", nil, nil, 1, 1)
+cmd_load_sts:option("--file", "path to sts dataset file", nil, nil, 1, 1)
 
-c_convert
-  :option("--db-file", "cache db file")
-  :args(1)
-  :count(1)
+local cmd_create = parser:command("create")
+cmd_create:command_target("cmd_create")
 
-c_convert
-  :option("--num-clusters", "total number of clusters")
-  :convert(tonumber)
-  :args(1)
-  :count(1)
+local cmd_create_clusters = cmd_create:command("clusters", "create clusters")
+base_flags(cmd_create_clusters)
+cmd_create_clusters:option("--name", "name of created clusters", nil, nil, 1, 1)
+cmd_create_clusters:option("--embeddings", "name of embeddings to cluster", nil, nil, 1, 1)
+cmd_create_clusters:option("--clusters", "number of clusters", nil, tonumber, 1, 1)
 
-c_convert
-  :option("--bitmap-scale-factor", "bitmap bit set probability scale factor")
-  :convert(tonumber)
-  :args(1)
-  :count(1)
+local cmd_create_encoder = cmd_create:command("encoder", "create an encoder")
+base_flags(cmd_create_encoder)
+cmd_create_encoder:option("--name", "name of created encoder", nil, nil, 1, 1)
+cmd_create_encoder:option("--bits", "number of bits in encoded bitmaps", nil, tonumber, 1, 1)
+cmd_create_encoder:option("--embeddings", "name of embeddings to encode", nil, nil, 1, 1)
+cmd_create_encoder:option("--threshold-levels", "number of levels for number discretization", nil, tonumber, 1, 1)
+cmd_create_encoder:option("--max-records", "max number of records to read for training", nil, tonumber, 1, "0-1")
+cmd_create_encoder:option("--train-test-ratio", "ratio of train embeddings to test embeddings", nil, tonumber, 1, 1)
+cmd_create_encoder:option("--clauses", "Tsetlin Machine clauses", nil, tonumber, 1, 1)
+cmd_create_encoder:option("--state-bits", "Tsetlin Machine state bits", 8, tonumber, 1, "0-1")
+cmd_create_encoder:option("--threshold", "Tsetlin Machine threshold", nil, tonumber, 1, 1)
+cmd_create_encoder:option("--specificity", "Tsetlin Machine specificity", nil, tonumber, 1, 1)
+cmd_create_encoder:option("--update-probability", "Tsetlin Machine update probability", 2, tonumber, 1, "0-1")
+cmd_create_encoder:option("--drop-clause", "Tsetlin Machine drop clause", 0.75, tonumber, 1, "0-1")
+cmd_create_encoder:option("--boost-true-positive", "Tsetlin Machine boost true positive", "false", fun.bind(op.eq, "true"), 1, "0-1"):choices({ "true", "false" })
+cmd_create_encoder:option("--evaluate-every", "Evaluation frequency", 5, tonumber, 1, "0-1")
+cmd_create_encoder:option("--epochs", "Number of epochs", nil, tonumber, 1, 1)
 
-c_convert
-  :option("--max-iterations", "max iterations for clustering")
-  :convert(tonumber)
-  :args(1)
-  :count("0-1")
+local cmd_create_contextualizer = cmd_create:command("contextualizer", "create a contextualizer")
+base_flags(cmd_create_contextualizer)
+cmd_create_contextualizer:option("--name", "name of created contextualizer", nil, nil, 1, 1)
+cmd_create_contextualizer:option("--sts", "name of sts dataset to use", nil, nil, 1, 1)
+cmd_create_contextualizer:mutex(
+  cmd_create_contextualizer:option("--clusters", "name of clusters to use", nil, nil, 1, 1),
+  cmd_create_contextualizer:option("--encoder", "name of encoder to use", nil, nil, 1, 1))
+cmd_create_contextualizer:option("--bits", "number of bits in encoded bitmaps", nil, tonumber, 1, 1)
+cmd_create_contextualizer:option("--waves", "number of waves for positional encoding", nil, tonumber, 1, 1)
+cmd_create_contextualizer:option("--wave-period", "wave period for positional encoding", 10000, tonumber, 1, "0-1")
+cmd_create_contextualizer:option("--train-test-ratio", "ratio of train embeddings to test embeddings", nil, tonumber, 1, 1)
+cmd_create_contextualizer:option("--clauses", "Tsetlin Machine clauses", nil, tonumber, 1, 1)
+cmd_create_contextualizer:option("--state-bits", "Tsetlin Machine state bits", 8, tonumber, 1, "0-1")
+cmd_create_contextualizer:option("--threshold", "Tsetlin Machine threshold", nil, tonumber, 1, 1)
+cmd_create_contextualizer:option("--specificity", "Tsetlin Machine specificity", nil, tonumber, 1, 1)
+cmd_create_contextualizer:option("--update-probability", "Tsetlin Machine update probability", 2, tonumber, 1, "0-1")
+cmd_create_contextualizer:option("--drop-clause", "Tsetlin Machine drop clause", 0.75, tonumber, 1, "0-1")
+cmd_create_contextualizer:option("--boost-true-positive", "Tsetlin Machine boost true positive", "false", fun.bind(op.eq, "true"), 1, "0-1"):choices({ "true", "false" })
+cmd_create_contextualizer:option("--evaluate-every", "Evaluation frequency", 5, tonumber, 1, "0-1")
+cmd_create_contextualizer:option("--epochs", "Number of epochs", nil, tonumber, 1, 1)
+
+local cmd_create_bitmaps = cmd_create:command("bitmaps", "create pre-computed bitmaps")
+cmd_create_bitmaps:command_target("cmd_create_bitmaps")
+
+local cmd_create_bitmaps_clustered = cmd_create_bitmaps:command("clustered", "create bitmaps from clusters")
+base_flags(cmd_create_bitmaps_clustered)
+cmd_create_bitmaps_clustered:option("--name", "name of created bitmaps", nil, nil, 1, 1)
+cmd_create_bitmaps_clustered:option("--clusters", "name of clusters to use", nil, nil, 1, 1)
+cmd_create_bitmaps_clustered:option("--min-similarity", "minimum similarity required to set bit", 0.5, tonumber, 1, "0-1")
+cmd_create_bitmaps_clustered:option("--min-set", "minimum number of bits to set", 1, tonumber, 1, "0-1")
+cmd_create_bitmaps_clustered:option("--max-set", "maximum number of bits to set", nil, nil, 1, 1)
+
+local cmd_create_bitmaps_encoded = cmd_create_bitmaps:command("encoded", "create bitmaps from an encoder")
+base_flags(cmd_create_bitmaps_encoded)
+cmd_create_bitmaps_encoded:option("--name", "name of created bitmaps", nil, nil, 1, 1)
+cmd_create_bitmaps_encoded:option("--encoder", "name of encoder", nil, nil, 1, 1)
 
 local args = parser:parse()
 
-if args.command == "convert-glove" then
+local db = init_db(args.cache)
 
-  local db = init_db(args.db_file)
-
-  local model =
-    db.get_model_by_tag(args.tag or args.input)
-
-  local model, word_matrix, _, word_names =
-    glove.load_vectors(db, model, args.input, args.tag)
-
-  local distance_matrix =
-    cluster.cluster_vectors(db, model, word_matrix,
-      args.num_clusters,
-      args.max_iterations)
-
-  print("Writing distance matrix to file")
-
-  local out = {}
-
-  fs.with(args.output, "w", function (fh)
-    for i = 1, mtx.rows(distance_matrix) do
-      if i > 1 then
-        fs.write(fh, "\n")
-      end
-      out[1] = word_names[i]
-      for j = 1, mtx.columns(distance_matrix) do
-        out[1 + (j * 2 - 1)] = j
-        out[1 + (j * 2)] = mtx.get(distance_matrix, i, j)
-      end
-      fs.write(fh, arr.concat(out, "\t"))
-    end
-  end)
-
-  print("Writing bitmaps to file")
-
-  local word_bitmaps = bitmaps.create_bitmaps(distance_matrix, args.bitmap_scale_factor)
-
-  out = {}
-
-  fs.with(args.output .. ".bitmaps", "w", function (fh)
-    for i = 1, #word_bitmaps do
-      if i > 1 then
-        fs.write(fh, "\n")
-      end
-      out[1] = word_names[i]
-      out[2] = "\t"
-      out[3] = bm.tostring(word_bitmaps[i], args.num_clusters)
-      fs.write(fh, arr.concat(out))
-    end
-  end)
-
+if args.cmd == "load" and args.cmd_load == "embeddings" then
+  glove.load_embeddings(db, args)
+elseif args.cmd == "load" and args.cmd_load == "sts" then
+  sts.load_sts(db, args)
+elseif args.cmd == "create" and args.cmd_create == "clusters" then
+  clusters.create_clusters(db, args)
+elseif args.cmd == "create" and args.cmd_create == "encoder" then
+  encoder.create_encoder(db, args)
+elseif args.cmd == "create" and args.cmd_create == "contextualizer" then
+  contextualizer.create_contextualizer(db, args)
+elseif args.cmd == "create" and args.cmd_create == "bitmaps" and args.cmd_create_bitmaps == "clustered" then
+  bitmaps.create_clustered(db, args)
+elseif args.cmd == "create" and args.cmd_create == "bitmaps" and args.cmd_create_bitmaps == "encoded" then
+  bitmaps.create_encoded(db, args)
+else
+  print(parser:get_usage())
+  os.exit(1)
 end
