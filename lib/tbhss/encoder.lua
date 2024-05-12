@@ -34,7 +34,7 @@ local function get_dataset (db, tokenizer, sentences_model, args)
       arr.push(anchors, a)
       arr.push(negatives, n)
       arr.push(positives, p)
-      if args.max_records and #anchors >= args.max_records then
+      if (args.max_records and args.max_records > 0) and #anchors >= args.max_records then
         break
       end
     end

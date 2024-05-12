@@ -101,7 +101,7 @@ return function (db_file)
   ]]))
 
   M.add_encoder_model = encode_encoder_model(db.inserter([[
-    insert into encoder_model (name, id_words_model, params)
+    insert into encoder_model (name, id_bitmaps_model, params)
     values (?, ?, ?)
   ]]))
 
