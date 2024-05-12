@@ -1,7 +1,6 @@
 local serialize = require("santoku.serialize") -- luacheck: ignore
 local test = require("santoku.test")
 local tm = require("santoku.tsetlin")
-local booleanizer = require("santoku.tsetlin.booleanizer")
 local bm = require("santoku.bitmap")
 local mtx = require("santoku.matrix")
 local it = require("santoku.iter")
@@ -12,136 +11,124 @@ local rand = require("santoku.random")
 local num = require("santoku.num")
 local err = require("santoku.error")
 
-local glove = require("tbhss.glove")
+local tbhss = require("tbhss")
 
-local function get_dataset (db, embeddings_model, args)
+local function get_dataset (db, tokenizer, sentences_model, args)
 
-  local observations = {}
-  local embeddings = {}
+  local anchors = {}
+  local negatives = {}
+  local positives = {}
 
-  for e in db.get_embeddings(embeddings_model.id) do
-    local embedding = mtx.create(e.embedding, embeddings_model.dimensions)
-    arr.push(embeddings, embedding)
-    for i = 1, mtx.columns(embedding) do
-      observations[mtx.get(embedding, 1, i)] = true
-    end
-  end
+  local triplets = it.collect(db.get_sentence_triplets(sentences_model.id))
 
-  local thresholds = booleanizer.thresholds(observations, args.threshold_levels)
+  print("Shuffling")
+  rand.seed()
+  arr.shuffle(triplets)
 
-  local as = {}
-  local bs = {}
-  local scores = {}
-  local bits = {}
-
-  for i = 1, #embeddings do
-    local embedding = embeddings[i]
-    for j = 1, mtx.columns(embedding) do
-      for k = 1, #thresholds do
-        local t = thresholds[k]
-        local v = mtx.get(embedding, 1, j)
-        if v <= t.value then
-          bits[(j - 1) * #thresholds * 2 + t.bit] = true
-          bits[(j - 1) * #thresholds * 2 + t.bit + #thresholds] = false
-        else
-          bits[(j - 1) * #thresholds * 2 + t.bit] = false
-          bits[(j - 1) * #thresholds * 2 + t.bit + #thresholds] = true
-        end
+  for i = 1, #triplets do
+    local s = triplets[i]
+    local a = tokenizer.tokenize(s.anchor)
+    local n = tokenizer.tokenize(s.negative)
+    local p = tokenizer.tokenize(s.positive)
+    if a and n and p then
+      arr.push(anchors, a)
+      arr.push(negatives, n)
+      arr.push(positives, p)
+      if args.max_records and #anchors >= args.max_records then
+        break
       end
     end
-    arr.push(as, bm.create(bits, 2 * #thresholds * embeddings_model.dimensions))
-  end
-
-  for i = 1, #as do
-    local i0 = rand.fast_random() % #as + 1
-    bs[i] = as[i0]
-    scores[i] = mtx.dot(embeddings[i], embeddings[i0])
   end
 
   return {
-    as = as,
-    bs = bs,
-    scores = scores,
-    n_features = #thresholds * embeddings_model.dimensions,
-    n_pairs = #as,
+    anchors = anchors,
+    negatives = negatives,
+    positives = positives,
+    total = #anchors,
+    token_bits = tokenizer.clusters_model.clusters,
+    output_bits = args.output_bits,
   }
 
 end
 
 local function split_dataset (dataset, s, e)
-  local as = bm.raw_matrix(dataset.as, dataset.n_features * 2, s, e)
-  local bs = bm.raw_matrix(dataset.bs, dataset.n_features * 2, s, e)
-  local scores = mtx.raw(mtx.create(dataset.scores, s, e))
-  return as, bs, scores
+  local as = arr.copy({}, dataset.anchors, 1, s, e)
+  local ns = arr.copy({}, dataset.negatives, 1, s, e)
+  local ps = arr.copy({}, dataset.positives, 1, s, e)
+  return as, ns, ps
 end
 
 local function create_encoder (db, args)
-  return db.db.transaction(function ()
 
-    local embeddings_model = db.get_embeddings_model_by_name(args.embeddings)
+  print("Creating encoder")
 
-    if not embeddings_model or embeddings_model.loaded ~= 1 then
-      err.error("Embeddings model not loaded")
+  local tokenizer = tbhss.tokenizer(db, args.bitmaps)
+
+  if not tokenizer then
+    err.error("Tokenzer not loaded")
+  end
+
+  local encoder_model = db.get_encoder_model_by_name(args.name)
+
+  if not encoder_model then
+    local id = db.add_encoder_model(args.name, tokenizer.bitmaps_model.id, args)
+    encoder_model = db.get_encoder_model_by_id(id)
+    assert(encoder_model, "this is a bug! encoder model not created")
+  end
+
+  if encoder_model.created == 1 then
+    err.error("Encoder already created")
+  end
+
+  local sentences_model = db.get_sentences_model_by_name(args.sentences)
+
+  if not sentences_model or sentences_model.loaded ~= 1 then
+    err.error("Sentences model not loaded", args.sentences)
+  end
+
+  print("Reading data")
+  local dataset = get_dataset(db, tokenizer, sentences_model, args)
+
+  print("Splitting & packing")
+  local n_train = num.floor(dataset.total * args.train_test_ratio)
+  local n_test = dataset.total - n_train
+  local train_as, train_ns, train_ps = split_dataset(dataset, 1, n_train)
+  local test_as, test_ns, test_ps = split_dataset(dataset, n_train + 1, n_train + n_test)
+
+  print("Token Bits", dataset.token_bits)
+  print("Output Bits", dataset.output_bits)
+  print("Total Train", n_train)
+  print("Total Test", n_test)
+
+  local t = tm.recurrent_encoder(
+    args.output_bits, dataset.token_bits, args.clauses,
+    args.state_bits, args.threshold, args.boost_true_positive)
+
+  print("Training")
+  for epoch = 1, args.epochs do
+
+    local start = os.clock()
+    tm.train(t, train_as, train_ns, train_ps, args.specificity, args.drop_clause, args.margin, args.scale_loss)
+    local duration = os.clock() - start
+
+    if epoch == args.epochs or epoch % args.evaluate_every == 0 then
+      local train_score = tm.evaluate(t, train_as, train_ns, test_ps, args.margin)
+      local test_score = tm.evaluate(t, test_as, test_ns, test_ps, args.margin)
+      str.printf("Epoch %-4d  Time %f  Test %4.2f  Train %4.2f\n",
+        epoch, duration, test_score, train_score)
+    else
+      str.printf("Epoch %-4d  Time %f\n",
+        epoch, duration)
     end
 
-    local encoder_model = db.get_encoder_model_by_name(args.name)
+  end
 
-    if not encoder_model then
-      local id = db.add_encoder_model(args.name, embeddings_model.id, args)
-      encoder_model = db.get_encoder_model_by_id(id)
-      assert(encoder_model, "this is a bug! encoder model not created")
-    end
+  -- TODO: write directly to sqlite without temporary file
+  local fp = fs.tmpname()
+  tm.persist(t, fp)
+  db.set_encoder_trained(encoder_model.id, fs.readfile(fp))
+  fs.rm(fp)
 
-    if encoder_model.created == 1 then
-      err.error("Encoder already created")
-    end
-
-    print("Reading data")
-    local dataset = get_dataset(db, embeddings_model, args)
-
-    print("Shuffling")
-    rand.seed()
-    arr.shuffle(dataset.as, dataset.bs, dataset.scores)
-
-    print("Splitting & packing")
-    local n_train = num.floor(dataset.n_pairs * args.train_test_ratio)
-    local n_test = dataset.n_pairs - n_train
-    local train_as, train_bs, train_scores = split_dataset(dataset, 1, n_train)
-    local test_as, test_bs, test_scores = split_dataset(dataset, n_train + 1, n_train + n_test)
-
-    print("Input Features", dataset.n_features * 2)
-    print("Encoded Features", args.bits)
-    print("Train", n_train)
-    print("Test", n_test)
-
-    local t = tm.encoder(args.bits, dataset.n_features, args.clauses, args.state_bits, args.threshold, args.boost_true_positive)
-
-    print("Training")
-    for epoch = 1, args.epochs do
-
-      local start = os.clock()
-      tm.train(t, n_train, train_as, train_bs, train_scores, args.specificity, args.update_probability, args.drop_clause)
-      local duration = os.clock() - start
-
-      if epoch == args.epochs or epoch % args.evaluate_every == 0 then
-        local test_score, nh, nl = tm.evaluate(t, n_test, test_as, test_bs, test_scores)
-        local train_score = tm.evaluate(t, n_train, train_as, train_bs, train_scores)
-        str.printf("Epoch %-4d  Time %f  Test %4.2f  Train %4.2f  High %d  Low %d\n",
-          epoch, duration, test_score, train_score, nh, nl)
-      else
-        str.printf("Epoch %-4d  Time %f\n",
-          epoch, duration)
-      end
-
-    end
-
-    -- TODO: write directly to sqlite without temporary file
-    local fp = fs.tmpname()
-    tm.persist(t, fp)
-    db.set_encoder_created(encoder_model.id, fs.readfile(fp))
-    fs.rm(fp)
-
-  end)
 end
 
 return {

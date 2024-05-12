@@ -19,7 +19,6 @@ local cjson = require("cjson")
 local sqlite = require("lsqlite3")
 local open = sqlite.open
 
-
 return function (db_file)
 
   local db = sql(open(db_file))
@@ -37,27 +36,32 @@ return function (db_file)
 
   local M = { db = db }
 
-  M.add_embeddings_model = db.inserter([[
-    insert into embeddings_model (name, dimensions)
+  M.add_words_model = db.inserter([[
+    insert into words_model (name, dimensions)
     values (?, ?)
   ]])
 
+  M.add_sentences_model = db.inserter([[
+    insert into sentences_model (name)
+    values (?)
+  ]])
+
   M.add_clusters_model = db.inserter([[
-    insert into clusters_model (name, id_embeddings_model, clusters)
+    insert into clusters_model (name, id_words_model, clusters)
     values (?, ?, ?)
   ]])
 
   local encode_bitmaps_model = function (inserter)
-    return function (n, t, r, p)
-      return inserter(n, t, r, cjson.encode(p))
+    return function (n, i, p)
+      return inserter(n, i, cjson.encode(p))
     end
   end
 
   local decode_bitmaps_model = function (getter)
     return function (...)
       local model = getter(...)
-      if model and model.model_params then
-        model.model_params = cjson.decode(model.model_params)
+      if model and model.params then
+        model.params = cjson.decode(model.params)
         return model
       end
     end
@@ -92,24 +96,30 @@ return function (db_file)
   end
 
   M.add_bitmaps_model = encode_bitmaps_model(db.inserter([[
-    insert into bitmaps_model (name, model_type, model_ref, model_params)
-    values (?, ?, ?, ?)
-  ]]))
-
-  M.add_encoder_model = encode_encoder_model(db.inserter([[
-    insert into encoder_model (name, id_embeddings_model, params)
+    insert into bitmaps_model (name, id_clusters_model, params)
     values (?, ?, ?)
   ]]))
 
-  M.set_embeddings_loaded = db.runner([[
-    update embeddings_model
+  M.add_encoder_model = encode_encoder_model(db.inserter([[
+    insert into encoder_model (name, id_words_model, params)
+    values (?, ?, ?)
+  ]]))
+
+  M.set_words_loaded = db.runner([[
+    update words_model
     set loaded = true
     where id = ?
   ]])
 
-  M.set_encoder_created = db.runner([[
+  M.set_sentences_loaded = db.runner([[
+    update sentences_model
+    set loaded = true
+    where id = ?
+  ]])
+
+  M.set_encoder_trained = db.runner([[
     update encoder_model
-    set created = true, model = ?2
+    set trained = true, model = ?2
     where id = ?1
   ]])
 
@@ -117,7 +127,7 @@ return function (db_file)
     select model from encoder_model where id = ?1
   ]], "model"))
 
-  M.set_embeddings_clustered = db.runner([[
+  M.set_words_clustered = db.runner([[
     update clusters_model
     set clustered = true,
         iterations = ?2
@@ -130,9 +140,15 @@ return function (db_file)
     where id = ?
   ]])
 
-  M.get_embeddings_model_by_name = db.getter([[
+  M.get_words_model_by_name = db.getter([[
     select *
-    from embeddings_model
+    from words_model
+    where name = ?
+  ]])
+
+  M.get_sentences_model_by_name = db.getter([[
+    select *
+    from sentences_model
     where name = ?
   ]])
 
@@ -154,9 +170,15 @@ return function (db_file)
     where name = ?
   ]]))
 
-  M.get_embeddings_model_by_id = db.getter([[
+  M.get_words_model_by_id = db.getter([[
     select *
-    from embeddings_model
+    from words_model
+    where id = ?
+  ]])
+
+  M.get_sentences_model_by_id = db.getter([[
+    select *
+    from sentences_model
     where id = ?
   ]])
 
@@ -178,53 +200,58 @@ return function (db_file)
     where id = ?
   ]]))
 
-  M.add_embedding = db.inserter([[
-    insert into embeddings (id_embeddings_model, id, name, embedding)
+  M.add_word = db.inserter([[
+    insert into words (id, id_words_model, name, embedding)
     values (?, ?, ?, ?)
+  ]])
+
+  M.add_sentence = db.inserter([[
+    insert into sentences (id, id_sentences_model, label, a, b)
+    values (?, ?, ?, ?, ?)
   ]])
 
   M.add_bitmap = db.inserter([[
-    insert into bitmaps (id_bitmaps_model, id_embedding, bitmap)
+    insert into bitmaps (id_bitmaps_model, id_words, bitmap)
     values (?, ?, ?)
   ]])
 
-  M.set_embedding_cluster_similarity = db.inserter([[
-    insert into clusters (id_clusters_model, id_embedding, id, similarity)
+  M.set_word_cluster_similarity = db.inserter([[
+    insert into clusters (id_clusters_model, id_words, id, similarity)
     values (?, ?, ?, ?)
   ]])
 
-  M.get_embeddings = db.iter([[
-    select id, name, embedding from embeddings
-    where id_embeddings_model = ?
+  M.get_words = db.iter([[
+    select id, name, embedding from words
+    where id_words_model = ?
     order by id asc
   ]])
 
-  M.get_total_embeddings = db.getter([[
+  M.get_total_words = db.getter([[
     select count(*) as n
-    from embeddings
-    where id_embeddings_model = ?
+    from words
+    where id_words_model = ?
   ]], "n")
 
-  M.get_embedding_name = db.getter([[
-    select name from embeddings
-    where id_embeddings_model = ?1
+  M.get_word_name = db.getter([[
+    select name from words
+    where id_words_model = ?1
     and id = ?2
   ]], "name")
 
-  M.get_embedding = db.getter([[
-    select embedding from embeddings
-    where id_embeddings_model = ?1
+  M.get_word_embedding = db.getter([[
+    select embedding from words
+    where id_words_model = ?1
     and id = ?2
   ]], "embedding")
 
   M.get_clusters = db.iter([[
-    select c.id_embedding, c.id, c.similarity
+    select c.id_words, c.id, c.similarity
     from clusters c
     where c.id_clusters_model = ?
   ]])
 
-  M.delete_embeddings_model_by_name = db.runner([[
-    delete from embeddings_model
+  M.delete_words_model_by_name = db.runner([[
+    delete from words_model
     where name = ?
   ]])
 
@@ -233,43 +260,22 @@ return function (db_file)
     where name = ?
   ]])
 
-  local get_bitmap_clustered = db.getter([[
-    select b.bitmap, cm.clusters
-    from bitmaps_model bm, clusters_model cm, bitmaps b, embeddings e
+  M.get_bitmap = db.getter([[
+    select b.bitmap
+    from bitmaps_model bm, clusters_model cm, bitmaps b, words e
     where bm.id = ?1
     and e.name = ?2
-    and e.id_embeddings_model = cm.id_embeddings_model
-    and cm.id = bm.model_ref
+    and e.id_words_model = cm.id_words_model
+    and cm.id = bm.id_clusters_model
     and b.id_bitmaps_model = bm.id
-    and b.id_embedding = e.id
-  ]])
-
-  M.get_bitmap_clustered = function (...)
-    local rec = get_bitmap_clustered(...)
-    return bitmap.from_raw(rec.bitmap, rec.clusters)
-  end
-
-  local get_bitmap_encoded = db.getter([[
-    select b.bitmap, json_extract(em.params, '$.bits') as bits
-    from bitmaps_model bm, encoder_model em, bitmaps b, embeddings e
-    where bm.id = ?1
-    and e.name = ?2
-    and em.id = bm.model_ref
-    and e.id_embeddings_model = em.id_embeddings_model
-    and b.id_bitmaps_model = bm.id
-    and b.id_embedding = e.id
-  ]])
-
-  M.get_bitmap_encoded = function (...)
-    local rec = get_bitmap_encoded(...)
-    return bitmap.from_raw(rec.bitmap, rec.bits)
-  end
+    and b.id_words = e.id
+  ]], "bitmap")
 
   M.get_nearest_clusters_by_id = db.iter([[
     select id from (
       select id from clusters
       where id_clusters_model = ?1
-      and id_embedding = ?2
+      and id_words = ?2
       order by similarity desc
       limit ?3
     )
@@ -277,7 +283,7 @@ return function (db_file)
     select id from (
       select id from clusters
       where id_clusters_model = ?1
-      and id_embedding = ?2
+      and id_words = ?2
       and similarity >= ?5
       order by similarity desc
       limit ?4 - ?3 offset ?3
@@ -287,16 +293,16 @@ return function (db_file)
   M.get_nearest_clusters_by_word = db.iter([[
     with e as (
       select e.id
-      from embeddings e, clusters_model cm
+      from words e, clusters_model cm
       where e.name = ?2
-      and e.id_embeddings_model = cm.id_embeddings_model
+      and e.id_words_model = cm.id_words_model
       and cm.id = ?1
     )
     select * from (
       select id from (
         select c.id from e, clusters c
         where c.id_clusters_model = ?1
-        and c.id_embedding = e.id
+        and c.id_words = e.id
         order by c.similarity desc
         limit ?3
       )
@@ -304,12 +310,23 @@ return function (db_file)
       select id from (
         select c.id from e, clusters c
         where c.id_clusters_model = ?1
-        and c.id_embedding = e.id
+        and c.id_words = e.id
         and c.similarity >= ?5
         order by c.similarity desc
         limit ?4 - ?3 offset ?3
       )
     )
+  ]])
+
+  M.get_sentence_triplets = db.iter([[
+    select
+      a.a as anchor,
+      b.b as positive,
+      c.b as negative
+    from sentences a
+    inner join sentences b on a.a = b.a and b.label = 'entailment'
+    inner join sentences c on a.a = c.a and c.label in ('contradiction', 'neutral')
+    where a.id_sentences_model = ?
   ]])
 
   return M

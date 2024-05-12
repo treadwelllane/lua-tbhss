@@ -4,79 +4,42 @@ local str = require("santoku.string")
 local arr = require("santoku.array")
 local err = require("santoku.error")
 
-local function bitmapper_clustered (db, bitmaps_model)
-
-  local clusters_model = db.get_clusters_model_by_name(bitmaps_model.model_params.clusters)
-
-  if not clusters_model then
-    err.error("clusters model not found", bitmaps_model.name, bitmaps_model.model_params.clusters)
-  end
-
-  return {
-    bits = clusters_model.clusters,
-    encode = function (s)
-      local b = bitmap.create()
-      for w in str.gmatch(s, "%S+") do
-        local b0 = db.get_bitmap_clustered(bitmaps_model.id, str.lower(w))
-        if b0 then
-          bitmap["or"](b, b0)
-        end
-      end
-      return b
-    end,
-  }
-
+local function get_db (db_file)
+  return type(db_file) == "string" and init_db(db_file) or db_file
 end
 
-local function bitmapper_encoded (db, bitmaps_model)
+local function encoder (db_file, model_name)
 
-  local encoder_model = db.get_encoder_model_by_name(bitmaps_model.model_params.encoder)
+  local db = get_db(db_file)
+  local encoder_model = db.get_encoder_model_by_name(model_name)
 
   if not encoder_model then
-    err.error("encoder model not found", bitmaps_model.name, bitmaps_model.model_params.encoder)
+    err.error("encoder model not found", model_name)
+  elseif encoder_model.trained ~= 1 then
+    err.error("encoder not trained", model_name)
   end
+
+  -- TODO: read directly from sqlite without temporary file
+  local fp = fs.tmpname()
+  fs.writefile(fp, encoder_model.model)
+  local t = tm.load(fp)
+  fs.rm(fp)
 
   return {
-    bits = encoder_model.params.bits,
+    encoder_model = encoder_model,
     encode = function (s)
-      local b = bitmap.create()
-      for w in str.gmatch(s, "%S+") do
-        local b0 = db.get_bitmap_encoded(bitmaps_model.id, str.lower(w))
-        if b0 then
-          bitmap["or"](b, b0)
-        end
-      end
-      return b
+      return db.db.transaction(function ()
+        local tokens = tokenizer.tokenize(s)
+        return tm.predict(t, tokens)
+      end)
     end,
   }
-
-end
-
-local function bitmapper (db_file, model_name)
-
-  local db = init_db(db_file)
-  local bitmaps_model = db.get_bitmaps_model_by_name(model_name)
-
-  if not bitmaps_model then
-    err.error("model not found", model_name)
-  elseif bitmaps_model.created ~= 1 then
-    err.error("bitmaps not created", model_name)
-  end
-
-  if bitmaps_model.model_type == "clustered" then
-    return bitmapper_clustered(db, bitmaps_model)
-  elseif bitmaps_model.model_type == "encoded" then
-    return bitmapper_encoded(db, bitmaps_model)
-  else
-    err.error("unexpected bitmaps model type", model_name, bitmaps_model.model_type)
-  end
 
 end
 
 local function normalizer (db_file, model_name)
 
-  local db = init_db(db_file)
-
+  local db = get_db(db_file)
   local clusters_model = db.get_clusters_model_by_name(model_name)
 
   if not clusters_model then
@@ -84,24 +47,65 @@ local function normalizer (db_file, model_name)
   end
 
   return {
+    clusters_model = clusters_model,
     normalize = function (s, min_set, max_set, min_similarity)
-      local matches = {}
-      return (str.gsub(s, "%S+", function (w)
-        arr.clear(matches)
-        for c in db.get_nearest_clusters_by_word(
-          clusters_model.id, str.lower(w),
-          min_set, max_set, min_similarity)
-        do
-          matches[#matches + 1] = c.id
+      return db.db.transaction(function ()
+        local matches = {}
+        return (str.gsub(s, "%S+", function (w)
+          arr.clear(matches)
+          for c in db.get_nearest_clusters_by_word(
+            clusters_model.id, str.lower(w),
+            min_set, max_set, min_similarity)
+          do
+            matches[#matches + 1] = c.id
+          end
+          return arr.concat(matches, " ")
+        end))
+      end)
+    end,
+  }
+
+end
+
+local function tokenizer (db_file, bitmaps_model_name)
+
+  local db = get_db(db_file)
+
+  local bitmaps_model = db.get_bitmaps_model_by_name(bitmaps_model_name)
+
+  if not bitmaps_model or bitmaps_model.created ~= 1 then
+    err.error("Bitmaps model not loaded", args.bitmaps)
+  end
+
+  local clusters_model = db.get_clusters_model_by_id(bitmaps_model.id_clusters_model)
+
+  if not clusters_model then
+    err.error("Clusters model not found", bitmaps_model.id_clusters_model)
+  end
+
+  return {
+    clusters_model = clusters_model,
+    bitmaps_model = bitmaps_model,
+    tokenize = function (s)
+      return db.db.transaction(function ()
+        local matches = {}
+        for w in str.gmatch(s, "%S+") do
+          local bm = db.get_bitmap(bitmaps_model.id, w)
+          if bm then
+            arr.push(matches, bm)
+          end
         end
-        return arr.concat(matches, " ")
-      end))
+        if #matches > 0 then
+          return matches
+        end
+      end)
     end,
   }
 
 end
 
 return {
-  bitmapper = bitmapper,
+  encoder = encoder,
   normalizer = normalizer,
+  tokenizer = tokenizer,
 }
