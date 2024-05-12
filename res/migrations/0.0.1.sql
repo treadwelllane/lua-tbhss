@@ -64,7 +64,7 @@ create table sentences (
 
 create table encoder_model (
   id integer primary key,
-  id_words_model integer references words_model (id) on delete cascade,
+  id_bitmaps_model integer references bitmaps_model (id) on delete cascade,
   params json not null,
   name varchar not null unique,
   trained boolean not null default false,

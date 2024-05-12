@@ -10,37 +10,48 @@ fs.rm(db_file, true)
 fs.rm(db_file .. "-wal", true)
 fs.rm(db_file .. "-shm", true)
 
-sys.execute({
-  "lua", "bin/tbhss.lua", "load", "words",
-  "--cache", db_file,
-  "--name", "glove",
-  "--file", os.getenv("GLOVE_TXT") or "test/res/glove.txt",
-})
+local force_db = os.getenv("DB")
 
-sys.execute({
-  "lua", "bin/tbhss.lua", "create", "clusters",
-  "--cache", db_file,
-  "--name", "glove",
-  "--words", "glove",
-  "--clusters", "128"
-})
+if not force_db then
 
-sys.execute({
-  "lua", "bin/tbhss.lua", "create", "bitmaps",
-  "--cache", db_file,
-  "--name", "glove",
-  "--clusters", "glove",
-  "--min-set", "1",
-  "--max-set", "10",
-  "--min-similarity", "0.6",
-})
+  sys.execute({
+    "lua", "bin/tbhss.lua", "load", "words",
+    "--cache", db_file,
+    "--name", "glove",
+    "--file", os.getenv("GLOVE_TXT") or "test/res/glove.txt",
+  })
 
-sys.execute({
-  "lua", "bin/tbhss.lua", "load", "sentences",
-  "--cache", db_file,
-  "--name", "snli-dev",
-  "--file", "test/res/snli_1.0_dev.txt",
-})
+  sys.execute({
+    "lua", "bin/tbhss.lua", "create", "clusters",
+    "--cache", db_file,
+    "--name", "glove",
+    "--words", "glove",
+    "--clusters", "128"
+  })
+
+  sys.execute({
+    "lua", "bin/tbhss.lua", "create", "bitmaps",
+    "--cache", db_file,
+    "--name", "glove",
+    "--clusters", "glove",
+    "--min-set", "1",
+    "--max-set", "10",
+    "--min-similarity", "0.6",
+  })
+
+  sys.execute({
+    "lua", "bin/tbhss.lua", "load", "sentences",
+    "--cache", db_file,
+    "--name", "snli-dev",
+    "--file", "test/res/snli_1.0_dev.txt",
+  })
+
+else
+
+  print("Skipping until create encoder")
+  db_file = force_db or db_file
+
+end
 
 sys.execute({
   "lua", "bin/tbhss.lua", "create", "encoder",
@@ -49,17 +60,18 @@ sys.execute({
   "--bitmaps", "glove",
   "--sentences", "snli-dev",
   "--output-bits", "128",
-  "--train-test-ratio", "0.8",
+  "--train-test-ratio", "0.2",
   "--clauses", "40",
   "--state-bits", "8",
-  "--threshold", "10",
-  "--margin", "0.1",
-  "--scale-loss", "0.25",
+  "--threshold", "200",
+  "--margin", "0.2",
+  "--scale-loss", "0.75",
   "--specificity", "2",
   "--drop-clause", "0.75",
   "--boost-true-positive", "false",
   "--evaluate-every", "1",
-  "--epochs", os.getenv("MAX_EPOCHS") or "10",
+  "--max-records", os.getenv("MAX_RECORDS") or "2000",
+  "--epochs", os.getenv("MAX_EPOCHS") or "100",
 })
 
 local normalizer = tbhss.normalizer(db_file, "glove")
