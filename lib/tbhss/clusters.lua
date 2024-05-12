@@ -17,7 +17,7 @@ local mnormalize = mtx.normalize
 
 local err = require("santoku.error")
 local rand = require("santoku.random")
-local glove = require("tbhss.glove")
+local words = require("tbhss.words")
 
 -- TODO: Move to C
 local function weighted_random_choice (probabilities, ids)
@@ -78,14 +78,14 @@ local function select_initial_clusters (word_matrix, n_clusters)
 
 end
 
-local function cluster_embeddings (db, clusters_model, args)
+local function cluster_words (db, clusters_model, args)
 
   print("Clustering")
 
-  local embeddings_model, word_matrix = glove.get_embeddings(db, args.embeddings)
+  local words_model, word_matrix = words.get_words(db, args.words)
 
-  if not embeddings_model or embeddings_model.loaded ~= 1 then
-    err.error("Embeddings model not loaded")
+  if not words_model or words_model.loaded ~= 1 then
+    err.error("Words model not loaded")
   end
 
   local cluster_matrix, distance_matrix = select_initial_clusters(word_matrix, args.clusters)
@@ -137,15 +137,15 @@ local function cluster_embeddings (db, clusters_model, args)
 
   local id_model = clusters_model
     and clusters_model.id
-    or db.add_clusters_model(args.name, embeddings_model.id, args.clusters)
+    or db.add_clusters_model(args.name, words_model.id, args.clusters)
 
   for i = 1, mrows(distance_matrix) do
     for j = 1, mcolumns(distance_matrix) do
-      db.set_embedding_cluster_similarity(id_model, i, j, mget(distance_matrix, i, j))
+      db.set_word_cluster_similarity(id_model, i, j, mget(distance_matrix, i, j))
     end
   end
 
-  db.set_embeddings_clustered(id_model, num_iterations)
+  db.set_words_clustered(id_model, num_iterations)
 
 end
 
@@ -154,11 +154,11 @@ local function get_clusters (db, name)
   if not model or not model.clustered then
     return
   end
-  print("Loading embedding clusters from database")
-  local total_embeddings = db.get_total_embeddings(model.id_embeddings_model)
-  local distance_matrix = mcreate(total_embeddings, model.clusters)
+  print("Loading word clusters from database")
+  local total_words = db.get_total_words(model.id_words_model)
+  local distance_matrix = mcreate(total_words, model.clusters)
   for wc in db.get_clusters(model.id) do
-    mset(distance_matrix, wc.id_embedding, wc.id, wc.similarity)
+    mset(distance_matrix, wc.id_words, wc.id, wc.similarity)
   end
   print("Loaded:", mrows(distance_matrix))
   return model, distance_matrix
@@ -168,9 +168,9 @@ local function create_clusters (db, args)
   return db.db.transaction(function ()
     local clusters_model = db.get_clusters_model_by_name(args.name)
     if not clusters_model or clusters_model.clustered ~= 1 then
-      return cluster_embeddings(db, clusters_model, args)
+      return cluster_words(db, clusters_model, args)
     else
-      err.error("Embeddings already clustered")
+      err.error("Words already clustered")
     end
   end)
 
