@@ -59,6 +59,8 @@ cmd_create_encoder:option("--sentences", "name of NLI dataset to encode", nil, n
 cmd_create_encoder:option("--output-bits", "number of bits in encoded bitmaps", nil, tonumber, 1, 1)
 cmd_create_encoder:option("--margin", "margin for triplet loss", nil, tonumber, 1, 1)
 cmd_create_encoder:option("--scale-loss", "scale for triplet loss", nil, tonumber, 1, 1)
+cmd_create_encoder:option("--scale-loss-max", "max for triplet loss", 0, tonumber, 1, "0-1")
+cmd_create_encoder:option("--scale-loss-min", "min for triplet loss", 1, tonumber, 1, "0-1")
 cmd_create_encoder:option("--train-test-ratio", "ratio of train to test examples", nil, tonumber, 1, 1)
 cmd_create_encoder:option("--clauses", "Tsetlin Machine clauses", nil, tonumber, 1, 1)
 cmd_create_encoder:option("--state-bits", "Tsetlin Machine state bits", 8, tonumber, 1, "0-1")

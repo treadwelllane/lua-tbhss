@@ -108,7 +108,7 @@ local function create_encoder (db, args)
   for epoch = 1, args.epochs do
 
     local start = os.clock()
-    tm.train(t, train_as, train_ns, train_ps, args.specificity, args.drop_clause, args.margin, args.scale_loss)
+    tm.train(t, train_as, train_ns, train_ps, args.specificity, args.drop_clause, args.margin, args.scale_loss, args.scale_loss_min, args.scale_loss_max)
     local duration = os.clock() - start
 
     if epoch == args.epochs or epoch % args.evaluate_every == 0 then
