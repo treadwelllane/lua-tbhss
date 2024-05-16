@@ -77,10 +77,11 @@ local function encoder (db_file, model_name)
     tokenizer = tokenizer,
     bitmaps_model = bitmaps_model,
     encoder_model = encoder_model,
+    bits = encoder_model.params.output_bits,
     encode = function (s)
       return db.db.transaction(function ()
         local tokens = tokenizer.tokenize(s)
-        return tm.predict(t, tokens)
+        return bitmap.from_raw(tm.predict(t, tokens))
       end)
     end,
   }

@@ -1,6 +1,7 @@
 local fs = require("santoku.fs")
 local sys = require("santoku.system")
 local bm = require("santoku.bitmap")
+local arr = require("santoku.array")
 local tbhss = require("tbhss")
 
 local db_file = "tmp/test.db"
@@ -39,11 +40,18 @@ if not force_db then
     "--min-similarity", "0.6",
   })
 
+  -- sys.execute({
+  --   "lua", "bin/tbhss.lua", "load", "sentences",
+  --   "--cache", db_file,
+  --   "--name", "snli-dev",
+  --   "--file", "test/res/snli_1.0_dev.txt",
+  -- })
+
   sys.execute({
     "lua", "bin/tbhss.lua", "load", "sentences",
     "--cache", db_file,
-    "--name", "snli-dev",
-    "--file", "test/res/snli_1.0_dev.txt",
+    "--name", "snli-dev-small",
+    "--file", "test/res/snli_1.0_dev.small.txt",
   })
 
 else
@@ -58,20 +66,22 @@ sys.execute({
   "--cache", db_file,
   "--name", "glove",
   "--bitmaps", "glove",
-  "--sentences", "snli-dev",
+  "--sentences", "snli-dev-small",
   "--output-bits", "128",
-  "--train-test-ratio", "0.2",
-  "--clauses", "40",
+  "--train-test-ratio", "0.1",
+  "--clauses", "80",
   "--state-bits", "8",
   "--threshold", "200",
   "--margin", "0.2",
   "--scale-loss", "0.75",
+  "--scale-loss-min", "0",
+  "--scale-loss-max", "0.5",
   "--specificity", "2",
   "--drop-clause", "0.75",
   "--boost-true-positive", "false",
-  "--evaluate-every", "1",
-  "--max-records", os.getenv("MAX_RECORDS") or "2000",
-  "--epochs", os.getenv("MAX_EPOCHS") or "100",
+  "--evaluate-every", "5",
+  -- "--max-records", "100",
+  "--epochs", "10",
 })
 
 local normalizer = tbhss.normalizer(db_file, "glove")
@@ -84,8 +94,71 @@ print(normalizer.normalize("the quick brown fox", 1, 10, 0.6))
 local encoder = tbhss.encoder(db_file, "glove")
 
 print("\nEncoder\n")
-print("the", bm.tostring(encoder.encode("the"), encoder.bits))
-print("quick", bm.tostring(encoder.encode("quick"), encoder.bits))
-print("brown", bm.tostring(encoder.encode("brown"), encoder.bits))
-print("fox", bm.tostring(encoder.encode("fox"), encoder.bits))
-print("merged:", bm.tostring(encoder.encode("the quick brown fox"), encoder.bits))
+
+local docs = {
+  {
+    anchor = "Two women are embracing while holding to go packages.",
+    positive = "Two woman are holding packages.",
+    negative = "The sisters are hugging goodbye while holding to go packages after just eating lunch."
+  },
+  {
+    anchor = "Two women are embracing while holding to go packages.",
+    positive = "Two woman are holding packages.",
+    negative = "The men are fighting outside a deli."
+  },
+  {
+    anchor = "Two women are embracing while holding to go packages.",
+    positive = "Two woman are holding packages.",
+    negative = "The sisters are hugging goodbye while holding to go packages after just eating lunch."
+  },
+  {
+    anchor = "Two women are embracing while holding to go packages.",
+    positive = "Two woman are holding packages.",
+    negative = "The men are fighting outside a deli."
+  },
+  {
+    anchor = "Two women are embracing while holding to go packages.",
+    positive = "Two woman are holding packages.",
+    negative = "The sisters are hugging goodbye while holding to go packages after just eating lunch."
+  },
+  {
+    anchor = "Two women are embracing while holding to go packages.",
+    positive = "Two woman are holding packages.",
+    negative = "The men are fighting outside a deli."
+  },
+  {
+    anchor = "Two young children in blue jerseys, one with the number 9 and one with the number 2 are standing on wooden steps in a bathroom and washing their hands in a sink.",
+    positive = "Two kids in numbered jerseys wash their hands.",
+    negative = "Two kids at a ballgame wash their hands."
+  },
+  {
+    anchor = "Two young children in blue jerseys, one with the number 9 and one with the number 2 are standing on wooden steps in a bathroom and washing their hands in a sink.",
+    positive = "Two kids in numbered jerseys wash their hands.",
+    negative = "Two kids in jackets walk to school."
+  },
+  {
+    anchor = "Two young children in blue jerseys, one with the number 9 and one with the number 2 are standing on wooden steps in a bathroom and washing their hands in a sink.",
+    positive = "Two kids in numbered jerseys wash their hands.",
+    negative = "Two kids at a ballgame wash their hands."
+  },
+  {
+    anchor = "Two young children in blue jerseys, one with the number 9 and one with the number 2 are standing on wooden steps in a bathroom and washing their hands in a sink.",
+    positive = "Two kids in numbered jerseys wash their hands.",
+    negative = "Two kids in jackets walk to school."
+  }
+}
+
+for i = 1, #docs do
+  local d = docs[i]
+  local a, n, p =
+    encoder.encode(d.anchor),
+    encoder.encode(d.negative),
+    encoder.encode(d.positive)
+  local dan = bm.hamming(a, n)
+  local dap = bm.hamming(a, p)
+  print(d.anchor)
+  print("", "negative", dan, d.negative)
+  print("", "positive", dap, d.positive)
+  print("", dap < dan)
+  print()
+end

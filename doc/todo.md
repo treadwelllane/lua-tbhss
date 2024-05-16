@@ -6,6 +6,16 @@
 - Pre-trained encoders on full Glove & NLI datasets shared as sqlite.db files
   with training data pruned
 
+- Tokenize using the exact same processes as glove, e.g. stripping periods,
+  comms, etc.
+
+- Ensure that both penalties and rewards are being applied, not just penalties
+- For each training example, apply feedback to every input word/state
+  combination:
+    1. Compute the final bitmap
+    2. For each word, for each output bit, flip the bit and recompute the final
+       bitmap. If loss improves, penalize, if not reward.
+
 ----
 
 # Now

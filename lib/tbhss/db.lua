@@ -324,9 +324,9 @@ return function (db_file)
       b.b as positive,
       c.b as negative
     from sentences a
-    inner join sentences b on a.a = b.a and b.label = 'entailment'
-    inner join sentences c on a.a = c.a and c.label in ('contradiction', 'neutral')
-    where a.id_sentences_model = ?
+    inner join sentences b on a.a = b.a and a.id_sentences_model = b.id_sentences_model and b.label = 'entailment'
+    inner join sentences c on a.a = c.a and a.id_sentences_model = c.id_sentences_model and c.label in ('contradiction', 'neutral')
+    where a.id_sentences_model = ?1
   ]])
 
   return M
