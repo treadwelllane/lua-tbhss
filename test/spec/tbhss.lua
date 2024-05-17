@@ -4,76 +4,67 @@ local bm = require("santoku.bitmap")
 local tbhss = require("tbhss")
 
 local db_file = "tmp/test.db"
-local force_db = os.getenv("DB")
 
-if not force_db then
+fs.mkdirp(fs.dirname(db_file))
+fs.rm(db_file, true)
+fs.rm(db_file .. "-wal", true)
+fs.rm(db_file .. "-shm", true)
 
-  fs.mkdirp(fs.dirname(db_file))
-  fs.rm(db_file, true)
-  fs.rm(db_file .. "-wal", true)
-  fs.rm(db_file .. "-shm", true)
+sys.execute({
+  "lua", "bin/tbhss.lua", "load", "words",
+  "--cache", db_file,
+  "--name", "glove",
+  "--file", os.getenv("GLOVE_TXT") or "test/res/glove.txt",
+})
 
-  sys.execute({
-    "lua", "bin/tbhss.lua", "load", "words",
-    "--cache", db_file,
-    "--name", "glove",
-    "--file", os.getenv("GLOVE_TXT") or "test/res/glove.txt",
-  })
+sys.execute({
+  "lua", "bin/tbhss.lua", "create", "clusters",
+  "--cache", db_file,
+  "--name", "glove",
+  "--words", "glove",
+  "--clusters", "128"
+})
 
-  sys.execute({
-    "lua", "bin/tbhss.lua", "create", "clusters",
-    "--cache", db_file,
-    "--name", "glove",
-    "--words", "glove",
-    "--clusters", "128"
-  })
+sys.execute({
+  "lua", "bin/tbhss.lua", "create", "bitmaps",
+  "--cache", db_file,
+  "--name", "glove",
+  "--clusters", "glove",
+  "--min-set", "1",
+  "--max-set", "10",
+  "--min-similarity", "0.6",
+})
 
-  sys.execute({
-    "lua", "bin/tbhss.lua", "create", "bitmaps",
-    "--cache", db_file,
-    "--name", "glove",
-    "--clusters", "glove",
-    "--min-set", "1",
-    "--max-set", "10",
-    "--min-similarity", "0.6",
-  })
+sys.execute({
+  "lua", "bin/tbhss.lua", "load", "sentences",
+  "--cache", db_file,
+  "--name", "snli-dev",
+  "--file", "test/res/snli_1.0_dev.txt",
+})
 
-  sys.execute({
-    "lua", "bin/tbhss.lua", "load", "sentences",
-    "--cache", db_file,
-    "--name", "snli-dev",
-    "--file", "test/res/snli_1.0_dev.txt",
-  })
-
-  sys.execute({
-    "lua", "bin/tbhss.lua", "create", "encoder",
-    "--cache", db_file,
-    "--name", "glove",
-    "--bitmaps", "glove",
-    "--sentences", "snli-dev",
-    "--output-bits", "128",
-    "--train-test-ratio", "0.5",
-    "--clauses", "80",
-    "--state-bits", "8",
-    "--threshold", "200",
-    "--margin", "0.2",
-    "--scale-loss", "0.5",
-    "--scale-loss-min", "0",
-    "--scale-loss-max", "0.5",
-    "--specificity", "2",
-    "--drop-clause", "0.5",
-    "--boost-true-positive", "false",
-    "--evaluate-every", "5",
-    "--max-records", "10",
-    "--epochs", "20",
-  })
-
-else
-
-  db_file = force_db or db_file
-
-end
-
+sys.execute({
+  "lua", "bin/tbhss.lua", "create", "encoder",
+  "--cache", db_file,
+  "--name", "glove",
+  "--bitmaps", "glove",
+  "--sentences", "snli-dev",
+  "--output-bits", "128",
+  "--train-test-ratio", "0.2",
+  "--clauses", "80",
+  "--state-bits", "8",
+  "--threshold", "200",
+  "--margin", "0.2",
+  "--scale-loss", "1",
+  "--scale-loss-min", "0",
+  "--scale-loss-max", "1",
+  "--specificity", "2",
+  "--drop-clause", "0.75",
+  "--boost-true-positive", "false",
+  "--evaluate-every", "5",
+  "--max-records", "200",
+  "--epochs", "20",
+})
+  
 local normalizer = tbhss.normalizer(db_file, "glove")
 
 print("\nNormalizer\n")
@@ -84,9 +75,7 @@ print(normalizer.normalize("the quick brown fox", 1, 10, 0.6))
 
 local encoder = tbhss.encoder(db_file, "glove")
 
-print("\nEncoder\n")
-
-encoder.encode("the quick brown fox")
+-- print("\nEncoder\n")
 
 -- local docs = {
 --   {
@@ -140,7 +129,7 @@ encoder.encode("the quick brown fox")
 --     negative = "Two kids in jackets walk to school."
 --   }
 -- }
-
+-- 
 -- for i = 1, #docs do
 --   local d = docs[i]
 --   local a = encoder.encode(d.anchor)
