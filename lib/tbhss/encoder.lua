@@ -1,8 +1,5 @@
 local serialize = require("santoku.serialize") -- luacheck: ignore
-local test = require("santoku.test")
 local tm = require("santoku.tsetlin")
-local bm = require("santoku.bitmap")
-local mtx = require("santoku.matrix")
 local it = require("santoku.iter")
 local fs = require("santoku.fs")
 local str = require("santoku.string")
@@ -76,7 +73,7 @@ local function create_encoder (db, args)
     assert(encoder_model, "this is a bug! encoder model not created")
   end
 
-  if encoder_model.created == 1 then
+  if encoder_model.trained == 1 then
     err.error("Encoder already created")
   end
 
@@ -108,7 +105,10 @@ local function create_encoder (db, args)
   for epoch = 1, args.epochs do
 
     local start = os.clock()
-    tm.train(t, train_as, train_ns, train_ps, args.specificity, args.drop_clause, args.margin, args.scale_loss, args.scale_loss_min, args.scale_loss_max)
+    tm.train(t, train_as, train_ns, train_ps,
+      args.specificity, args.drop_clause,
+      args.margin, args.scale_loss,
+      args.scale_loss_min, args.scale_loss_max)
     local duration = os.clock() - start
 
     if epoch == args.epochs or epoch % args.evaluate_every == 0 then

@@ -1,5 +1,4 @@
 local bitmap = require("santoku.bitmap")
-local tm = require("santoku.tsetlin")
 local err = require("santoku.error")
 
 local function create_bitmaps (db, args)

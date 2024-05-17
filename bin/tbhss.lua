@@ -68,7 +68,9 @@ cmd_create_encoder:option("--threshold", "Tsetlin Machine threshold", nil, tonum
 cmd_create_encoder:option("--specificity", "Tsetlin Machine specificity", nil, tonumber, 1, 1)
 cmd_create_encoder:option("--update-probability", "Tsetlin Machine bit update probability", 0.75, tonumber, 1, "0-1")
 cmd_create_encoder:option("--drop-clause", "Tsetlin Machine drop clause", 0.75, tonumber, 1, "0-1")
-cmd_create_encoder:option("--boost-true-positive", "Tsetlin Machine boost true positive", "false", fun.bind(op.eq, "true"), 1, "0-1"):choices({ "true", "false" })
+cmd_create_encoder:option("--boost-true-positive",
+  "Tsetlin Machine boost true positive", "false", fun.bind(op.eq, "true"), 1, "0-1")
+    :choices({ "true", "false" })
 cmd_create_encoder:option("--evaluate-every", "Evaluation frequency", 5, tonumber, 1, "0-1")
 cmd_create_encoder:option("--max-records", "Max number records to use in training", nil, tonumber, 1, "0-1")
 cmd_create_encoder:option("--epochs", "Number of epochs", nil, tonumber, 1, 1)
