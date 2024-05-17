@@ -2,6 +2,8 @@
 
 - Clean up todo.md and ideas.md now that README.md is restructured
 
+- Improve performance of loading glove embeddings. Write in C?
+
 - Library functions & tests for use of encoder
 - Pre-trained encoders on full Glove & NLI datasets shared as sqlite.db files
   with training data pruned

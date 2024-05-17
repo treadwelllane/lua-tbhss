@@ -70,3 +70,9 @@ create table encoder_model (
   trained boolean not null default false,
   model blob
 );
+
+create index sentences_id_sentences_model_a_label
+  on sentences (id_sentences_model, a, label);
+
+create index sentences_id_sentences_model_b_label
+  on sentences (id_sentences_model, b, label);

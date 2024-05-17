@@ -18,10 +18,6 @@ local function get_dataset (db, tokenizer, sentences_model, args)
 
   local triplets = it.collect(db.get_sentence_triplets(sentences_model.id))
 
-  print("Shuffling")
-  rand.seed()
-  arr.shuffle(triplets)
-
   for i = 1, #triplets do
     local s = triplets[i]
     local a = tokenizer.tokenize(s.anchor)
