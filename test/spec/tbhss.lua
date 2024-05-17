@@ -14,7 +14,7 @@ sys.execute({
   "lua", "bin/tbhss.lua", "load", "words",
   "--cache", db_file,
   "--name", "glove",
-  "--file", os.getenv("GLOVE_TXT") or "test/res/glove.txt",
+  "--file", "test/res/glove.txt",
 })
 
 sys.execute({
@@ -49,12 +49,12 @@ sys.execute({
   "--bitmaps", "glove",
   "--sentences", "snli-dev",
   "--output-bits", "128",
-  "--train-test-ratio", "0.2",
+  "--train-test-ratio", "0.5",
   "--clauses", "80",
   "--state-bits", "8",
   "--threshold", "200",
   "--margin", "0.2",
-  "--scale-loss", "1",
+  "--scale-loss", "0.75",
   "--scale-loss-min", "0",
   "--scale-loss-max", "0.5",
   "--specificity", "2",
