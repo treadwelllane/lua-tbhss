@@ -1,18 +1,17 @@
 local fs = require("santoku.fs")
 local sys = require("santoku.system")
--- local bm = require("santoku.bitmap")
+local bm = require("santoku.bitmap")
 local tbhss = require("tbhss")
 
 local db_file = "tmp/test.db"
-
-fs.mkdirp(fs.dirname(db_file))
-fs.rm(db_file, true)
-fs.rm(db_file .. "-wal", true)
-fs.rm(db_file .. "-shm", true)
-
 local force_db = os.getenv("DB")
 
 if not force_db then
+
+  fs.mkdirp(fs.dirname(db_file))
+  fs.rm(db_file, true)
+  fs.rm(db_file .. "-wal", true)
+  fs.rm(db_file .. "-shm", true)
 
   sys.execute({
     "lua", "bin/tbhss.lua", "load", "words",
@@ -65,6 +64,7 @@ if not force_db then
     "--drop-clause", "0.5",
     "--boost-true-positive", "false",
     "--evaluate-every", "5",
+    "--max-records", "10",
     "--epochs", "20",
   })
 
@@ -86,7 +86,7 @@ local encoder = tbhss.encoder(db_file, "glove")
 
 print("\nEncoder\n")
 
-encoder.encode("testing one two three")
+encoder.encode("the quick brown fox")
 
 -- local docs = {
 --   {
@@ -143,10 +143,9 @@ encoder.encode("testing one two three")
 
 -- for i = 1, #docs do
 --   local d = docs[i]
---   local a, n, p =
---     encoder.encode(d.anchor),
---     encoder.encode(d.negative),
---     encoder.encode(d.positive)
+--   local a = encoder.encode(d.anchor)
+--   local n = encoder.encode(d.negative)
+--   local p = encoder.encode(d.positive)
 --   local dan = bm.hamming(a, n)
 --   local dap = bm.hamming(a, p)
 --   print(d.anchor)
