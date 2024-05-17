@@ -332,6 +332,7 @@ return function (db_file)
       and a.id_sentences_model = c.id_sentences_model
       and c.label in ('contradiction', 'neutral')
     where a.id_sentences_model = ?1
+    order by random()
   ]])
 
   return M
