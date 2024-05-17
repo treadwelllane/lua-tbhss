@@ -12,7 +12,6 @@
 
 local sql = require("santoku.sqlite")
 local migrate = require("santoku.sqlite.migrate")
-local bitmap = require("santoku.bitmap")
 local tm = require("santoku.tsetlin")
 local fs = require("santoku.fs")
 local cjson = require("cjson")
@@ -324,8 +323,14 @@ return function (db_file)
       b.b as positive,
       c.b as negative
     from sentences a
-    inner join sentences b on a.a = b.a and a.id_sentences_model = b.id_sentences_model and b.label = 'entailment'
-    inner join sentences c on a.a = c.a and a.id_sentences_model = c.id_sentences_model and c.label in ('contradiction', 'neutral')
+    inner join sentences b
+      on a.a = b.a
+      and a.id_sentences_model = b.id_sentences_model
+      and b.label = 'entailment'
+    inner join sentences c
+      on a.a = c.a
+      and a.id_sentences_model = c.id_sentences_model
+      and c.label in ('contradiction', 'neutral')
     where a.id_sentences_model = ?1
   ]])
 

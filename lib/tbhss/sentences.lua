@@ -11,7 +11,6 @@ local function load_sentences_from_file (db, model, args)
 
   if not id_model then
     id_model = db.add_sentences_model(args.name)
-    model = db.get_sentences_model_by_id(id_model)
   end
 
   local n = 0
