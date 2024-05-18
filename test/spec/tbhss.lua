@@ -54,14 +54,14 @@ sys.execute({
   "--state-bits", "8",
   "--threshold", "200",
   "--margin", "0.2",
-  "--scale-loss", "0.75",
+  "--scale-loss", "1",
   "--scale-loss-min", "0",
   "--scale-loss-max", "0.5",
   "--specificity", "2",
   "--drop-clause", "0.75",
   "--boost-true-positive", "false",
-  "--evaluate-every", "5",
-  "--max-records", "500",
+  "--evaluate-every", "1",
+  "--max-records", "1000",
   "--epochs", "20",
 })
 
