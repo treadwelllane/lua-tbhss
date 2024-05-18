@@ -13,6 +13,7 @@
 local sql = require("santoku.sqlite")
 local migrate = require("santoku.sqlite.migrate")
 local tm = require("santoku.tsetlin")
+local bm = require("santoku.bitmap")
 local fs = require("santoku.fs")
 local cjson = require("cjson")
 local sqlite = require("lsqlite3")
@@ -259,8 +260,8 @@ return function (db_file)
     where name = ?
   ]])
 
-  M.get_bitmap = db.getter([[
-    select b.bitmap
+  local get_bitmap = db.getter([[
+    select b.bitmap, cm.clusters
     from bitmaps_model bm, clusters_model cm, bitmaps b, words e
     where bm.id = ?1
     and e.name = ?2
@@ -268,7 +269,14 @@ return function (db_file)
     and cm.id = bm.id_clusters_model
     and b.id_bitmaps_model = bm.id
     and b.id_words = e.id
-  ]], "bitmap")
+  ]])
+
+  M.get_bitmap = function (...)
+    local r = get_bitmap(...)
+    if r then
+      return bm.from_raw(r.bitmap, r.clusters)
+    end
+  end
 
   M.get_nearest_clusters_by_id = db.iter([[
     select id from (

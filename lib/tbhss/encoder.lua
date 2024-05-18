@@ -3,6 +3,8 @@ local tm = require("santoku.tsetlin")
 local it = require("santoku.iter")
 local fs = require("santoku.fs")
 local str = require("santoku.string")
+local mtx = require("santoku.matrix")
+local bm = require("santoku.bitmap")
 local arr = require("santoku.array")
 local num = require("santoku.num")
 local err = require("santoku.error")
@@ -11,9 +13,12 @@ local tbhss = require("tbhss")
 
 local function get_dataset (db, tokenizer, sentences_model, args)
 
-  local anchors = {}
-  local negatives = {}
-  local positives = {}
+  local a_lens = {}
+  local n_lens = {}
+  local p_lens = {}
+  local a_data = {}
+  local n_data = {}
+  local p_data = {}
 
   local triplets = db.get_sentence_triplets(sentences_model.id)
 
@@ -29,28 +34,64 @@ local function get_dataset (db, tokenizer, sentences_model, args)
     local n = tokenizer.tokenize(s.negative)
     local p = tokenizer.tokenize(s.positive)
     if a and n and p then
-      arr.push(anchors, a)
-      arr.push(negatives, n)
-      arr.push(positives, p)
+      arr.push(a_lens, #a)
+      arr.push(n_lens, #n)
+      arr.push(p_lens, #p)
+      arr.push(a_data, a)
+      arr.push(n_data, n)
+      arr.push(p_data, p)
     end
   end
 
+  local token_bits = tokenizer.clusters_model.clusters
+
   return {
-    anchors = anchors,
-    negatives = negatives,
-    positives = positives,
-    total = #anchors,
-    token_bits = tokenizer.clusters_model.clusters,
+    a_lens = a_lens,
+    n_lens = n_lens,
+    p_lens = p_lens,
+    a_data = a_data,
+    n_data = n_data,
+    p_data = p_data,
+    total = #a_lens,
+    token_bits = token_bits,
     output_bits = args.output_bits,
   }
 
 end
 
 local function split_dataset (dataset, s, e)
-  local as = arr.copy({}, dataset.anchors, 1, s, e)
-  local ns = arr.copy({}, dataset.negatives, 1, s, e)
-  local ps = arr.copy({}, dataset.positives, 1, s, e)
-  return as, ns, ps
+
+  local a_lens, n_lens, p_lens = {}, {}, {}
+  local a_offsets, n_offsets, p_offsets = { 0 }, { 0 }, { 0 }
+  for i = s, e do
+    arr.push(a_lens, dataset.a_lens[i])
+    arr.push(a_offsets, a_offsets[#a_offsets] + dataset.a_lens[i])
+    arr.push(n_lens, dataset.n_lens[i])
+    arr.push(n_offsets, n_offsets[#n_offsets] + dataset.n_lens[i])
+    arr.push(p_lens, dataset.p_lens[i])
+    arr.push(p_offsets, p_offsets[#p_offsets] + dataset.p_lens[i])
+  end
+  a_lens = mtx.raw(mtx.create(a_lens), 1, 1, "u32")
+  n_lens = mtx.raw(mtx.create(n_lens), 1, 1, "u32")
+  p_lens = mtx.raw(mtx.create(p_lens), 1, 1, "u32")
+  a_offsets = mtx.raw(mtx.create(a_offsets), 1, 1, "u32")
+  n_offsets = mtx.raw(mtx.create(n_offsets), 1, 1, "u32")
+  p_offsets = mtx.raw(mtx.create(p_offsets), 1, 1, "u32")
+
+  local a_data, n_data, p_data = {}, {}, {}
+  for i = s, e do
+    arr.extend(a_data, dataset.a_data[i])
+    arr.extend(n_data, dataset.n_data[i])
+    arr.extend(p_data, dataset.p_data[i])
+  end
+  a_data = bm.raw_matrix(a_data, dataset.token_bits)
+  n_data = bm.raw_matrix(n_data, dataset.token_bits)
+  p_data = bm.raw_matrix(p_data, dataset.token_bits)
+
+  return a_lens, a_offsets, a_data,
+         n_lens, n_offsets, n_data,
+         p_lens, p_offsets, p_data
+
 end
 
 local function create_encoder (db, args)
@@ -87,8 +128,14 @@ local function create_encoder (db, args)
   print("Splitting & packing")
   local n_train = num.floor(dataset.total * args.train_test_ratio)
   local n_test = dataset.total - n_train
-  local train_as, train_ns, train_ps = split_dataset(dataset, 1, n_train)
-  local test_as, test_ns, test_ps = split_dataset(dataset, n_train + 1, n_train + n_test)
+
+  local train_a_lens, train_a_offsets, train_a_data,
+        train_n_lens, train_n_offsets, train_n_data,
+        train_p_lens, train_p_offsets, train_p_data = split_dataset(dataset, 1, n_train)
+
+  local test_a_lens, test_a_offsets, test_a_data,
+        test_n_lens, test_n_offsets, test_n_data,
+        test_p_lens, test_p_offsets, test_p_data = split_dataset(dataset, n_train + 1, n_train + n_test)
 
   print("Token Bits", dataset.token_bits)
   print("Output Bits", dataset.output_bits)
@@ -103,15 +150,29 @@ local function create_encoder (db, args)
   for epoch = 1, args.epochs do
 
     local start = os.time()
-    tm.train(t, train_as, train_ns, train_ps,
+    tm.train(t,
+      n_train,
+      train_a_lens, train_a_offsets, train_a_data,
+      train_n_lens, train_n_offsets, train_n_data,
+      train_p_lens, train_p_offsets, train_p_data,
       args.specificity, args.drop_clause,
       args.margin, args.scale_loss,
       args.scale_loss_min, args.scale_loss_max)
     local duration = os.time() - start
 
     if epoch == args.epochs or epoch % args.evaluate_every == 0 then
-      local train_score = tm.evaluate(t, train_as, train_ns, test_ps, args.margin)
-      local test_score = tm.evaluate(t, test_as, test_ns, test_ps, args.margin)
+      local train_score = tm.evaluate(t,
+        n_train,
+        train_a_lens, train_a_offsets, train_a_data,
+        train_n_lens, train_n_offsets, train_n_data,
+        train_p_lens, train_p_offsets, train_p_data,
+        args.margin)
+      local test_score = tm.evaluate(t,
+        n_test,
+        test_a_lens, test_a_offsets, test_a_data,
+        test_n_lens, test_n_offsets, test_n_data,
+        test_p_lens, test_p_offsets, test_p_data,
+        args.margin)
       str.printf("Epoch %-4d  Time %d  Test %4.2f  Train %4.2f\n",
         epoch, duration, test_score, train_score)
     else
