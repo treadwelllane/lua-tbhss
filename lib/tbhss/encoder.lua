@@ -72,6 +72,7 @@ local function split_dataset (dataset, s, e)
 
   local indices = {}
   local tokens = {}
+  local words = {}
 
   local n = 0
 
@@ -85,7 +86,30 @@ local function split_dataset (dataset, s, e)
     arr.extend(tokens, dataset.a_data[i])
     arr.extend(tokens, dataset.n_data[i])
     arr.extend(tokens, dataset.p_data[i])
+    arr.extend(words, dataset.a_words[i])
+    arr.extend(words, dataset.n_words[i])
+    arr.extend(words, dataset.p_words[i])
   end
+
+  -- for i = 1, #indices, 6 do
+  --   local i_off = indices[i]
+  --   local i_len = indices[i + 1]
+  --   str.printf("%d %d | ", i_off, i_len)
+  --   for j = 1, i_len do
+  --     str.printf(" %s", words[j + i_off])
+  --   end
+  --   str.printf("\n")
+  -- end
+
+  -- for i = 1, #indices, 6 do
+  --   str.printf("Pre %d\n", i / 6)
+  --   str.printf("  a: %d %d\n", indices[i], indices[i + 1])
+  --   str.printf("  n: %d %d\n", indices[i + 2], indices[i + 3])
+  --   str.printf("  p: %d %d\n", indices[i + 4], indices[i + 5])
+  --   for j = 1, indices[i + 1] do
+  --     print("", words[j + indices[i]], bm.tostring(tokens[j + indices[i]], dataset.token_bits))
+  --   end
+  -- end
 
   return
     mtx.raw(mtx.create(indices), 1, 1, "u32"),

@@ -14,7 +14,7 @@ sys.execute({
   "lua", "bin/tbhss.lua", "load", "words",
   "--cache", db_file,
   "--name", "glove",
-  "--file", "test/res/glove.txt",
+  "--file", os.getenv("GLOVE") or "test/res/glove.txt",
 })
 
 sys.execute({
@@ -39,7 +39,7 @@ sys.execute({
   "lua", "bin/tbhss.lua", "load", "sentences",
   "--cache", db_file,
   "--name", "snli-dev",
-  "--file", "test/res/snli_1.0_dev.txt",
+  "--file", os.getenv("SNLI") or "test/res/snli_1.0_dev.txt",
 })
 
 sys.execute({
