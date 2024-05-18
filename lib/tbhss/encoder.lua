@@ -72,7 +72,7 @@ local function split_dataset (dataset, s, e)
 
   local indices = {}
   local tokens = {}
-  local words = {}
+  -- local words = {}
 
   local n = 0
 
@@ -86,9 +86,9 @@ local function split_dataset (dataset, s, e)
     arr.extend(tokens, dataset.a_data[i])
     arr.extend(tokens, dataset.n_data[i])
     arr.extend(tokens, dataset.p_data[i])
-    arr.extend(words, dataset.a_words[i])
-    arr.extend(words, dataset.n_words[i])
-    arr.extend(words, dataset.p_words[i])
+    -- arr.extend(words, dataset.a_words[i])
+    -- arr.extend(words, dataset.n_words[i])
+    -- arr.extend(words, dataset.p_words[i])
   end
 
   -- for i = 1, #indices, 6 do
