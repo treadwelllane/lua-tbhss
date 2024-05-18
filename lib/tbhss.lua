@@ -32,16 +32,19 @@ local function tokenizer (db_file, bitmaps_model_name)
     tokenize = function (s)
       return db.db.transaction(function ()
         local matches = {}
+        local words = {}
         for w in str.gmatch(str.gsub(s, "[^%w%s]", ""), "%S+") do
           w = str.lower(w)
           local bm = db.get_bitmap(bitmaps_model.id, w)
           if bm then
             arr.push(matches, bm)
+            arr.push(words, w)
           end
         end
         if #matches > 0 then
           arr.push(matches, bitmap.create())
-          return matches
+          arr.push(words, "")
+          return matches, words, s
         end
       end)
     end,
