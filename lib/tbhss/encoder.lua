@@ -71,12 +71,24 @@ local function split_dataset (dataset, s, e)
     arr.push(p_lens, dataset.p_lens[i])
     arr.push(p_offsets, p_offsets[#p_offsets] + dataset.p_lens[i])
   end
-  a_lens = mtx.raw(mtx.create(a_lens), 1, 1, "u32")
-  n_lens = mtx.raw(mtx.create(n_lens), 1, 1, "u32")
-  p_lens = mtx.raw(mtx.create(p_lens), 1, 1, "u32")
-  a_offsets = mtx.raw(mtx.create(a_offsets), 1, 1, "u32")
-  n_offsets = mtx.raw(mtx.create(n_offsets), 1, 1, "u32")
-  p_offsets = mtx.raw(mtx.create(p_offsets), 1, 1, "u32")
+
+  local a_lens_m = mtx.create(a_lens)
+  local a_lens_r = mtx.raw(a_lens_m, 1, 1, "u32")
+
+  local n_lens_m = mtx.create(n_lens)
+  local n_lens_r = mtx.raw(n_lens_m, 1, 1, "u32")
+
+  local p_lens_m = mtx.create(p_lens)
+  local p_lens_r = mtx.raw(p_lens_m, 1, 1, "u32")
+
+  local a_offsets_m = mtx.create(a_offsets)
+  local a_offsets_r = mtx.raw(a_offsets_m, 1, 1, "u32")
+
+  local n_offsets_m = mtx.create(n_offsets)
+  local n_offsets_r = mtx.raw(n_offsets_m, 1, 1, "u32")
+
+  local p_offsets_m = mtx.create(p_offsets)
+  local p_offsets_r = mtx.raw(p_offsets_m, 1, 1, "u32")
 
   local a_data, n_data, p_data = {}, {}, {}
   for i = s, e do
@@ -84,13 +96,14 @@ local function split_dataset (dataset, s, e)
     arr.extend(n_data, dataset.n_data[i])
     arr.extend(p_data, dataset.p_data[i])
   end
-  a_data = bm.raw_matrix(a_data, dataset.token_bits)
-  n_data = bm.raw_matrix(n_data, dataset.token_bits)
-  p_data = bm.raw_matrix(p_data, dataset.token_bits)
 
-  return a_lens, a_offsets, a_data,
-         n_lens, n_offsets, n_data,
-         p_lens, p_offsets, p_data
+  local a_data_r = bm.raw_matrix(a_data, dataset.token_bits)
+  local n_data_r = bm.raw_matrix(n_data, dataset.token_bits)
+  local p_data_r = bm.raw_matrix(p_data, dataset.token_bits)
+
+  return a_lens_r, a_offsets_r, a_data_r,
+         n_lens_r, n_offsets_r, n_data_r,
+         p_lens_r, p_offsets_r, p_data_r
 
 end
 
