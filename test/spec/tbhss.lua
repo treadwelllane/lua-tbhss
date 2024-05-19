@@ -49,7 +49,7 @@ sys.execute({
   "--bitmaps", "glove",
   "--sentences", "snli-dev",
   "--output-bits", "128",
-  "--train-test-ratio", "0.8",
+  "--train-test-ratio", "0.5",
   "--clauses", "80",
   "--state-bits", "8",
   "--threshold", "200",
@@ -61,7 +61,7 @@ sys.execute({
   "--drop-clause", "0.75",
   "--boost-true-positive", "false",
   "--evaluate-every", "1",
-  "--max-records", "2000",
+  "--max-records", "500",
   "--epochs", "20",
 })
 
