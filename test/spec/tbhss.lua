@@ -61,8 +61,8 @@ sys.execute({
   "--drop-clause", "0.75",
   "--boost-true-positive", "false",
   "--evaluate-every", "1",
-  "--max-records", "500",
-  "--epochs", "20",
+  "--max-records", "100",
+  "--epochs", "5",
 })
 
 local normalizer = tbhss.normalizer(db_file, "glove")
