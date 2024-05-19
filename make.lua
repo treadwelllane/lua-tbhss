@@ -1,7 +1,7 @@
 local env = {
 
   name = "tbhss",
-  version = "0.0.26-1",
+  version = "0.0.27-1",
   variable_prefix = "TBHSS",
   public = true,
 
