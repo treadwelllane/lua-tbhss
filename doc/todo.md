@@ -1,22 +1,22 @@
 # Now
 
 - Clean up todo.md and ideas.md now that README.md is restructured
+- Add encoded/clustered bitmaps to README
 
-- Improve performance of loading glove embeddings. Write in C?
-
-- Library functions & tests for use of encoder
 - Pre-trained encoders on full Glove & NLI datasets shared as sqlite.db files
   with training data pruned
 
-- Tokenize using the exact same processes as glove, e.g. stripping periods,
-  comms, etc.
+- Create bitmaps via auto-encoder or current min/max similarity method
 
-- Ensure that both penalties and rewards are being applied, not just penalties
-- For each training example, apply feedback to every input word/state
-  combination:
-    1. Compute the final bitmap
-    2. For each word, for each output bit, flip the bit and recompute the final
-       bitmap. If loss improves, penalize, if not reward.
+- Create a minimal test set:
+    - Add to main tsetlin
+    - Easiest NLI dataset available
+    - Filter glove embeddings to those present in NLI
+
+# Later
+
+- Allow word embeddings auto-encoder to be persisted
+- Improve performance of loading glove embeddings. Write in C? Parallelize?
 
 ----
 

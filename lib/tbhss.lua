@@ -20,14 +20,20 @@ local function tokenizer (db_file, bitmaps_model_name)
     err.error("Bitmaps model not loaded", bitmaps_model_name)
   end
 
-  local clusters_model = db.get_clusters_model_by_id(bitmaps_model.id_clusters_model)
+  local bits
 
-  if not clusters_model then
-    err.error("Clusters model not found", bitmaps_model.id_clusters_model)
+  if bitmaps_model.id_clusters_model == nil then
+    bits = bitmaps_model.params.encoded_bits
+  else
+    local clusters_model = db.get_clusters_model_by_id(bitmaps_model.id_clusters_model)
+    if not clusters_model then
+      err.error("Clusters model not found", bitmaps_model.id_clusters_model)
+    end
+    bits = clusters_model.clusters
   end
 
   return {
-    clusters_model = clusters_model,
+    bits = bits,
     bitmaps_model = bitmaps_model,
     tokenize = function (s)
       return db.db.transaction(function ()
@@ -81,12 +87,12 @@ local function encoder (db_file, model_name)
     tokenizer = tokenizer,
     bitmaps_model = bitmaps_model,
     encoder_model = encoder_model,
-    bits = encoder_model.params.output_bits,
+    bits = encoder_model.params.encoded_bits,
     encode = function (s)
       return db.db.transaction(function ()
         local tokens = tokenizer.tokenize(s)
         if tokens then
-          return bitmap.from_raw(tm.predict(t, #tokens, bitmap.raw_matrix(tokens, tokenizer.clusters_model.clusters)))
+          return bitmap.from_raw(tm.predict(t, #tokens, bitmap.raw_matrix(tokens, bits)))
         end
       end)
     end,

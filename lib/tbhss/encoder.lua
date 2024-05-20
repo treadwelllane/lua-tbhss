@@ -49,7 +49,6 @@ local function get_dataset (db, tokenizer, sentences_model, args)
     end
   end
 
-  local token_bits = tokenizer.clusters_model.clusters
 
   return {
     a_lens = a_lens,
@@ -62,8 +61,8 @@ local function get_dataset (db, tokenizer, sentences_model, args)
     n_words = n_words,
     p_words = p_words,
     total = #a_lens,
-    token_bits = token_bits,
-    output_bits = args.output_bits,
+    token_bits = tokenizer.bits,
+    encoded_bits = args.encoded_bits,
   }
 
 end
@@ -156,12 +155,12 @@ local function create_encoder (db, args)
   local test_indices, test_tokens = split_dataset(dataset, n_train + 1, n_train + n_test)
 
   print("Token Bits", dataset.token_bits)
-  print("Output Bits", dataset.output_bits)
+  print("Encoded Bits", dataset.encoded_bits)
   print("Total Train", n_train)
   print("Total Test", n_test)
 
   local t = tm.recurrent_encoder(
-    args.output_bits, dataset.token_bits, args.clauses,
+    args.encoded_bits, dataset.token_bits, args.clauses,
     args.state_bits, args.threshold, args.boost_true_positive)
 
   print("Training")

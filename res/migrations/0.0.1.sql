@@ -34,6 +34,7 @@ create table clusters (
 
 create table bitmaps_model (
   id integer primary key,
+  id_words_model integer references words_model (id) on delete cascade,
   id_clusters_model integer references clusters_model (id) on delete cascade,
   params json not null,
   name varchar not null unique,
