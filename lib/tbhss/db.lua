@@ -11,9 +11,11 @@
 %>
 
 local sql = require("santoku.sqlite")
+local mtx = require("santoku.matrix")
 local migrate = require("santoku.sqlite.migrate")
 local tm = require("santoku.tsetlin")
 local bm = require("santoku.bitmap")
+local it = require("santoku.iter")
 local fs = require("santoku.fs")
 local cjson = require("cjson")
 local sqlite = require("lsqlite3")
@@ -52,8 +54,8 @@ return function (db_file)
   ]])
 
   local encode_bitmaps_model = function (inserter)
-    return function (n, i, p)
-      return inserter(n, i, cjson.encode(p))
+    return function (n, iw, ic, p)
+      return inserter(n, iw, ic, cjson.encode(p))
     end
   end
 
@@ -96,8 +98,8 @@ return function (db_file)
   end
 
   M.add_bitmaps_model = encode_bitmaps_model(db.inserter([[
-    insert into bitmaps_model (name, id_clusters_model, params)
-    values (?, ?, ?)
+    insert into bitmaps_model (name, id_words_model, id_clusters_model, params)
+    values (?, ?, ?, ?)
   ]]))
 
   M.add_encoder_model = encode_encoder_model(db.inserter([[
@@ -221,10 +223,26 @@ return function (db_file)
   ]])
 
   M.get_words = db.iter([[
-    select id, name, embedding from words
-    where id_words_model = ?
-    order by id asc
+    select w.id, w.name, wm.dimensions, w.embedding
+    from words w, words_model wm
+    where w.id_words_model = ?1
+    and wm.id = w.id_words_model
+    order by w.id asc
   ]])
+
+  local get_word_vectors = db.iter([[
+    select w.id, wm.dimensions, w.embedding
+    from words w, words_model wm
+    where w.id_words_model = ?1
+    and wm.id = w.id_words_model
+    order by w.id asc
+  ]])
+
+  M.get_word_vectors = function (...)
+    return it.map(function (e)
+      return mtx.create(e.embedding, e.dimensions)
+    end, get_word_vectors(...))
+  end
 
   M.get_total_words = db.getter([[
     select count(*) as n
@@ -261,12 +279,11 @@ return function (db_file)
   ]])
 
   local get_bitmap = db.getter([[
-    select b.bitmap, cm.clusters
-    from bitmaps_model bm, clusters_model cm, bitmaps b, words e
+    select b.bitmap
+    from bitmaps_model bm, bitmaps b, words e
     where bm.id = ?1
     and e.name = ?2
-    and e.id_words_model = cm.id_words_model
-    and cm.id = bm.id_clusters_model
+    and e.id_words_model = bm.id_words_model
     and b.id_bitmaps_model = bm.id
     and b.id_words = e.id
   ]])

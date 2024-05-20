@@ -54,7 +54,7 @@ of the text.
       --name glove2500
       --bitmaps glove2500
       --sentences snli-dev
-      --output-bits 1024
+      --encoded-bits 1024
       --margin 0.1
       --scale-loss 0.5
       --train-test-ratio 0.1
@@ -62,7 +62,6 @@ of the text.
       --state-bits 8
       --threshold 80
       --specificity 3
-      --update-probability 0.75
       --drop-clause 0.75
       --boost-true-positive false
       --evaluate-every 5
