@@ -177,6 +177,31 @@ local function get_encoder_data (db, args, words_model)
 
 end
 
+local function get_thresholded_data (db, args, words_model)
+
+  local observations = {}
+
+  local ms = mtx.create(db.get_word_embeddings(words_model.id), words_model.dimensions)
+
+  print("Vectors", mtx.rows(ms))
+
+  for i = 1, mtx.rows(ms) do
+    for j = 1, words_model.dimensions do
+      local v = mtx.get(ms, i, j)
+      observations[v] = true
+    end
+  end
+
+  local thresholds = booleanizer.thresholds(observations, args.threshold_levels)
+
+  return {
+    thresholds = thresholds,
+    word_matrix = ms,
+    bits = #thresholds * words_model.dimensions * 2
+  }
+
+end
+
 local function create_bitmaps_auto_encoded (db, args)
   return db.db.transaction(function ()
 
@@ -338,8 +363,49 @@ local function create_bitmaps_encoded (db, args)
   end)
 end
 
+local function create_bitmaps_thresholded (db, args)
+  return db.db.transaction(function ()
+
+    local words_model = db.get_words_model_by_name(args.words)
+
+    if not words_model or words_model.loaded ~= 1 then
+      err.error("Words model not loaded")
+    end
+
+    print("Getting thresholds")
+
+    local dataset = get_thresholded_data(db, args, words_model)
+
+    local bitmaps_model = db.get_bitmaps_model_by_name(args.name)
+
+    if not bitmaps_model then
+      args.encoded_bits = dataset.bits
+      local id = db.add_bitmaps_model(args.name, words_model.id, nil, args)
+      bitmaps_model = db.get_bitmaps_model_by_id(id)
+      err.assert(bitmaps_model, "This is a bug! Bitmaps model not created")
+    end
+
+    print("Encoding bitmaps")
+
+    local bits = {}
+    local m0 = mtx.create(1, words_model.dimensions)
+    for i = 1, words_model.total do
+      mtx.copy(m0, dataset.word_matrix, i, i, 1)
+      local input = booleanize_vector(m0, words_model, dataset.thresholds, bits)
+      db.add_bitmap(bitmaps_model.id, i, bitmap.raw(input, dataset.bits))
+    end
+
+    db.set_bitmaps_created(bitmaps_model.id)
+
+    print("Persisted bitmaps")
+
+  end)
+
+end
+
 return {
   create_bitmaps_clustered = create_bitmaps_clustered,
   create_bitmaps_auto_encoded = create_bitmaps_auto_encoded,
   create_bitmaps_encoded = create_bitmaps_encoded,
+  create_bitmaps_thresholded = create_bitmaps_thresholded,
 }

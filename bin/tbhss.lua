@@ -101,6 +101,12 @@ cmd_create_bitmaps_encoded:option("--evaluate-every", "Evaluation frequency", 5,
 cmd_create_bitmaps_encoded:option("--max-records", "Max number records to use in training", nil, tonumber, 1, "0-1")
 cmd_create_bitmaps_encoded:option("--epochs", "Number of epochs", nil, tonumber, 1, 1)
 
+local cmd_create_bitmaps_thresholded = cmd_create_bitmaps:command("thresholded", "create bitmaps via thresholding")
+base_flags(cmd_create_bitmaps_thresholded)
+cmd_create_bitmaps_thresholded:option("--name", "name of created bitmaps", nil, nil, 1, 1)
+cmd_create_bitmaps_thresholded:option("--words", "name of words to use", nil, nil, 1, 1)
+cmd_create_bitmaps_thresholded:option("--threshold-levels", "number of input dimension thresholds", nil, tonumber, 1, 1)
+
 local cmd_create_encoder = cmd_create:command("encoder", "create an encoder")
 base_flags(cmd_create_encoder)
 cmd_create_encoder:option("--name", "name of created encoder", nil, nil, 1, 1)
@@ -140,6 +146,8 @@ elseif args.cmd == "create" and args.cmd_create == "bitmaps" and args.cmd_create
   bitmaps.create_bitmaps_auto_encoded(db, args)
 elseif args.cmd == "create" and args.cmd_create == "bitmaps" and args.cmd_create_bitmaps == "encoded"  then
   bitmaps.create_bitmaps_encoded(db, args)
+elseif args.cmd == "create" and args.cmd_create == "bitmaps" and args.cmd_create_bitmaps == "thresholded"  then
+  bitmaps.create_bitmaps_thresholded(db, args)
 elseif args.cmd == "create" and args.cmd_create == "encoder" then
   encoder.create_encoder(db, args)
 else
