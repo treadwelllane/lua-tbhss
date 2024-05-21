@@ -78,32 +78,27 @@ local function get_autoencoder_data (db, args, words_model)
   local bits = {}
   local observations = {}
 
-  local vectors = db.get_word_vectors(words_model.id)
+  local ms = mtx.create(db.get_word_embeddings(words_model.id), words_model.dimensions)
 
-  if args.max_records then
-    vectors = it.take(args.max_records, vectors)
-  end
+  print("Vectors", mtx.rows(ms))
 
-  vectors = it.collect(vectors)
-
-  print("Vectors", #vectors)
-
-  for i = 1, #vectors do
-    local vector = vectors[i]
+  for i = 1, mtx.rows(ms) do
     for j = 1, words_model.dimensions do
-      local v = mtx.get(vector, 1, j)
+      local v = mtx.get(ms, i, j)
       observations[v] = true
     end
   end
 
   local thresholds = booleanizer.thresholds(observations, args.threshold_levels)
 
-  for i = 1, #vectors do
-    local b = booleanize_vector(vectors[i], words_model, thresholds, bits)
+  local m0 = mtx.create(1, words_model.dimensions)
+  for i = 1, mtx.rows(ms) do
+    mtx.copy(m0, ms, i, i, 1)
+    local b = booleanize_vector(m0, words_model, thresholds, bits)
     arr.push(problems, b)
   end
 
-  return problems, #thresholds * words_model.dimensions, thresholds
+  return problems, #thresholds * words_model.dimensions, thresholds, ms
 
 end
 
@@ -205,7 +200,7 @@ local function create_bitmaps_auto_encoded (db, args)
 
     print("Training the auto encoder")
 
-    local data, n_features, thresholds = get_autoencoder_data(db, args, words_model)
+    local data, n_features, thresholds, word_matrix = get_autoencoder_data(db, args, words_model)
 
     print("Shuffling")
     rand.seed()
@@ -244,10 +239,12 @@ local function create_bitmaps_auto_encoded (db, args)
     print("Encoding bitmaps")
 
     local bits = {}
-    for word in db.get_words(words_model.id) do
-      local input = booleanize_vector(mtx.create(word.embedding, word.dimensions), words_model, thresholds, bits)
+    local m0 = mtx.create(1, words_model.dimensions)
+    for i = 1, mtx.rows(word_matrix) do
+      mtx.copy(m0, word_matrix, i, i, 1)
+      local input = booleanize_vector(m0, words_model, thresholds, bits)
       local output = tm.predict(t, bitmap.raw(input, n_features * 2))
-      db.add_bitmap(bitmaps_model.id, word.id, output)
+      db.add_bitmap(bitmaps_model.id, i, output)
     end
 
     db.set_bitmaps_created(bitmaps_model.id)

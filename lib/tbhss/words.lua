@@ -63,17 +63,12 @@ local function load_words_from_file (db, model, args)
   print("Loaded All:", mrows(word_matrix))
   print("Dimensions:", mcolumns(word_matrix))
 
-  print("Computing word distances")
-  mnormalize(word_matrix)
-  local distance_matrix = mcreate(mrows(word_matrix), mrows(word_matrix))
-  mmultiply(word_matrix, word_matrix, distance_matrix, false, true)
-
   local id_model = model and model.id
 
-  print("Persisting words and distances")
+  print("Persisting words")
 
   if not id_model then
-    id_model = db.add_words_model(args.name, mrows(word_matrix), mcolumns(word_matrix), mtx.raw(word_matrix), mtx.raw(distance_matrix))
+    id_model = db.add_words_model(args.name, mrows(word_matrix), mcolumns(word_matrix), mtx.raw(word_matrix))
     model = db.get_words_model_by_id(id_model)
   end
 
