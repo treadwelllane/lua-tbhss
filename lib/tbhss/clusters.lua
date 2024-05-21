@@ -82,11 +82,15 @@ local function cluster_words (db, clusters_model, args)
 
   print("Clustering")
 
-  local words_model, word_matrix = words.get_words(db, args.words)
+  local words_model = db.get_words_model_by_name(args.name)
 
   if not words_model or words_model.loaded ~= 1 then
     err.error("Words model not loaded")
   end
+
+  local word_matrix = mtx.create(db.get_word_embeddings(words_model.id), words_model.dimensions)
+
+  mnormalize(word_matrix)
 
   local cluster_matrix, distance_matrix = select_initial_clusters(word_matrix, args.clusters)
   local cluster_average_matrix = mcreate(0, 0)
@@ -155,8 +159,7 @@ local function get_clusters (db, name)
     return
   end
   print("Loading word clusters from database")
-  local total_words = db.get_total_words(model.id_words_model)
-  local distance_matrix = mcreate(total_words, model.clusters)
+  local distance_matrix = mcreate(words_model.total, model.clusters)
   for wc in db.get_clusters(model.id) do
     mset(distance_matrix, wc.id_words, wc.id, wc.similarity)
   end
