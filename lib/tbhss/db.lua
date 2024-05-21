@@ -184,6 +184,12 @@ return function (db_file)
     where id = ?
   ]])
 
+  M.get_total_words = db.getter([[
+    select total
+    from words_model
+    where id = ?
+  ]], "total")
+
   M.get_sentences_model_by_id = db.getter([[
     select *
     from sentences_model
