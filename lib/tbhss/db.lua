@@ -39,8 +39,8 @@ return function (db_file)
   local M = { db = db }
 
   M.add_words_model = db.inserter([[
-    insert into words_model (name, dimensions)
-    values (?, ?)
+    insert into words_model (name, total, dimensions, embeddings, similarities)
+    values (?, ?, ?, ?, ?)
   ]])
 
   M.add_sentences_model = db.inserter([[
@@ -143,7 +143,7 @@ return function (db_file)
   ]])
 
   M.get_words_model_by_name = db.getter([[
-    select *
+    select id, name, loaded, total, dimensions
     from words_model
     where name = ?
   ]])
@@ -153,6 +153,18 @@ return function (db_file)
     from sentences_model
     where name = ?
   ]])
+
+  M.get_word_embeddings = db.getter([[
+    select embeddings
+    from words_model
+    where id = ?1
+  ]], "embeddings")
+
+  M.get_word_similarities = db.getter([[
+    select similarities
+    from words_model
+    where id = ?1
+  ]], "similarities")
 
   M.get_clusters_model_by_name = db.getter([[
     select *
@@ -173,7 +185,7 @@ return function (db_file)
   ]]))
 
   M.get_words_model_by_id = db.getter([[
-    select *
+    select id, name, loaded, total, dimensions
     from words_model
     where id = ?
   ]])
@@ -203,8 +215,8 @@ return function (db_file)
   ]]))
 
   M.add_word = db.inserter([[
-    insert into words (id, id_words_model, name, embedding)
-    values (?, ?, ?, ?)
+    insert into words (id, id_words_model, name)
+    values (?, ?, ?)
   ]])
 
   M.add_sentence = db.inserter([[
@@ -222,45 +234,11 @@ return function (db_file)
     values (?, ?, ?, ?)
   ]])
 
-  M.get_words = db.iter([[
-    select w.id, w.name, wm.dimensions, w.embedding
-    from words w, words_model wm
-    where w.id_words_model = ?1
-    and wm.id = w.id_words_model
-    order by w.id asc
-  ]])
-
-  local get_word_vectors = db.iter([[
-    select w.id, wm.dimensions, w.embedding
-    from words w, words_model wm
-    where w.id_words_model = ?1
-    and wm.id = w.id_words_model
-    order by w.id asc
-  ]])
-
-  M.get_word_vectors = function (...)
-    return it.map(function (e)
-      return mtx.create(e.embedding, e.dimensions)
-    end, get_word_vectors(...))
-  end
-
-  M.get_total_words = db.getter([[
-    select count(*) as n
-    from words
-    where id_words_model = ?
-  ]], "n")
-
-  M.get_word_name = db.getter([[
-    select name from words
+  M.get_word_id = db.getter([[
+    select id from words
     where id_words_model = ?1
-    and id = ?2
-  ]], "name")
-
-  M.get_word_embedding = db.getter([[
-    select embedding from words
-    where id_words_model = ?1
-    and id = ?2
-  ]], "embedding")
+    and name = ?2
+  ]], "id")
 
   M.get_clusters = db.iter([[
     select c.id_words, c.id, c.similarity
