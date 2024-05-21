@@ -14,26 +14,48 @@ sys.execute({
   "lua", "bin/tbhss.lua", "load", "words",
   "--cache", db_file,
   "--name", "glove",
-  "--file", os.getenv("GLOVE") or "test/res/glove.txt",
+  "--file", os.getenv("GLOVE") or "test/res/glove.2500.txt",
 })
 
-sys.execute({
-  "lua", "bin/tbhss.lua", "create", "clusters",
-  "--cache", db_file,
-  "--name", "glove",
-  "--words", "glove",
-  "--clusters", "128"
-})
+-- sys.execute({
+--   "lua", "bin/tbhss.lua", "create", "clusters",
+--   "--cache", db_file,
+--   "--name", "glove",
+--   "--words", "glove",
+--   "--clusters", "128"
+-- })
 
-sys.execute({
-  "lua", "bin/tbhss.lua", "create", "bitmaps", "clustered",
-  "--cache", db_file,
-  "--name", "glove.clustered",
-  "--clusters", "glove",
-  "--min-set", "1",
-  "--max-set", "10",
-  "--min-similarity", "0.8",
-})
+-- sys.execute({
+--   "lua", "bin/tbhss.lua", "create", "bitmaps", "clustered",
+--   "--cache", db_file,
+--   "--name", "glove.clustered",
+--   "--clusters", "glove",
+--   "--min-set", "1",
+--   "--max-set", "10",
+--   "--min-similarity", "0.8",
+-- })
+
+-- sys.execute({
+--   "lua", "bin/tbhss.lua", "create", "bitmaps", "auto-encoded",
+--   "--cache", db_file,
+--   "--name", "glove.auto-encoded",
+--   "--words", "glove",
+--   "--encoded-bits", "128",
+--   "--threshold-levels", "3",
+--   "--train-test-ratio", "0.5",
+--   "--clauses", "80",
+--   "--state-bits", "8",
+--   "--threshold", "200",
+--   "--scale-loss", "0.9",
+--   "--scale-loss-min", "0",
+--   "--scale-loss-max", "0.4",
+--   "--specificity", "1.003",
+--   "--drop-clause", "0.75",
+--   "--boost-true-positive", "false",
+--   "--evaluate-every", "5",
+--   -- "--max-records", "1000",
+--   "--epochs", "5",
+-- })
 
 sys.execute({
   "lua", "bin/tbhss.lua", "create", "bitmaps", "encoded",
@@ -41,20 +63,22 @@ sys.execute({
   "--name", "glove.encoded",
   "--words", "glove",
   "--encoded-bits", "128",
-  "--threshold-levels", "2",
+  "--threshold-levels", "3",
   "--train-test-ratio", "0.5",
+  "--margin", "0.1",
+  "--similarity-positive", "0.7",
+  "--similarity-negative", "0.5",
   "--clauses", "80",
   "--state-bits", "8",
   "--threshold", "200",
-  "--scale-loss", "0.8",
-  "--scale-loss-min", "0",
-  "--scale-loss-max", "0.4",
-  "--specificity", "1.003",
+  "--specificity", "5",
   "--drop-clause", "0.75",
+  "--scale-loss", "0.9",
+  "--scale-loss-min", "0",
+  "--scale-loss-max", "0.5",
   "--boost-true-positive", "false",
   "--evaluate-every", "5",
-  "--max-records", "1000",
-  "--epochs", "5",
+  "--epochs", "50",
 })
 
 sys.execute({
@@ -74,17 +98,17 @@ sys.execute({
   "--train-test-ratio", "0.5",
   "--clauses", "80",
   "--state-bits", "8",
-  "--threshold", "1000",
+  "--threshold", "200",
   "--margin", "0.1",
   "--scale-loss", "0.9",
   "--scale-loss-min", "0",
   "--scale-loss-max", "0.5",
-  "--specificity", "2",
+  "--specificity", "5",
   "--drop-clause", "0.75",
   "--boost-true-positive", "false",
   "--evaluate-every", "1",
   "--max-records", "1000",
-  "--epochs", "200",
+  "--epochs", "1000",
 })
 
 -- local normalizer = tbhss.normalizer(db_file, "glove")

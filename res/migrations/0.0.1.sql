@@ -2,14 +2,16 @@ create table words_model (
   id integer primary key,
   name varchar not null unique,
   loaded boolean not null default false,
-  dimensions integer not null
+  total integer not null,
+  dimensions integer not null,
+  embeddings blob not null,
+  similarities blob not null
 );
 
 create table words (
   id integer not null, -- 1-N for each word (not a primary key)
   id_words_model integer references words_model (id) on delete cascade,
   name varchar not null,
-  embedding blob not null,
   primary key (id_words_model, id),
   unique (id_words_model, name),
   unique (id_words_model, id)
