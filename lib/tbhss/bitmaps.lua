@@ -248,7 +248,7 @@ local function create_bitmaps_auto_encoded (db, args)
     for epoch = 1, args.epochs do
 
       local start = os.time()
-      tm.train(t, n_train, train, args.specificity, args.drop_clause, args.scale_loss, args.scale_loss_min, args.scale_loss_max)
+      tm.train(t, n_train, train, args.specificity, args.drop_clause, args.loss_alpha)
       local duration = os.time() - start
 
       if epoch == args.epochs or epoch % args.evaluate_every == 0 then
@@ -330,8 +330,7 @@ local function create_bitmaps_encoded (db, args)
 
       local start = os.time()
       tm.train(t, n_train, train_data,
-        args.specificity, args.drop_clause, args.margin,
-        args.scale_loss, args.scale_loss_min, args.scale_loss_max)
+        args.specificity, args.drop_clause, args.margin, args.loss_alpha)
       local duration = os.time() - start
 
       if epoch == args.max_epochs or epoch % args.evaluate_every == 0 then
