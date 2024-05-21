@@ -46,9 +46,7 @@ sys.execute({
 --   "--clauses", "80",
 --   "--state-bits", "8",
 --   "--threshold", "200",
---   "--scale-loss", "0.9",
---   "--scale-loss-min", "0",
---   "--scale-loss-max", "0.4",
+--   "--loss-alpha", "5",
 --   "--specificity", "1.003",
 --   "--drop-clause", "0.75",
 --   "--boost-true-positive", "false",
@@ -62,7 +60,7 @@ sys.execute({
   "--cache", db_file,
   "--name", "glove.thresholded",
   "--words", "glove",
-  "--threshold-levels", "3"
+  "--threshold-levels", "2"
 })
 
 -- sys.execute({
@@ -81,9 +79,7 @@ sys.execute({
 --   "--threshold", "200",
 --   "--specificity", "5",
 --   "--drop-clause", "0.75",
---   "--scale-loss", "0.9",
---   "--scale-loss-min", "0",
---   "--scale-loss-max", "0.5",
+--   "--loss-alpha", "5",
 --   "--boost-true-positive", "false",
 --   "--evaluate-every", "5",
 --   "--epochs", "50",
@@ -110,10 +106,8 @@ sys.execute({
   "--state-bits", "8",
   "--threshold", "200",
   "--margin", "0.1",
-  "--scale-loss", "0.9",
-  "--scale-loss-min", "0",
-  "--scale-loss-max", "0.5",
-  "--specificity", "5",
+  "--loss-alpha", "5",
+  "--specificity", "2",
   "--drop-clause", "0.75",
   "--boost-true-positive", "false",
   "--evaluate-every", "1",
