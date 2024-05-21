@@ -4,8 +4,7 @@ create table words_model (
   loaded boolean not null default false,
   total integer not null,
   dimensions integer not null,
-  embeddings blob not null,
-  similarities blob not null
+  embeddings blob not null
 );
 
 create table words (

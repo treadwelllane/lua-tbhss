@@ -1,5 +1,7 @@
 # Now
 
+- Consider not persisting word cluster distances
+
 - Clean up todo.md and ideas.md now that README.md is restructured
 - Add encoded/clustered bitmaps to README
 

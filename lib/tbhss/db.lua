@@ -39,8 +39,8 @@ return function (db_file)
   local M = { db = db }
 
   M.add_words_model = db.inserter([[
-    insert into words_model (name, total, dimensions, embeddings, similarities)
-    values (?, ?, ?, ?, ?)
+    insert into words_model (name, total, dimensions, embeddings)
+    values (?, ?, ?, ?)
   ]])
 
   M.add_sentences_model = db.inserter([[
@@ -159,12 +159,6 @@ return function (db_file)
     from words_model
     where id = ?1
   ]], "embeddings")
-
-  M.get_word_similarities = db.getter([[
-    select similarities
-    from words_model
-    where id = ?1
-  ]], "similarities")
 
   M.get_clusters_model_by_name = db.getter([[
     select *
