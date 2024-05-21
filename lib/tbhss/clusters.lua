@@ -82,7 +82,7 @@ local function cluster_words (db, clusters_model, args)
 
   print("Clustering")
 
-  local words_model = db.get_words_model_by_name(args.name)
+  local words_model = db.get_words_model_by_name(args.words)
 
   if not words_model or words_model.loaded ~= 1 then
     err.error("Words model not loaded")
