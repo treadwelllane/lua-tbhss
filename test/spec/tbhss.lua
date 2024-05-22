@@ -105,7 +105,7 @@ sys.execute({
   "--state-bits", "8",
   "--threshold", "200",
   "--margin", "0.2",
-  "--loss-alpha", "0.1",
+  "--loss-alpha", "0.001",
   "--specificity", "5",
   "--drop-clause", "0.75",
   "--boost-true-positive", "false",
