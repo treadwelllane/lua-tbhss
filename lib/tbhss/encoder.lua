@@ -13,54 +13,38 @@ local tbhss = require("tbhss")
 
 local function get_dataset (db, tokenizer, sentences_model, args)
 
-  local a_lens = {}
-  local n_lens = {}
-  local p_lens = {}
-  local a_data = {}
-  local n_data = {}
-  local p_data = {}
-  local a_words = {}
-  local n_words = {}
-  local p_words = {}
-
   local triplets = db.get_sentence_triplets(sentences_model.id)
 
   if args.max_records then
     triplets = it.take(args.max_records, triplets)
   end
 
-  triplets = it.collect(triplets)
+  triplets = it.collect(it.filter(function (s)
+    s.anchor, s.anchor_words = tokenizer.tokenize(s.anchor)
+    s.negative, s.negative_words = tokenizer.tokenize(s.negative)
+    s.positive, s.positive_words = tokenizer.tokenize(s.positive)
+    return s.anchor and s.negative and s.positive
+  end, triplets))
 
-  for i = 1, #triplets do
+  for i = 1, 1 --[[#triplets]] do
     local s = triplets[i]
-    local a, aw = tokenizer.tokenize(s.anchor)
-    local n, nw = tokenizer.tokenize(s.negative)
-    local p, pw = tokenizer.tokenize(s.positive)
-    if a and n and p then
-      arr.push(a_lens, #a)
-      arr.push(n_lens, #n)
-      arr.push(p_lens, #p)
-      arr.push(a_data, a)
-      arr.push(n_data, n)
-      arr.push(p_data, p)
-      arr.push(a_words, aw)
-      arr.push(n_words, nw)
-      arr.push(p_words, pw)
+    str.printf("Anchor: %s\n", table.concat(s.anchor_words, " "))
+    for j = 1, #s.anchor_words do
+      str.printf("  %10s | %s\n", s.anchor_words[j], bm.tostring(s.anchor[j], tokenizer.bits))
     end
+    -- str.printf("Negative: %s\n", table.concat(s.negative_words, " "))
+    -- for j = 1, #s.negative_words do
+    --   str.printf("  %10s | %s\n", s.negative_words[j], bm.tostring(s.negative[j], tokenizer.bits))
+    -- end
+    -- str.printf("Positive: %s\n", table.concat(s.positive_words, " "))
+    -- for j = 1, #s.positive_words do
+    --   str.printf("  %10s | %s\n", s.positive_words[j], bm.tostring(s.positive[j], tokenizer.bits))
+    -- end
+    print()
   end
 
-
   return {
-    a_lens = a_lens,
-    n_lens = n_lens,
-    p_lens = p_lens,
-    a_data = a_data,
-    n_data = n_data,
-    p_data = p_data,
-    a_words = a_words,
-    n_words = n_words,
-    p_words = p_words,
-    total = #a_lens,
+    triplets = triplets,
     token_bits = tokenizer.bits,
     encoded_bits = args.encoded_bits,
   }
@@ -71,44 +55,15 @@ local function split_dataset (dataset, s, e)
 
   local indices = {}
   local tokens = {}
-  -- local words = {}
-
-  local n = 0
 
   for i = s, e do
-    arr.push(indices, n, dataset.a_lens[i])
-    n = n + dataset.a_lens[i]
-    arr.push(indices, n, dataset.n_lens[i])
-    n = n + dataset.n_lens[i]
-    arr.push(indices, n, dataset.p_lens[i])
-    n = n + dataset.p_lens[i]
-    arr.extend(tokens, dataset.a_data[i])
-    arr.extend(tokens, dataset.n_data[i])
-    arr.extend(tokens, dataset.p_data[i])
-    -- arr.extend(words, dataset.a_words[i])
-    -- arr.extend(words, dataset.n_words[i])
-    -- arr.extend(words, dataset.p_words[i])
+    arr.push(indices, #tokens, #dataset.triplets[i].anchor)
+    arr.extend(tokens, dataset.triplets[i].anchor)
+    arr.push(indices, #tokens, #dataset.triplets[i].negative)
+    arr.extend(tokens, dataset.triplets[i].negative)
+    arr.push(indices, #tokens, #dataset.triplets[i].positive)
+    arr.extend(tokens, dataset.triplets[i].positive)
   end
-
-  -- for i = 1, #indices, 6 do
-  --   local i_off = indices[i]
-  --   local i_len = indices[i + 1]
-  --   str.printf("%d %d | ", i_off, i_len)
-  --   for j = 1, i_len do
-  --     str.printf(" %s", words[j + i_off])
-  --   end
-  --   str.printf("\n")
-  -- end
-
-  -- for i = 1, #indices, 6 do
-  --   str.printf("Pre %d\n", i / 6)
-  --   str.printf("  a: %d %d\n", indices[i], indices[i + 1])
-  --   str.printf("  n: %d %d\n", indices[i + 2], indices[i + 3])
-  --   str.printf("  p: %d %d\n", indices[i + 4], indices[i + 5])
-  --   for j = 1, indices[i + 1] do
-  --     print("", words[j + indices[i]], bm.tostring(tokens[j + indices[i]], dataset.token_bits))
-  --   end
-  -- end
 
   return
     mtx.raw(mtx.create(indices), 1, 1, "u32"),
@@ -148,8 +103,8 @@ local function create_encoder (db, args)
   local dataset = get_dataset(db, tokenizer, sentences_model, args)
 
   print("Splitting & packing")
-  local n_train = num.floor(dataset.total * args.train_test_ratio)
-  local n_test = dataset.total - n_train
+  local n_train = num.floor(#dataset.triplets * args.train_test_ratio)
+  local n_test = #dataset.triplets - n_train
 
   local train_indices, train_tokens = split_dataset(dataset, 1, n_train)
   local test_indices, test_tokens = split_dataset(dataset, n_train + 1, n_train + n_test)
@@ -163,7 +118,24 @@ local function create_encoder (db, args)
     args.encoded_bits, dataset.token_bits, args.clauses,
     args.state_bits, args.threshold, args.boost_true_positive)
 
+  -- print("Sanity check")
+  -- local mask = bm.create()
+  -- bm.set(mask, 1, dataset.token_bits)
+  -- local r = bm.tostring(bm.from_raw(tm.predict(t,
+  --   #dataset.triplets[1].anchor,
+  --   bm.raw_matrix(dataset.triplets[1].anchor, dataset.token_bits),
+  --   #dataset.triplets[1].anchor)),
+  --   args.encoded_bits)
+  -- -- print(r)
+
+  -- os.exit(0)
+
   print("Training")
+
+  local train_score = tm.evaluate(t, n_train, train_indices, train_tokens, args.margin)
+  local test_score = tm.evaluate(t, n_test, test_indices, test_tokens, args.margin)
+  str.printf("Initial                Test %4.2f  Train %4.2f\n", test_score, train_score)
+
   for epoch = 1, args.epochs do
 
     local start = os.time()
@@ -172,10 +144,20 @@ local function create_encoder (db, args)
       args.margin, args.loss_alpha)
     local duration = os.time() - start
 
+    -- print("Sanity check")
+    -- local mask = bm.create()
+    -- bm.set(mask, 1, dataset.token_bits)
+    -- local r = bm.tostring(bm.from_raw(tm.predict(t,
+    --   #dataset.triplets[1].anchor,
+    --   bm.raw_matrix(dataset.triplets[1].anchor, dataset.token_bits),
+    --   #dataset.triplets[1].anchor)),
+    --   args.encoded_bits)
+    -- -- print(r)
+
     if epoch == args.epochs or epoch % args.evaluate_every == 0 then
       local train_score = tm.evaluate(t, n_train, train_indices, train_tokens, args.margin)
       local test_score = tm.evaluate(t, n_test, test_indices, test_tokens, args.margin)
-      str.printf("Epoch %-4d  Time %d  Test %4.2f  Train %4.2f\n",
+      str.printf("Epoch %-4d  Time %-4d  Test %4.2f  Train %4.2f\n",
         epoch, duration, test_score, train_score)
     else
       str.printf("Epoch %-4d  Time %d\n",

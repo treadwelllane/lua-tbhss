@@ -8,7 +8,6 @@ local tm = require("santoku.tsetlin")
 local arr = require("santoku.array")
 local str = require("santoku.string")
 local booleanizer = require("santoku.tsetlin.booleanizer")
-local it = require("santoku.iter")
 
 local function create_bitmaps_clustered (db, args)
   return db.db.transaction(function ()
@@ -143,7 +142,9 @@ end
 
 local function get_encoder_data (db, args, words_model)
 
-  local triplets, word_matrix = get_word_triplets(db, words_model, args.max_records, args.similarity_negative, args.similarity_positive)
+  local triplets, word_matrix = get_word_triplets(
+    db, words_model, args.max_records,
+    args.similarity_negative, args.similarity_positive)
 
   local observations = {}
 
@@ -159,7 +160,6 @@ local function get_encoder_data (db, args, words_model)
   local thresholds = booleanizer.thresholds(observations, args.threshold_levels)
 
   local bits = {}
-  local as, ns, ps = {}, {}, {}
 
   for i = 1, #triplets do
     local t = triplets[i]
@@ -242,7 +242,9 @@ local function create_bitmaps_auto_encoded (db, args)
     print("Train", n_train)
     print("Test", n_test)
 
-    local t = tm.auto_encoder(args.encoded_bits, n_features, args.clauses, args.state_bits, args.threshold, args.boost_true_positive)
+    local t = tm.auto_encoder(
+      args.encoded_bits, n_features, args.clauses,
+      args.state_bits, args.threshold, args.boost_true_positive)
 
     print("Training")
     for epoch = 1, args.epochs do
@@ -323,7 +325,9 @@ local function create_bitmaps_encoded (db, args)
     print("Train", n_train)
     print("Test", n_test)
 
-    local t = tm.encoder(args.encoded_bits, dataset.n_features, args.clauses, args.state_bits, args.threshold, args.boost_true_positive)
+    local t = tm.encoder(
+      args.encoded_bits, dataset.n_features, args.clauses,
+      args.state_bits, args.threshold, args.boost_true_positive)
 
     print("Training")
     for epoch = 1, args.epochs do

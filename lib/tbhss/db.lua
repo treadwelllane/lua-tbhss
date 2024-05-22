@@ -11,11 +11,9 @@
 %>
 
 local sql = require("santoku.sqlite")
-local mtx = require("santoku.matrix")
 local migrate = require("santoku.sqlite.migrate")
 local tm = require("santoku.tsetlin")
 local bm = require("santoku.bitmap")
-local it = require("santoku.iter")
 local fs = require("santoku.fs")
 local cjson = require("cjson")
 local sqlite = require("lsqlite3")
