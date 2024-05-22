@@ -111,7 +111,7 @@ sys.execute({
   "--drop-clause", "0.5",
   "--boost-true-positive", "false",
   "--evaluate-every", "1",
-  "--max-records", "200",
+  "--max-records", "500",
   "--epochs", "1000",
 })
 
