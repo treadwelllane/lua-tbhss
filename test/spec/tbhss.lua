@@ -1,7 +1,7 @@
 local fs = require("santoku.fs")
 local sys = require("santoku.system")
-local bm = require("santoku.bitmap")
-local tbhss = require("tbhss")
+-- local bm = require("santoku.bitmap")
+-- local tbhss = require("tbhss")
 
 local db_file = "tmp/test.db"
 
@@ -40,7 +40,7 @@ sys.execute({
    "--clusters", "glove",
    "--min-set", "1",
    "--max-set", "10",
-   "--min-similarity", "0.8",
+   "--min-similarity", "0.6",
  })
 
  -- sys.execute({
@@ -105,12 +105,12 @@ sys.execute({
   "--state-bits", "8",
   "--threshold", "200",
   "--margin", "0.2",
-  "--loss-alpha", "0.001",
-  "--specificity", "1.003",
+  "--loss-alpha", "0.1",
+  "--specificity", "5",
   "--drop-clause", "0.75",
   "--boost-true-positive", "false",
   "--evaluate-every", "1",
-  "--max-records", "50",
+  "--max-records", "200",
   "--epochs", "1000",
 })
 
@@ -126,6 +126,7 @@ sys.execute({
 --
 -- print("\nEncoder\n")
 --
+-- luacheck: push ignore
 --  local docs = {
 --    {
 --      anchor = "Two women are embracing while holding to go packages.",
@@ -178,6 +179,7 @@ sys.execute({
 --      negative = "Two kids in jackets walk to school."
 --    }
 --  }
+-- luacheck: pop ignore
 --
 --  for i = 1, #docs do
 --    local d = docs[i]

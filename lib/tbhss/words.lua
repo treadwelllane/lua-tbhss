@@ -2,15 +2,10 @@ local err = require("santoku.error")
 
 local mtx = require("santoku.matrix")
 local mcreate = mtx.create
-local mmultiply = mtx.multiply
-local mget = mtx.get
 local mreshape = mtx.reshape
-local mextend = mtx.extend
 local mset = mtx.set
 local mrows = mtx.rows
 local mcolumns = mtx.columns
-local mnormalize = mtx.normalize
-local mraw = mtx.raw
 
 local fs = require("santoku.fs")
 local flines = fs.lines
@@ -28,7 +23,6 @@ local function load_words_from_file (db, model, args)
 
   print("Loading words from file:", args.file)
 
-  local word_numbers = {}
   local word_names = {}
   local n_dims = nil
   local floats = {}
@@ -50,7 +44,6 @@ local function load_words_from_file (db, model, args)
     end
 
     word_names[#word_names + 1] = word
-    word_numbers[word] = #word_names
     mreshape(word_matrix, mrows(word_matrix) + 1, n_dims)
     mset(word_matrix, #word_names, floats)
 
@@ -69,7 +62,6 @@ local function load_words_from_file (db, model, args)
 
   if not id_model then
     id_model = db.add_words_model(args.name, mrows(word_matrix), mcolumns(word_matrix), mtx.raw(word_matrix))
-    model = db.get_words_model_by_id(id_model)
   end
 
   print("Persisting word names")

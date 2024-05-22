@@ -17,7 +17,6 @@ local mnormalize = mtx.normalize
 
 local err = require("santoku.error")
 local rand = require("santoku.random")
-local words = require("tbhss.words")
 
 -- TODO: Move to C
 local function weighted_random_choice (probabilities, ids)
@@ -153,20 +152,6 @@ local function cluster_words (db, clusters_model, args)
 
 end
 
-local function get_clusters (db, name)
-  local model = db.get_clusters_model_by_name(name)
-  if not model or not model.clustered then
-    return
-  end
-  print("Loading word clusters from database")
-  local distance_matrix = mcreate(words_model.total, model.clusters)
-  for wc in db.get_clusters(model.id) do
-    mset(distance_matrix, wc.id_words, wc.id, wc.similarity)
-  end
-  print("Loaded:", mrows(distance_matrix))
-  return model, distance_matrix
-end
-
 local function create_clusters (db, args)
   return db.db.transaction(function ()
     local clusters_model = db.get_clusters_model_by_name(args.name)
@@ -181,5 +166,4 @@ end
 
 return {
   create_clusters = create_clusters,
-  get_clusters = get_clusters,
 }
