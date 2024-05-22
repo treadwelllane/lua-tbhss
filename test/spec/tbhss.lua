@@ -80,6 +80,7 @@ sys.execute({
 --   "--specificity", "1.003",
 --   "--drop-clause", "0.75",
 --   "--boost-true-positive", "false",
+--   "--max-records", "1000",
 --   "--evaluate-every", "5",
 --   "--epochs", "20",
 -- })
@@ -104,13 +105,13 @@ sys.execute({
   "--clauses", "80",
   "--state-bits", "8",
   "--threshold", "200",
-  "--margin", "0.2",
-  "--loss-alpha", "0.001",
-  "--specificity", "5",
+  "--margin", "0.01",
+  "--loss-alpha", "0.75",
+  "--specificity", "2",
   "--drop-clause", "0.75",
   "--boost-true-positive", "false",
   "--evaluate-every", "1",
-  "--max-records", "200",
+  "--max-records", "100",
   "--epochs", "1000",
 })
 

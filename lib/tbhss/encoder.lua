@@ -132,14 +132,22 @@ local function create_encoder (db, args)
       args.margin, args.loss_alpha)
     local duration = os.time() - start
 
+    local mask = bm.create()
+    bm.set(mask, 1, dataset.token_bits)
+    local result = bm.tostring(bm.from_raw(tm.predict(t,
+      #dataset.triplets[1].anchor,
+      bm.raw_matrix(dataset.triplets[1].anchor, dataset.token_bits),
+      #dataset.triplets[1].anchor)),
+      args.encoded_bits)
+
     if epoch == args.epochs or epoch % args.evaluate_every == 0 then
       local train_score = tm.evaluate(t, n_train, train_indices, train_tokens, args.margin)
       local test_score = tm.evaluate(t, n_test, test_indices, test_tokens, args.margin)
-      str.printf("Epoch %-4d  Time %-4d  Test %4.2f  Train %4.2f\n",
-        epoch, duration, test_score, train_score)
+      str.printf("Epoch %-4d  Time %-4d  Test %4.2f  Train %4.2f  %s\n",
+        epoch, duration, test_score, train_score, result)
     else
-      str.printf("Epoch %-4d  Time %d\n",
-        epoch, duration)
+      str.printf("Epoch %-4d  Time %d  %s\n",
+        epoch, duration, result)
     end
 
   end
