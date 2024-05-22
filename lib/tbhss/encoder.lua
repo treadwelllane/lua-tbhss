@@ -118,18 +118,6 @@ local function create_encoder (db, args)
     args.encoded_bits, dataset.token_bits, args.clauses,
     args.state_bits, args.threshold, args.boost_true_positive)
 
-  -- print("Sanity check")
-  -- local mask = bm.create()
-  -- bm.set(mask, 1, dataset.token_bits)
-  -- local r = bm.tostring(bm.from_raw(tm.predict(t,
-  --   #dataset.triplets[1].anchor,
-  --   bm.raw_matrix(dataset.triplets[1].anchor, dataset.token_bits),
-  --   #dataset.triplets[1].anchor)),
-  --   args.encoded_bits)
-  -- -- print(r)
-
-  -- os.exit(0)
-
   print("Training")
 
   local train_score = tm.evaluate(t, n_train, train_indices, train_tokens, args.margin)
@@ -143,16 +131,6 @@ local function create_encoder (db, args)
       args.specificity, args.drop_clause,
       args.margin, args.loss_alpha)
     local duration = os.time() - start
-
-    -- print("Sanity check")
-    -- local mask = bm.create()
-    -- bm.set(mask, 1, dataset.token_bits)
-    -- local r = bm.tostring(bm.from_raw(tm.predict(t,
-    --   #dataset.triplets[1].anchor,
-    --   bm.raw_matrix(dataset.triplets[1].anchor, dataset.token_bits),
-    --   #dataset.triplets[1].anchor)),
-    --   args.encoded_bits)
-    -- -- print(r)
 
     if epoch == args.epochs or epoch % args.evaluate_every == 0 then
       local train_score = tm.evaluate(t, n_train, train_indices, train_tokens, args.margin)
