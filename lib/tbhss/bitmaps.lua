@@ -79,6 +79,10 @@ local function get_autoencoder_data (db, args, words_model)
 
   local ms = mtx.create(db.get_word_embeddings(words_model.id), words_model.dimensions)
 
+  if args.max_records then
+    mtx.reshape(ms, args.max_records, mtx.columns(ms))
+  end
+
   print("Vectors", mtx.rows(ms))
 
   for i = 1, mtx.rows(ms) do
