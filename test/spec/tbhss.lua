@@ -93,7 +93,7 @@ sys.execute({
   "--file", os.getenv("SNLI") or "test/res/snli_1.0_dev.txt",
 })
 
-for s = 10, 20, 1 do
+for s = 2, 10, 1 do
 for m = 0.1, 0.1, 0.1 do
 for a = 0.8, 0.8, 0.1 do
   str.printf("Spec: %.2f, Margin: %.2f, Alpha: %.2f\n", s, m, a)
@@ -122,7 +122,6 @@ for a = 0.8, 0.8, 0.1 do
 end
 end
 end
-
 
 -- local normalizer = tbhss.normalizer(db_file, "glove")
 --
