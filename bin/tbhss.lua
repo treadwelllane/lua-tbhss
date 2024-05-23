@@ -152,6 +152,7 @@ cmd_create_encoder:option("--sentences", "name of NLI dataset to encode", nil, n
 cmd_create_encoder:option("--encoded-bits", "number of bits in encoded bitmaps", nil, tonumber, 1, 1)
 cmd_create_encoder:option("--margin", "margin for triplet loss", nil, tonumber, 1, 1)
 cmd_create_encoder:option("--loss-alpha", "scale for loss function", nil, tonumber, 1, 1)
+cmd_create_encoder:option("--sparsity-alpha", "scale for sparsity adjustment function", nil, tonumber, 1, 1)
 cmd_create_encoder:option("--train-test-ratio", "ratio of train to test examples", nil, tonumber, 1, 1)
 cmd_create_encoder:option("--clauses", "Tsetlin Machine clauses", nil, tonumber, 1, 1)
 cmd_create_encoder:option("--state-bits", "Tsetlin Machine state bits", 8, tonumber, 1, "0-1")

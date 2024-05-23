@@ -46,13 +46,13 @@ nohup stdbuf -oL tbhss create encoder \
   --clauses 80 \
   --state-bits 8 \
   --threshold 200 \
-  --margin 0.05 \
+  --margin 0.01 \
   --loss-alpha 0.75 \
   --specificity 5 \
   --drop-clause 0.5 \
   --boost-true-positive false \
   --evaluate-every 1 \
-  --max-records 1000 \
+  --max-records 500 \
   --epochs 1000 2>&1 > log.txt & tail -f log.txt
 
 nohup stdbuf -oL tbhss create encoder \
