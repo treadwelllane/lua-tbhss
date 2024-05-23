@@ -106,12 +106,13 @@ sys.execute({
   "--state-bits", "8",
   "--threshold", "200",
   "--margin", "0.05",
-  "--loss-alpha", "0.75",
+  "--loss-alpha", "1",
+  "--sparsity-alpha", "2",
   "--specificity", "5",
   "--drop-clause", "0.5",
   "--boost-true-positive", "false",
   "--evaluate-every", "1",
-  "--max-records", "500",
+  "--max-records", "1000",
   "--epochs", "1000",
 })
 

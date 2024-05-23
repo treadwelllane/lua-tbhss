@@ -129,7 +129,7 @@ local function create_encoder (db, args)
     local start = os.time()
     tm.train(t, n_train, train_indices, train_tokens,
       args.specificity, args.drop_clause,
-      args.margin, args.loss_alpha)
+      args.margin, args.loss_alpha, args.sparsity_alpha)
     local duration = os.time() - start
 
     local mask = bm.create()
