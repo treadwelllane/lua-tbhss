@@ -26,7 +26,7 @@ local function get_dataset (db, tokenizer, sentences_model, args)
     return s.anchor and s.negative and s.positive
   end, triplets))
 
-  for i = 1, 1 --[[#triplets]] do
+  for i = 1, 0 --[[#triplets]] do
     local s = triplets[i]
     str.printf("Anchor: %s\n", table.concat(s.anchor_words, " "))
     for j = 1, #s.anchor_words do

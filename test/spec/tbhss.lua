@@ -40,7 +40,7 @@ sys.execute({
    "--clusters", "glove",
    "--min-set", "1",
    "--max-set", "10",
-   "--min-similarity", "0.6",
+   "--min-similarity", "0.0",
  })
 
  -- sys.execute({
@@ -105,15 +105,16 @@ sys.execute({
   "--clauses", "80",
   "--state-bits", "8",
   "--threshold", "200",
-  "--margin", "0.2",
-  "--loss-alpha", "0.5",
-  "--specificity", "4",
+  "--margin", "0.1",
+  "--loss-alpha", "1",
+  "--specificity", "1.003",
   "--drop-clause", "0.75",
   "--boost-true-positive", "false",
   "--evaluate-every", "1",
-  "--max-records", "200",
-  "--epochs", "1000",
+  "--max-records", "100",
+  "--epochs", "50",
 })
+
 
 -- local normalizer = tbhss.normalizer(db_file, "glove")
 --
