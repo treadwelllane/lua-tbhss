@@ -132,13 +132,14 @@ local function create_encoder (db, args)
       args.margin, args.loss_alpha)
     local duration = os.time() - start
 
-    local mask = bm.create()
-    bm.set(mask, 1, dataset.token_bits)
-    local result = bm.tostring(bm.from_raw(tm.predict(t,
-      #dataset.triplets[1].anchor,
-      bm.raw_matrix(dataset.triplets[1].anchor, dataset.token_bits),
-      #dataset.triplets[1].anchor)),
-      args.encoded_bits)
+    local result = ""
+    -- local mask = bm.create()
+    -- bm.set(mask, 1, dataset.token_bits)
+    -- local result = bm.tostring(bm.from_raw(tm.predict(t,
+    --   #dataset.triplets[1].anchor,
+    --   bm.raw_matrix(dataset.triplets[1].anchor, dataset.token_bits),
+    --   #dataset.triplets[1].anchor)),
+    --   args.encoded_bits)
 
     if epoch == args.epochs or epoch % args.evaluate_every == 0 then
       local train_score = tm.evaluate(t, n_train, train_indices, train_tokens, args.margin)
@@ -151,6 +152,31 @@ local function create_encoder (db, args)
     end
 
   end
+
+  -- for i = 1, #dataset.triplets do
+  --   local mask = bm.create()
+  --   bm.set(mask, 1, dataset.token_bits)
+  --   local s = dataset.triplets[i]
+  --   str.printf("Anchor: %s\n", table.concat(s.anchor_words, " "))
+  --   str.printf("  %s\n", bm.tostring(bm.from_raw(tm.predict(t,
+  --     #dataset.triplets[i].anchor,
+  --     bm.raw_matrix(dataset.triplets[i].anchor, dataset.token_bits),
+  --     #dataset.triplets[i].anchor)),
+  --     args.encoded_bits))
+  --   str.printf("Negative: %s\n", table.concat(s.negative_words, " "))
+  --   str.printf("  %s\n", bm.tostring(bm.from_raw(tm.predict(t,
+  --     #dataset.triplets[i].negative,
+  --     bm.raw_matrix(dataset.triplets[i].negative, dataset.token_bits),
+  --     #dataset.triplets[i].negative)),
+  --     args.encoded_bits))
+  --   str.printf("Positive: %s\n", table.concat(s.positive_words, " "))
+  --   str.printf("  %s\n", bm.tostring(bm.from_raw(tm.predict(t,
+  --     #dataset.triplets[i].positive,
+  --     bm.raw_matrix(dataset.triplets[i].positive, dataset.token_bits),
+  --     #dataset.triplets[i].positive)),
+  --     args.encoded_bits))
+  --   print()
+  -- end
 
   -- TODO: write directly to sqlite without temporary file
   local fp = fs.tmpname()

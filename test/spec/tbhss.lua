@@ -1,4 +1,5 @@
 local fs = require("santoku.fs")
+local str = require("santoku.string")
 local sys = require("santoku.system")
 -- local bm = require("santoku.bitmap")
 -- local tbhss = require("tbhss")
@@ -92,28 +93,35 @@ sys.execute({
   "--file", os.getenv("SNLI") or "test/res/snli_1.0_dev.txt",
 })
 
-sys.execute({
-  "lua", "bin/tbhss.lua", "create", "encoder",
-  "--cache", db_file,
-  "--name", "glove",
-  -- "--bitmaps", "glove.thresholded",
-  -- "--bitmaps", "glove.auto-encoded",
-  "--bitmaps", "glove.clustered",
-  "--sentences", "snli-dev",
-  "--encoded-bits", "128",
-  "--train-test-ratio", "0.5",
-  "--clauses", "80",
-  "--state-bits", "8",
-  "--threshold", "200",
-  "--margin", "0.1",
-  "--loss-alpha", "1",
-  "--specificity", "1.003",
-  "--drop-clause", "0.75",
-  "--boost-true-positive", "false",
-  "--evaluate-every", "1",
-  "--max-records", "100",
-  "--epochs", "50",
-})
+for s = 10, 20, 1 do
+for m = 0.1, 0.1, 0.1 do
+for a = 0.8, 0.8, 0.1 do
+  str.printf("Spec: %.2f, Margin: %.2f, Alpha: %.2f\n", s, m, a)
+  sys.execute({
+    "lua", "bin/tbhss.lua", "create", "encoder",
+    "--cache", db_file,
+    "--name", str.format("glove.s%s.m%s.a%s", s, m, a),
+    -- "--bitmaps", "glove.thresholded",
+    -- "--bitmaps", "glove.auto-encoded",
+    "--encoded-bits", "128",
+    "--bitmaps", "glove.clustered",
+    "--sentences", "snli-dev",
+    "--train-test-ratio", "0.5",
+    "--clauses", "80",
+    "--state-bits", "8",
+    "--threshold", "200",
+    "--margin", tostring(m),
+    "--loss-alpha", tostring(a),
+    "--specificity", tostring(s),
+    "--drop-clause", "0.75",
+    "--boost-true-positive", "false",
+    "--evaluate-every", "1",
+    "--max-records", "50",
+    "--epochs", "50",
+  })
+end
+end
+end
 
 
 -- local normalizer = tbhss.normalizer(db_file, "glove")
