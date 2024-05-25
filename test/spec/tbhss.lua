@@ -18,31 +18,31 @@ sys.execute({
   "--file", os.getenv("GLOVE") or "test/res/glove.txt",
 })
 
--- sys.execute({
---   "lua", "bin/tbhss.lua", "create", "bitmaps", "thresholded",
---   "--cache", db_file,
---   "--name", "glove.thresholded",
---   "--words", "glove",
---   "--threshold-levels", "3"
--- })
+sys.execute({
+  "lua", "bin/tbhss.lua", "create", "bitmaps", "thresholded",
+  "--cache", db_file,
+  "--name", "glove.thresholded",
+  "--words", "glove",
+  "--threshold-levels", "4"
+})
 
- sys.execute({
-   "lua", "bin/tbhss.lua", "create", "clusters",
-   "--cache", db_file,
-   "--name", "glove",
-   "--words", "glove",
-   "--clusters", "128"
- })
+ -- sys.execute({
+ --   "lua", "bin/tbhss.lua", "create", "clusters",
+ --   "--cache", db_file,
+ --   "--name", "glove",
+ --   "--words", "glove",
+ --   "--clusters", "128"
+ -- })
 
- sys.execute({
-   "lua", "bin/tbhss.lua", "create", "bitmaps", "clustered",
-   "--cache", db_file,
-   "--name", "glove.clustered",
-   "--clusters", "glove",
-   "--min-set", "1",
-   "--max-set", "10",
-   "--min-similarity", "0.0",
- })
+ -- sys.execute({
+ --   "lua", "bin/tbhss.lua", "create", "bitmaps", "clustered",
+ --   "--cache", db_file,
+ --   "--name", "glove.clustered",
+ --   "--clusters", "glove",
+ --   "--min-set", "1",
+ --   "--max-set", "10",
+ --   "--min-similarity", "0.0",
+ -- })
 
  -- sys.execute({
  --   "lua", "bin/tbhss.lua", "create", "bitmaps", "encoded",
@@ -59,7 +59,7 @@ sys.execute({
  --   "--state-bits", "8",
  --   "--threshold", "200",
  --   "--specificity", "5",
- --   "--drop-clause", "0.75",
+ --   "--active-clause", "0.75",
  --   "--loss-alpha", "5",
  --   "--boost-true-positive", "false",
  --   "--evaluate-every", "5",
@@ -79,7 +79,7 @@ sys.execute({
 --   "--threshold", "200",
 --   "--loss-alpha", "0.001",
 --   "--specificity", "1.003",
---   "--drop-clause", "0.75",
+--   "--active-clause", "0.75",
 --   "--boost-true-positive", "false",
 --   "--max-records", "1000",
 --   "--evaluate-every", "5",
@@ -93,31 +93,31 @@ sys.execute({
   "--file", os.getenv("SNLI") or "test/res/snli_1.0_dev.txt",
 })
 
-for s = 2, 10, 1 do
-for m = 0.1, 0.1, 0.1 do
-for a = 0.8, 0.8, 0.1 do
+for s = 10, 10, 0.1 do
+for m = 0.2, 0.2, 0.2 do
+for a = 0.5, 0.5, 0.1 do
   str.printf("Spec: %.2f, Margin: %.2f, Alpha: %.2f\n", s, m, a)
   sys.execute({
     "lua", "bin/tbhss.lua", "create", "encoder",
     "--cache", db_file,
     "--name", str.format("glove.s%s.m%s.a%s", s, m, a),
-    -- "--bitmaps", "glove.thresholded",
+    "--bitmaps", "glove.thresholded",
     -- "--bitmaps", "glove.auto-encoded",
-    "--encoded-bits", "128",
-    "--bitmaps", "glove.clustered",
+    -- "--bitmaps", "glove.clustered",
+    "--encoded-bits", "1024",
     "--sentences", "snli-dev",
     "--train-test-ratio", "0.5",
-    "--clauses", "80",
+    "--clauses", "2000",
     "--state-bits", "8",
     "--threshold", "200",
     "--margin", tostring(m),
     "--loss-alpha", tostring(a),
     "--specificity", tostring(s),
-    "--drop-clause", "0.75",
-    "--boost-true-positive", "false",
+    "--active-clause", "0.75",
+    "--boost-true-positive", "true",
     "--evaluate-every", "1",
-    "--max-records", "50",
-    "--epochs", "50",
+    "--max-records", "200",
+    "--epochs", "1000",
   })
 end
 end

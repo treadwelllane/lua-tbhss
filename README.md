@@ -62,7 +62,7 @@ of the text.
       --state-bits 8
       --threshold 80
       --specificity 3
-      --drop-clause 0.75
+      --active-clause 0.75
       --boost-true-positive false
       --evaluate-every 5
       --max-records 1000
