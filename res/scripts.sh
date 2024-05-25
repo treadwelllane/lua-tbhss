@@ -49,7 +49,7 @@ nohup stdbuf -oL tbhss create encoder \
   --margin 0.01 \
   --loss-alpha 0.75 \
   --specificity 5 \
-  --drop-clause 0.5 \
+  --active-clause 0.5 \
   --boost-true-positive false \
   --evaluate-every 1 \
   --max-records 500 \
@@ -68,7 +68,7 @@ nohup stdbuf -oL tbhss create encoder \
   --margin 0.05 \
   --loss-alpha 0.4 \
   --specificity 5 \
-  --drop-clause 0.5 \
+  --active-clause 0.5 \
   --boost-true-positive false \
   --evaluate-every 1 \
   --max-records 200 \
