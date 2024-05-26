@@ -3,6 +3,11 @@ nohup stdbuf -oL tbhss load words \
   --name glove.6B.300d \
   --file glove.6B.300d.txt 2>&1 > log.txt & tail -f log.txt
 
+nohup stdbuf -oL tbhss load words \
+  --cache tbhss.db \
+  --name glove.6B.50d \
+  --file glove.6B.50d.txt 2>&1 > log.txt & tail -f log.txt
+
 nohup stdbuf -oL tbhss load sentences \
   --cache tbhss.db \
   --name snli_1.0.dev \
@@ -36,26 +41,51 @@ nohup stdbuf -oL tbhss create bitmaps clustered \
   --max-set 32 \
   --min-similarity 0.00 2>&1 > log.txt & tail -f log.txt
 
-nohup stdbuf -oL tbhss create encoder \
+nohup stdbuf -oL tbhss create bitmaps thresholded \
+  --cache tbhss.db \
+  --name glove.6B.50d.4 \
+  --threshold-levels 4 \
+  --words glove.6B.50d 2>&1 > log.txt & tail -f log.txt
+
+nohup stdbuf -oL tbhss create encoder recurrent \
+  --cache tbhss.db \
+  --name glove \
+  --bitmaps glove.6B.50d.4  \
+  --sentences snli_1.0.dev \
+  --encoded-bits 512 \
+  --train-test-ratio 0.5 \
+  --clauses 500 \
+  --state-bits 8 \
+  --threshold 200 \
+  --margin 0.1 \
+  --loss-alpha 0.8 \
+  --specificity 2.4 \
+  --active-clause 0.85 \
+  --boost-true-positive true \
+  --evaluate-every 1 \
+  --max-records 500 \
+  --epochs 1000 2>&1 > log.txt & tail -f log.txt
+
+nohup stdbuf -oL tbhss create encoder recurrent \
   --cache tbhss.db \
   --name glove \
   --bitmaps glove.6B.300d.128.1.16.00  \
   --sentences snli_1.0.dev \
   --encoded-bits 128 \
   --train-test-ratio 0.5 \
-  --clauses 80 \
+  --clauses 500 \
   --state-bits 8 \
   --threshold 200 \
-  --margin 0.01 \
-  --loss-alpha 0.75 \
-  --specificity 5 \
-  --active-clause 0.5 \
-  --boost-true-positive false \
+  --margin 0.1 \
+  --loss-alpha 1 \
+  --specificity 2.4 \
+  --active-clause 0.85 \
+  --boost-true-positive true \
   --evaluate-every 1 \
   --max-records 500 \
   --epochs 1000 2>&1 > log.txt & tail -f log.txt
 
-nohup stdbuf -oL tbhss create encoder \
+nohup stdbuf -oL tbhss create encoder recurrent \
   --cache tbhss.db \
   --name glove \
   --bitmaps glove.6B.300d.256.1.32.00  \

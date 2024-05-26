@@ -35,7 +35,7 @@ local function tokenizer (db_file, bitmaps_model_name)
   return {
     bits = bits,
     bitmaps_model = bitmaps_model,
-    tokenize = function (s)
+    tokenize = function (s, max)
       return db.db.transaction(function ()
         local matches = {}
         local words = {}
@@ -45,6 +45,9 @@ local function tokenizer (db_file, bitmaps_model_name)
           if bm then
             arr.push(matches, bm)
             arr.push(words, w)
+            if max and #matches >= max then
+              break
+            end
           end
         end
         if #matches > 0 then
