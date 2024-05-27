@@ -37,15 +37,18 @@ local function create_bitmaps_clustered (db, args)
       err.error("Bitmaps already created")
     end
 
-    for id_words = 1, db.get_total_words(clusters_model.id_words_model) do
+    for w in db.get_clustered_words(clusters_model.id) do
       local bm = bitmap.create()
       for c in db.get_nearest_clusters_by_id(
-        clusters_model.id, id_words,
+        clusters_model.id, w.id_words,
         args.min_set, args.max_set, args.min_similarity)
       do
         bitmap.set(bm, c.id)
       end
-      db.add_bitmap(bitmaps_model.id, id_words, bitmap.raw(bm, clusters_model.clusters))
+      if bitmap.cardinality(bm) == 0 then
+        err.error("Unexpected empty bitmap for word", clusters_model.id, id_words)
+      end
+      db.add_bitmap(bitmaps_model.id, w.id_words, bitmap.raw(bm, clusters_model.clusters))
     end
 
     db.set_bitmaps_created(bitmaps_model.id)

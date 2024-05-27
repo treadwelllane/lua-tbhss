@@ -294,6 +294,10 @@ return function (db_file)
       w.id asc
   ]], "id")
 
+  M.get_clustered_words = db.iter([[
+    select distinct(id_words) from clusters where id_clusters_model = ?
+  ]])
+
   M.get_nearest_clusters_by_id = db.iter([[
     select id from (
       select id from clusters

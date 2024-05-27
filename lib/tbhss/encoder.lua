@@ -21,9 +21,9 @@ local function get_recurrent_dataset (db, tokenizer, sentences_model, args)
   end
 
   triplets = it.collect(it.filter(function (s)
-    s.anchor, s.anchor_words = tokenizer.tokenize(s.anchor)
-    s.negative, s.negative_words = tokenizer.tokenize(s.negative)
-    s.positive, s.positive_words = tokenizer.tokenize(s.positive)
+    s.anchor, s.anchor_words = tokenizer.tokenize(s.anchor, false, true)
+    s.negative, s.negative_words = tokenizer.tokenize(s.negative, false, true)
+    s.positive, s.positive_words = tokenizer.tokenize(s.positive, false, true)
     return s.anchor and s.negative and s.positive
   end, triplets))
 
@@ -204,9 +204,9 @@ local function get_windowed_dataset (db, tokenizer, sentences_model, args)
   end
 
   triplets = it.collect(it.filter(function (s)
-    s.anchor, s.anchor_words = tokenizer.tokenize(s.anchor, args.window_size, true)
-    s.negative, s.negative_words = tokenizer.tokenize(s.negative, args.window_size, true)
-    s.positive, s.positive_words = tokenizer.tokenize(s.positive, args.window_size, true)
+    s.anchor, s.anchor_words = tokenizer.tokenize(s.anchor, args.window_size)
+    s.negative, s.negative_words = tokenizer.tokenize(s.negative, args.window_size)
+    s.positive, s.positive_words = tokenizer.tokenize(s.positive, args.window_size)
     return s.anchor and s.negative and s.positive
   end, triplets))
 

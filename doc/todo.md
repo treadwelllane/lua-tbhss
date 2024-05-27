@@ -1,8 +1,8 @@
 # Now
 
-- Filter words by those present in the SNLI dataset
-- Use TF-IDF to filter words first
-- Use GloVe or FastText directly on SNLI dataset first
+- Why are some bitmaps empty with filter-words?
+- Why does accuracy peak and then fall off?
+- Add filter words feature to other bitmap models
 
 - Consider only persisting word cluster distance matrices instead of individual
   distances
@@ -13,17 +13,13 @@
 - Pre-trained encoders on full Glove & NLI datasets shared as sqlite.db files
   with training data pruned
 
-- Create bitmaps via auto-encoder or current min/max similarity method
-
-- Create a minimal test set:
-    - Add to main tsetlin
-    - Easiest NLI dataset available
-    - Filter glove embeddings to those present in NLI
-
 # Later
 
 - Allow word embeddings auto-encoder to be persisted
 - Improve performance of loading glove embeddings. Write in C? Parallelize?
+
+- Use TF-IDF to filter words first
+- Use GloVe or FastText directly on SNLI dataset first
 
 ----
 
