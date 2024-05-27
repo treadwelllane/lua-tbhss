@@ -204,9 +204,9 @@ local function get_windowed_dataset (db, tokenizer, sentences_model, args)
   end
 
   triplets = it.collect(it.filter(function (s)
-    s.anchor = tokenizer.tokenize(s.anchor, args.window_size)
-    s.negative = tokenizer.tokenize(s.negative, args.window_size)
-    s.positive = tokenizer.tokenize(s.positive, args.window_size)
+    s.anchor, s.anchor_words = tokenizer.tokenize(s.anchor, args.window_size, true)
+    s.negative, s.negative_words = tokenizer.tokenize(s.negative, args.window_size, true)
+    s.positive, s.positive_words = tokenizer.tokenize(s.positive, args.window_size, true)
     return s.anchor and s.negative and s.positive
   end, triplets))
 
@@ -219,6 +219,23 @@ local function get_windowed_dataset (db, tokenizer, sentences_model, args)
       prep_windowed_bitmap(s.negative, tokenizer.bits, window_bits),
       prep_windowed_bitmap(s.positive, tokenizer.bits, window_bits)
     }, window_bits * 2)
+  end
+
+  for i = 1, 1 --[[#triplets]] do
+    local s = triplets[i]
+    str.printf("Anchor: %s\n", table.concat(s.anchor_words, " "))
+    for j = 1, #s.anchor_words do
+      str.printf("  %10s | %s\n", s.anchor_words[j], bm.tostring(s.anchor[j], tokenizer.bits))
+    end
+    str.printf("Negative: %s\n", table.concat(s.negative_words, " "))
+    for j = 1, #s.negative_words do
+      str.printf("  %10s | %s\n", s.negative_words[j], bm.tostring(s.negative[j], tokenizer.bits))
+    end
+    str.printf("Positive: %s\n", table.concat(s.positive_words, " "))
+    for j = 1, #s.positive_words do
+      str.printf("  %10s | %s\n", s.positive_words[j], bm.tostring(s.positive[j], tokenizer.bits))
+    end
+    print()
   end
 
   return {
@@ -276,8 +293,6 @@ local function create_encoder_windowed (db, args)
   print("Splitting & packing")
   local n_train = num.floor(#dataset.triplets * args.train_test_ratio)
   local n_test = #dataset.triplets - n_train
-
-  print(">", #dataset.triplets, n_train, n_test)
 
   local train_data = split_windowed_dataset(dataset, 1, n_train)
   local test_data = split_windowed_dataset(dataset, n_train + 1, n_train + n_test)

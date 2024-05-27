@@ -10,6 +10,20 @@ local function get_db (db_file)
   return type(db_file) == "string" and init_db(db_file) or db_file
 end
 
+local function split (s, max, words)
+  words = words or {}
+  local n = 1
+  for w in str.gmatch(str.gsub(s, "[^%w%s]", ""), "%S+") do
+    words[n] = str.lower(w)
+    n = n + 1
+    if max and n > max then
+      break
+    end
+  end
+  arr.clear(words, n)
+  return words
+end
+
 local function tokenizer (db_file, bitmaps_model_name)
 
   local db = get_db(db_file)
@@ -35,24 +49,22 @@ local function tokenizer (db_file, bitmaps_model_name)
   return {
     bits = bits,
     bitmaps_model = bitmaps_model,
-    tokenize = function (s, max)
+    tokenize = function (s, max, terminate)
       return db.db.transaction(function ()
         local matches = {}
-        local words = {}
-        for w in str.gmatch(str.gsub(s, "[^%w%s]", ""), "%S+") do
-          w = str.lower(w)
+        local words = split(s, max)
+        for i = 1, #words do
+          local w = words[i]
           local bm = db.get_bitmap(bitmaps_model.id, w)
-          if bm then
-            arr.push(matches, bm)
-            arr.push(words, w)
-            if max and #matches >= max then
-              break
-            end
-          end
+          arr.push(matches, bm or bitmap.create())
         end
         if #matches > 0 then
-          arr.push(matches, bitmap.create())
-          arr.push(words, "")
+          if terminate then
+            local t = bitmap.create()
+            bitmap.set(t, 1, bits)
+            arr.push(matches, t)
+            arr.push(words, "")
+          end
           return matches, words, s
         end
       end)
@@ -93,7 +105,7 @@ local function encoder (db_file, model_name)
     bits = encoder_model.params.encoded_bits,
     encode = function (s)
       return db.db.transaction(function ()
-        local tokens = tokenizer.tokenize(s)
+        local tokens = tokenizer.tokenize(s, false, true)
         if tokens then
           return bitmap.from_raw(tm.predict(t, #tokens, bitmap.raw_matrix(tokens, encoder_model.params.encoded_bits)))
         end
@@ -137,4 +149,5 @@ return {
   encoder = encoder,
   normalizer = normalizer,
   tokenizer = tokenizer,
+  split = split,
 }

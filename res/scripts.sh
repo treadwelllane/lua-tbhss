@@ -103,3 +103,58 @@ nohup stdbuf -oL tbhss create encoder recurrent \
   --evaluate-every 1 \
   --max-records 200 \
   --epochs 1000 2>&1 > log.txt & tail -f log.txt
+
+nohup stdbuf -oL tbhss create clusters \
+  --cache tbhss.db \
+  --name glove.6B.300d.64 \
+  --clusters 64 \
+  --words glove.6B.300d 2>&1 > log.txt & tail -f log.txt
+
+nohup stdbuf -oL tbhss create bitmaps clustered \
+  --cache tbhss.db \
+  --name glove.6B.300d.64.1.16.05 \
+  --clusters glove.6B.300d.64 \
+  --min-set 1 \
+  --max-set 16 \
+  --min-similarity 0.5 2>&1 > log.txt & tail -f log.txt
+
+nohup stdbuf -oL tbhss create bitmaps encoded \
+  --cache tbhss.db \
+  --name glove.6B.300d.encoded.32 \
+  --words glove.6B.300d \
+  --encoded-bits 32 \
+  --threshold-levels 10 \
+  --similarity-positive 0.7 \
+  --similarity-negative 0.4 \
+  --threshold-levels 10 \
+  --train-test-ratio 0.8 \
+  --clauses 80 \
+  --state-bits 8 \
+  --threshold 200 \
+  --margin 0.1 \
+  --loss-alpha 1 \
+  --specificity 2.4 \
+  --active-clause 0.85 \
+  --boost-true-positive false \
+  --evaluate-every 1 \
+  --max-records 10000 \
+  --epochs 1000 2>&1 > log.txt & tail -f log.txt
+
+nohup stdbuf -oL tbhss create encoder windowed \
+  --cache tbhss.db \
+  --name glove \
+  --bitmaps glove.6B.300d.256.1.32.02  \
+  --sentences snli_1.0.dev \
+  --window-size 40 \
+  --encoded-bits 256 \
+  --train-test-ratio 0.8 \
+  --clauses 2000 \
+  --state-bits 8 \
+  --threshold 200 \
+  --margin 0.1 \
+  --loss-alpha 1 \
+  --specificity 2.4 \
+  --active-clause 0.85 \
+  --boost-true-positive false \
+  --evaluate-every 1 \
+  --epochs 1000 2>&1 > log.txt & tail -f log.txt

@@ -239,7 +239,8 @@ sys.execute({
   "--cache", db_file,
   "--name", "glove",
   "--words", "glove",
-  "--clusters", "128"
+  "--filter-words", "snli-dev",
+  "--clusters", "64"
 })
 
 sys.execute({
@@ -260,19 +261,19 @@ sys.execute({
   -- "--bitmaps", "glove.auto-encoded",
   "--bitmaps", "glove.clustered",
   "--encoded-bits", "128",
-  "--window-size", "40", -- 40 words, each of 128 bits
+  "--window-size", "10",
   "--sentences", "snli-dev",
   "--train-test-ratio", "0.5",
-  "--clauses", "80",
+  "--clauses", "512",
   "--state-bits", "8",
   "--threshold", "200",
   "--margin", "0.1",
   "--loss-alpha", "1",
-  "--specificity", "2",
+  "--specificity", "10",
   "--active-clause", "0.85",
   "--boost-true-positive", "false",
   "--evaluate-every", "1",
-  "--max-records", "1000",
-  "--epochs", "1000",
+  -- "--max-records", "1000",
+  "--epochs", "100",
 })
 
