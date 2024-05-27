@@ -90,7 +90,7 @@ local function filter_words (db, words_model, word_matrix, snli_name, word_idmap
     n = n + 1
     local w = filtered[i]
     mtx.copy(m0, word_matrix, w.id, w.id, n)
-    word_idmap[n] = i
+    word_idmap[n] = w.id
   end
   return m0
 end
