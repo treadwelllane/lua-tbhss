@@ -42,7 +42,7 @@ base_flags(cmd_create_clusters)
 cmd_create_clusters:option("--name", "name of created clusters", nil, nil, 1, 1)
 cmd_create_clusters:option("--words", "name of words to cluster", nil, nil, 1, 1)
 cmd_create_clusters:option("--clusters", "number of clusters", nil, tonumber, 1, 1)
-cmd_create_clusters:option("--filter-words", "snli dataset to filter words by", nil, nil, 1, 1)
+cmd_create_clusters:option("--filter-words", "snli dataset to filter words by", nil, nil, 1, "0-1")
 
 local cmd_create_bitmaps = cmd_create:command("bitmaps", "create bitmaps")
 cmd_create_bitmaps:command_target("cmd_create_bitmaps")
