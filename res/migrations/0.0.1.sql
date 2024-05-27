@@ -70,15 +70,6 @@ create table sentences (
   primary key (id_sentences_model, id)
 );
 
-create table sentences_w (
-  id integer not null, -- 1-N for each sentence (not a primary key)
-  id_sentences_model integer references sentences_model (id) on delete cascade,
-  label varchar not null,
-  a varchar not null,
-  b blob not null,
-  primary key (id_sentences_model, id)
-);
-
 create table encoder_model (
   id integer primary key,
   id_bitmaps_model integer references bitmaps_model (id) on delete cascade,

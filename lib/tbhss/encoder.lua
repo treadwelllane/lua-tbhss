@@ -21,26 +21,26 @@ local function get_recurrent_dataset (db, tokenizer, sentences_model, args)
   end
 
   triplets = it.collect(it.filter(function (s)
-    s.anchor, s.anchor_words = tokenizer.tokenize(s.anchor, false, true)
-    s.negative, s.negative_words = tokenizer.tokenize(s.negative, false, true)
-    s.positive, s.positive_words = tokenizer.tokenize(s.positive, false, true)
+    s.anchor, s.anchor_words = tokenizer.tokenize(s.anchor, args.max_words, true)
+    s.negative, s.negative_words = tokenizer.tokenize(s.negative, args.max_words, true)
+    s.positive, s.positive_words = tokenizer.tokenize(s.positive, args.max_words, true)
     return s.anchor and s.negative and s.positive
   end, triplets))
 
-  for i = 1, 0 --[[#triplets]] do
+  for i = 1, 1 --[[#triplets]] do
     local s = triplets[i]
-    str.printf("Anchor: %s\n", table.concat(s.anchor_words, " "))
+    str.printf("\nAnchor: %s\n", table.concat(s.anchor_words, " "))
     for j = 1, #s.anchor_words do
-      str.printf("  %10s | %s\n", s.anchor_words[j], bm.tostring(s.anchor[j], tokenizer.bits))
+      str.printf("  %16s | %s\n", s.anchor_words[j], bm.tostring(s.anchor[j], tokenizer.bits):gsub("0", "."))
     end
-    -- str.printf("Negative: %s\n", table.concat(s.negative_words, " "))
-    -- for j = 1, #s.negative_words do
-    --   str.printf("  %10s | %s\n", s.negative_words[j], bm.tostring(s.negative[j], tokenizer.bits))
-    -- end
-    -- str.printf("Positive: %s\n", table.concat(s.positive_words, " "))
-    -- for j = 1, #s.positive_words do
-    --   str.printf("  %10s | %s\n", s.positive_words[j], bm.tostring(s.positive[j], tokenizer.bits))
-    -- end
+    str.printf("\nNegative: %s\n", table.concat(s.negative_words, " "))
+    for j = 1, #s.negative_words do
+      str.printf("  %16s | %s\n", s.negative_words[j], bm.tostring(s.negative[j], tokenizer.bits):gsub("0", "."))
+    end
+    str.printf("\nPositive: %s\n", table.concat(s.positive_words, " "))
+    for j = 1, #s.positive_words do
+      str.printf("  %16s | %s\n", s.positive_words[j], bm.tostring(s.positive[j], tokenizer.bits):gsub("0", "."))
+    end
     print()
   end
 
@@ -76,7 +76,7 @@ local function create_encoder_recurrent (db, args)
 
   print("Creating encoder")
 
-  local tokenizer = tbhss.tokenizer(db, args.bitmaps)
+  local tokenizer = tbhss.tokenizer(db, args.bitmaps, args.positional_bits)
 
   if not tokenizer then
     err.error("Tokenzer not loaded")
@@ -110,6 +110,7 @@ local function create_encoder_recurrent (db, args)
   local train_indices, train_tokens = split_recurrent_dataset(dataset, 1, n_train)
   local test_indices, test_tokens = split_recurrent_dataset(dataset, n_train + 1, n_train + n_test)
 
+  print("Positional Bits", args.positional_bits)
   print("Token Bits", dataset.token_bits)
   print("Encoded Bits", dataset.encoded_bits)
   print("Total Train", n_train)
@@ -204,9 +205,9 @@ local function get_windowed_dataset (db, tokenizer, sentences_model, args)
   end
 
   triplets = it.collect(it.filter(function (s)
-    s.anchor, s.anchor_words = tokenizer.tokenize(s.anchor, args.window_size)
-    s.negative, s.negative_words = tokenizer.tokenize(s.negative, args.window_size)
-    s.positive, s.positive_words = tokenizer.tokenize(s.positive, args.window_size)
+    s.anchor, s.anchor_words = tokenizer.tokenize(s.anchor, args.window_size, true)
+    s.negative, s.negative_words = tokenizer.tokenize(s.negative, args.window_size, true)
+    s.positive, s.positive_words = tokenizer.tokenize(s.positive, args.window_size, true)
     return s.anchor and s.negative and s.positive
   end, triplets))
 

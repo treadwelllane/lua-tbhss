@@ -1,6 +1,7 @@
 local init_db = require("tbhss.db")
 local bitmap = require("santoku.bitmap")
 local str = require("santoku.string")
+local num = require("santoku.num")
 local arr = require("santoku.array")
 local fs = require("santoku.fs")
 local tm = require("santoku.tsetlin")
@@ -24,7 +25,7 @@ local function split (s, max, words)
   return words
 end
 
-local function tokenizer (db_file, bitmaps_model_name)
+local function tokenizer (db_file, bitmaps_model_name, positional_bits)
 
   local db = get_db(db_file)
 
@@ -55,14 +56,22 @@ local function tokenizer (db_file, bitmaps_model_name)
         local words = split(s, max)
         for i = 1, #words do
           local w = words[i]
-          local bm = db.get_bitmap(bitmaps_model.id, w)
-          arr.push(matches, bm or bitmap.create())
+          local bm_tok = db.get_bitmap(bitmaps_model.id, w)
+          if not positional_bits then
+            arr.push(matches, bm_tok or bitmap.create())
+          else
+            local pos = num.ceil((i - 1) * (positional_bits - 1) / (#words -1) + 1)
+            local bm_pos = bitmap.create()
+            bitmap.set(bm_pos, pos)
+            if bm_tok then
+              bitmap.extend(bm_pos, bm_tok, positional_bits + 1)
+            end
+            arr.push(matches, bm_pos)
+          end
         end
         if #matches > 0 then
           if terminate then
-            local t = bitmap.create()
-            bitmap.set(t, 1, bits)
-            arr.push(matches, t)
+            arr.push(matches, bitmap.create())
             arr.push(words, "")
           end
           return matches, words, s
@@ -96,7 +105,7 @@ local function encoder (db_file, model_name)
     err.error("Bitmaps model not found", encoder_model.id_bitmaps_model)
   end
 
-  local tokenizer = tokenizer(db_file, bitmaps_model.name)
+  local tokenizer = tokenizer(db_file, bitmaps_model.name, encoder_model.params.positional_bits)
 
   return {
     tokenizer = tokenizer,
@@ -105,7 +114,7 @@ local function encoder (db_file, model_name)
     bits = encoder_model.params.encoded_bits,
     encode = function (s)
       return db.db.transaction(function ()
-        local tokens = tokenizer.tokenize(s, false, true)
+        local tokens = tokenizer.tokenize(s, encoder_model.params.max_words, true)
         if tokens then
           return bitmap.from_raw(tm.predict(t, #tokens, bitmap.raw_matrix(tokens, encoder_model.params.encoded_bits)))
         end
