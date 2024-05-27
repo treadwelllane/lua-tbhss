@@ -1,6 +1,11 @@
 # Now
 
-- Consider not persisting word cluster distances
+- Filter words by those present in the SNLI dataset
+- Use TF-IDF to filter words first
+- Use GloVe or FastText directly on SNLI dataset first
+
+- Consider only persisting word cluster distance matrices instead of individual
+  distances
 
 - Clean up todo.md and ideas.md now that README.md is restructured
 - Add encoded/clustered bitmaps to README

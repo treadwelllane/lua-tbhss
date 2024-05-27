@@ -2,6 +2,7 @@ local err = require("santoku.error")
 local it = require("santoku.iter")
 local str = require("santoku.string")
 local fs = require("santoku.fs")
+local tbhss = require("tbhss")
 
 local function load_sentences_from_file (db, model, args)
 
@@ -13,6 +14,8 @@ local function load_sentences_from_file (db, model, args)
     id_model = db.add_sentences_model(args.name)
   end
 
+  local words = {}
+
   local n = 0
   for line in it.drop(1, fs.lines(args.file)) do
     n = n + 1
@@ -22,6 +25,10 @@ local function load_sentences_from_file (db, model, args)
     local a = str.sub(chunks())
     local b = str.sub(chunks())
     db.add_sentence(n, id_model, label, a, b)
+    tbhss.split(a, false, words)
+    for i = 1, #words do
+      db.add_sentence_word(id_model, words[i])
+    end
   end
 
   db.set_sentences_loaded(id_model)

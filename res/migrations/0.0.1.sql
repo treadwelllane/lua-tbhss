@@ -55,7 +55,22 @@ create table sentences_model (
   loaded boolean not null default false
 );
 
+create table sentences_words (
+  name varchar not null,
+  id_sentences_model integer references sentences_model (id) on delete cascade,
+  primary key (id_sentences_model, name)
+);
+
 create table sentences (
+  id integer not null, -- 1-N for each sentence (not a primary key)
+  id_sentences_model integer references sentences_model (id) on delete cascade,
+  label varchar not null,
+  a varchar not null,
+  b blob not null,
+  primary key (id_sentences_model, id)
+);
+
+create table sentences_w (
   id integer not null, -- 1-N for each sentence (not a primary key)
   id_sentences_model integer references sentences_model (id) on delete cascade,
   label varchar not null,

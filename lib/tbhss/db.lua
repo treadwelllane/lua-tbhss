@@ -222,6 +222,11 @@ return function (db_file)
     values (?, ?, ?, ?, ?)
   ]])
 
+  M.add_sentence_word = db.inserter([[
+    insert into sentences_words (id_sentences_model, name)
+    values (?, ?) on conflict (id_sentences_model, name) do nothing
+  ]])
+
   M.add_bitmap = db.inserter([[
     insert into bitmaps (id_bitmaps_model, id_words, bitmap)
     values (?, ?, ?)
@@ -270,6 +275,24 @@ return function (db_file)
       return bm.from_raw(r.bitmap, r.clusters)
     end
   end
+
+  M.get_all_filtered_words = db.all([[
+    select
+      w.id
+    from
+      words_model wm,
+      words w,
+      sentences_model sm,
+      sentences_words sw
+    where
+      wm.id = ?1 and
+      sm.name = ?2 and
+      wm.id = w.id_words_model and
+      sm.id = sw.id_sentences_model and
+      sw.name = w.name
+    order by
+      w.id asc
+  ]], "id")
 
   M.get_nearest_clusters_by_id = db.iter([[
     select id from (

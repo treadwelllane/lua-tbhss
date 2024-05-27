@@ -77,6 +77,24 @@ local function select_initial_clusters (word_matrix, n_clusters)
 
 end
 
+-- TODO: Filter words in-place by deleting from word matrix instead of creating
+-- a new matrix
+local function filter_words (db, words_model, word_matrix, snli_name, word_idmap)
+  local filtered = db.get_all_filtered_words(words_model.id, snli_name)
+  if not (filtered and #filtered > 0) then
+    err.error("Could not filter words. Does the SNLI dataset exist?", snli_name)
+  end
+  local n = 0
+  local m0 = mtx.create(#filtered, words_model.dimensions)
+  for i = 1, #filtered do
+    n = n + 1
+    local w = filtered[i]
+    mtx.copy(m0, word_matrix, w.id, w.id, n)
+    word_idmap[n] = i
+  end
+  return m0
+end
+
 local function cluster_words (db, clusters_model, args)
 
   print("Clustering")
@@ -87,7 +105,17 @@ local function cluster_words (db, clusters_model, args)
     err.error("Words model not loaded")
   end
 
+  local word_idmap = {}
   local word_matrix = mtx.create(db.get_word_embeddings(words_model.id), words_model.dimensions)
+
+  if args.filter_words then
+    word_matrix = filter_words(db, words_model, word_matrix, args.filter_words, word_idmap)
+    print("Filtered words", mrows(word_matrix))
+  else
+    for i = 1, mrows(word_matrix) do
+      word_idmap[i] = i
+    end
+  end
 
   mnormalize(word_matrix)
 
@@ -144,7 +172,7 @@ local function cluster_words (db, clusters_model, args)
 
   for i = 1, mrows(distance_matrix) do
     for j = 1, mcolumns(distance_matrix) do
-      db.set_word_cluster_similarity(id_model, i, j, mget(distance_matrix, i, j))
+      db.set_word_cluster_similarity(id_model, word_idmap[i], j, mget(distance_matrix, i, j))
     end
   end
 
