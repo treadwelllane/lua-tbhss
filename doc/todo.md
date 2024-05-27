@@ -1,8 +1,11 @@
 # Now
 
-- Why are some bitmaps empty with filter-words?
-- Why does accuracy peak and then fall off?
 - Add filter words feature to other bitmap models
+- Extend `positional_bits` feature to work with `max_words`. When there are more
+  than `max_words` words, use set intersections to merge word bitmaps, reducing
+  the number of word bitmaps to `max_words`. When `max_words` equals
+  `positional_bits`, Every one of these intersections can be distinctly
+
 
 - Consider only persisting word cluster distance matrices instead of individual
   distances
