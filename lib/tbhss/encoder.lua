@@ -146,7 +146,9 @@ local function create_encoder (db, args)
 
   local t = tm.encoder(
     args.encoded_bits, dataset.input_bits / 2, args.clauses,
-    args.state_bits, args.threshold, args.boost_true_positive)
+    args.state_bits, args.threshold, args.boost_true_positive,
+    args.specificity and args.specificity[1] or nil,
+    args.specificity and args.specificity[2] or nil)
 
   print("Training")
 
@@ -158,7 +160,7 @@ local function create_encoder (db, args)
 
     local start = os.time()
     tm.train(t, n_train, train_data, args.active_clause,
-      args.margin, args.loss_alpha, args.specificity)
+      args.margin, args.loss_alpha)
     local duration = os.time() - start
 
     if epoch == args.epochs or epoch % args.evaluate_every == 0 then

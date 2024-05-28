@@ -67,7 +67,7 @@ cmd_create_bitmaps_auto_encoded:option("--train-test-ratio", "ratio of train to 
 cmd_create_bitmaps_auto_encoded:option("--clauses", "Tsetlin Machine clauses", nil, tonumber, 1, 1)
 cmd_create_bitmaps_auto_encoded:option("--state-bits", "Tsetlin Machine state bits", 8, tonumber, 1, "0-1")
 cmd_create_bitmaps_auto_encoded:option("--threshold", "Tsetlin Machine threshold", nil, tonumber, 1, 1)
-cmd_create_bitmaps_auto_encoded:option("--specificity", "Tsetlin Machine specificity", nil, tonumber, 1, 1)
+cmd_create_bitmaps_auto_encoded:option("--specificity", "Tsetlin Machine specificity", nil, tonumber, 2, "0-1")
 cmd_create_bitmaps_auto_encoded:option("--active-clause", "Tsetlin Machine drop clause", 0.75, tonumber, 1, "0-1")
 cmd_create_bitmaps_auto_encoded:option("--loss-alpha", "scale for loss function", nil, tonumber, 1, 1)
 cmd_create_bitmaps_auto_encoded:option("--boost-true-positive",
@@ -89,7 +89,7 @@ cmd_create_bitmaps_encoded:option("--similarity-negative", "threshold for consid
 cmd_create_bitmaps_encoded:option("--clauses", "Tsetlin Machine clauses", nil, tonumber, 1, 1)
 cmd_create_bitmaps_encoded:option("--state-bits", "Tsetlin Machine state bits", 8, tonumber, 1, "0-1")
 cmd_create_bitmaps_encoded:option("--threshold", "Tsetlin Machine threshold", nil, tonumber, 1, 1)
-cmd_create_bitmaps_encoded:option("--specificity", "Tsetlin Machine specificity", nil, tonumber, 1, 1)
+cmd_create_bitmaps_encoded:option("--specificity", "Tsetlin Machine specificity", nil, tonumber, 2, "0-1")
 cmd_create_bitmaps_encoded:option("--active-clause", "Tsetlin Machine drop clause", 0.75, tonumber, 1, "0-1")
 cmd_create_bitmaps_encoded:option("--loss-alpha", "scale for loss function", nil, tonumber, 1, 1)
 cmd_create_bitmaps_encoded:option("--boost-true-positive",
@@ -118,7 +118,7 @@ cmd_create_encoder:option("--train-test-ratio", "ratio of train to test examples
 cmd_create_encoder:option("--clauses", "Tsetlin Machine clauses", nil, tonumber, 1, 1)
 cmd_create_encoder:option("--state-bits", "Tsetlin Machine state bits", 8, tonumber, 1, "0-1")
 cmd_create_encoder:option("--threshold", "Tsetlin Machine threshold", nil, tonumber, 1, 1)
-cmd_create_encoder:option("--specificity", "Tsetlin Machine specificity", nil, tonumber, 1, 1)
+cmd_create_encoder:option("--specificity", "Tsetlin Machine specificity", nil, tonumber, 2, "0-1")
 cmd_create_encoder:option("--active-clause", "Tsetlin Machine drop clause", 0.75, tonumber, 1, "0-1")
 cmd_create_encoder:option("--boost-true-positive", "Tsetlin Machine boost true positive", "false", fun.bind(op.eq, "true"), 1, "0-1"):choices({ "true", "false" })
 cmd_create_encoder:option("--evaluate-every", "Evaluation frequency", 5, tonumber, 1, "0-1")
