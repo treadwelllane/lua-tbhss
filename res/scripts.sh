@@ -75,9 +75,9 @@ nohup stdbuf -oL tbhss create encoder \
   --threshold 256 \
   --margin 0.05 \
   --loss-alpha 2 \
-  --spec-min 40 \
-  --spec-max 80 \
-  --spec-alpha 4 \
+  --spec-min 2 \
+  --spec-max 60 \
+  --spec-alpha 1 \
   --active-clause 0.85 \
   --boost-true-positive false \
   --evaluate-every 1 \

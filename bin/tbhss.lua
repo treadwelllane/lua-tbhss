@@ -49,115 +49,66 @@ cmd_create_bitmaps:command_target("cmd_create_bitmaps")
 
 local cmd_create_bitmaps_clustered = cmd_create_bitmaps:command("clustered", "create bitmaps from clusters")
 base_flags(cmd_create_bitmaps_clustered)
-cmd_create_bitmaps_clustered
-  :option("--name", "name of created bitmaps", nil, nil, 1, 1)
-cmd_create_bitmaps_clustered
-  :option("--clusters", "name of clusters to use", nil, nil, 1, 1)
-cmd_create_bitmaps_clustered
-  :option("--min-similarity", "minimum similarity required to set bit", 0.5, tonumber, 1, "0-1")
-cmd_create_bitmaps_clustered
-  :option("--min-set", "minimum number of bits to set", 1, tonumber, 1, "0-1")
-cmd_create_bitmaps_clustered
-  :option("--max-set", "maximum number of bits to set", nil, nil, 1, 1)
+cmd_create_bitmaps_clustered:option("--name", "name of created bitmaps", nil, nil, 1, 1)
+cmd_create_bitmaps_clustered:option("--clusters", "name of clusters to use", nil, nil, 1, 1)
+cmd_create_bitmaps_clustered:option("--min-similarity", "minimum similarity required to set bit", 0.5, tonumber, 1, "0-1")
+cmd_create_bitmaps_clustered:option("--min-set", "minimum number of bits to set", 1, tonumber, 1, "0-1")
+cmd_create_bitmaps_clustered:option("--max-set", "maximum number of bits to set", nil, nil, 1, 1)
 
 local cmd_create_bitmaps_auto_encoded = cmd_create_bitmaps:command("auto-encoded", "create bitmaps via auto-encoder")
 base_flags(cmd_create_bitmaps_auto_encoded)
-cmd_create_bitmaps_auto_encoded
-  :option("--name", "name of created bitmaps", nil, nil, 1, 1)
-cmd_create_bitmaps_auto_encoded
-  :option("--words", "name of words to use", nil, nil, 1, 1)
-cmd_create_bitmaps_auto_encoded
-  :option("--encoded-bits", "number of bits in encoded bitmaps", nil, tonumber, 1, 1)
-cmd_create_bitmaps_auto_encoded
-  :option("--threshold-levels", "number of input dimension thresholds", nil, tonumber, 1, 1)
-cmd_create_bitmaps_auto_encoded
-  :option("--train-test-ratio", "ratio of train to test examples", nil, tonumber, 1, 1)
-cmd_create_bitmaps_auto_encoded
-  :option("--clauses", "Tsetlin Machine clauses", nil, tonumber, 1, 1)
-cmd_create_bitmaps_auto_encoded
-  :option("--state-bits", "Tsetlin Machine state bits", 8, tonumber, 1, "0-1")
-cmd_create_bitmaps_auto_encoded
-  :option("--threshold", "Tsetlin Machine threshold", nil, tonumber, 1, 1)
-cmd_create_bitmaps_auto_encoded
-  :option("--spec-min", "Tsetlin Machine specificity min", nil, tonumber, 1, 1)
-cmd_create_bitmaps_auto_encoded
-  :option("--spec-max", "Tsetlin Machine specificity max", nil, tonumber, 1, 1)
-cmd_create_bitmaps_auto_encoded
-  :option("--spec-alpha", "Tsetlin Machine specificity alpha", nil, tonumber, 1, 1)
-cmd_create_bitmaps_auto_encoded
-  :option("--active-clause", "Tsetlin Machine drop clause", 0.75, tonumber, 1, "0-1")
-cmd_create_bitmaps_auto_encoded
-  :option("--loss-alpha", "scale for loss function", nil, tonumber, 1, 1)
-cmd_create_bitmaps_auto_encoded
-  :option("--boost-true-positive",
-  "Tsetlin Machine boost true positive", "false", fun.bind(op.eq, "true"), 1, "0-1")
-    :choices({ "true", "false" })
-cmd_create_bitmaps_auto_encoded
-  :option("--evaluate-every", "Evaluation frequency", 5, tonumber, 1, "0-1")
-cmd_create_bitmaps_auto_encoded
-  :option("--max-records", "Max number records to use in training", nil, tonumber, 1, "0-1")
-cmd_create_bitmaps_auto_encoded
-  :option("--epochs", "Number of epochs", nil, tonumber, 1, 1)
+cmd_create_bitmaps_auto_encoded:option("--name", "name of created bitmaps", nil, nil, 1, 1)
+cmd_create_bitmaps_auto_encoded:option("--words", "name of words to use", nil, nil, 1, 1)
+cmd_create_bitmaps_auto_encoded:option("--encoded-bits", "number of bits in encoded bitmaps", nil, tonumber, 1, 1)
+cmd_create_bitmaps_auto_encoded:option("--threshold-levels", "number of input dimension thresholds", nil, tonumber, 1, 1)
+cmd_create_bitmaps_auto_encoded:option("--train-test-ratio", "ratio of train to test examples", nil, tonumber, 1, 1)
+cmd_create_bitmaps_auto_encoded:option("--clauses", "Tsetlin Machine clauses", nil, tonumber, 1, 1)
+cmd_create_bitmaps_auto_encoded:option("--state-bits", "Tsetlin Machine state bits", 8, tonumber, 1, "0-1")
+cmd_create_bitmaps_auto_encoded:option("--threshold", "Tsetlin Machine threshold", nil, tonumber, 1, 1)
+cmd_create_bitmaps_auto_encoded:option("--specificity", "Tsetlin Machine specificity", nil, tonumber, 1, 1)
+cmd_create_bitmaps_auto_encoded:option("--active-clause", "Tsetlin Machine drop clause", 0.75, tonumber, 1, "0-1")
+cmd_create_bitmaps_auto_encoded:option("--loss-alpha", "scale for loss function", nil, tonumber, 1, 1)
+cmd_create_bitmaps_auto_encoded:option("--boost-true-positive",
+  "Tsetlin Machine boost true positive", "false", fun.bind(op.eq, "true"), 1, "0-1"):choices({ "true", "false" })
+cmd_create_bitmaps_auto_encoded:option("--evaluate-every", "Evaluation frequency", 5, tonumber, 1, "0-1")
+cmd_create_bitmaps_auto_encoded:option("--max-records", "Max number records to use in training", nil, tonumber, 1, "0-1")
+cmd_create_bitmaps_auto_encoded:option("--epochs", "Number of epochs", nil, tonumber, 1, 1)
 
 local cmd_create_bitmaps_encoded = cmd_create_bitmaps:command("encoded", "create bitmaps via a siamese encoder")
 base_flags(cmd_create_bitmaps_encoded)
-cmd_create_bitmaps_encoded
-  :option("--name", "name of created bitmaps", nil, nil, 1, 1)
-cmd_create_bitmaps_encoded
-  :option("--words", "name of words to use", nil, nil, 1, 1)
-cmd_create_bitmaps_encoded
-  :option("--encoded-bits", "number of bits in encoded bitmaps", nil, tonumber, 1, 1)
-cmd_create_bitmaps_encoded
-  :option("--threshold-levels", "number of input dimension thresholds", nil, tonumber, 1, 1)
-cmd_create_bitmaps_encoded
-  :option("--train-test-ratio", "ratio of train to test examples", nil, tonumber, 1, 1)
-cmd_create_bitmaps_encoded
-  :option("--margin", "margin for triplet loss", nil, tonumber, 1, 1)
-cmd_create_bitmaps_encoded
-  :option("--similarity-positive", "threshold for considering a relationship an entailment", nil, tonumber, 1, 1)
-cmd_create_bitmaps_encoded
-  :option("--similarity-negative", "threshold for considering a relationship a contradiction", nil, tonumber, 1, 1)
-cmd_create_bitmaps_encoded
-  :option("--clauses", "Tsetlin Machine clauses", nil, tonumber, 1, 1)
-cmd_create_bitmaps_encoded
-  :option("--state-bits", "Tsetlin Machine state bits", 8, tonumber, 1, "0-1")
-cmd_create_bitmaps_encoded
-  :option("--threshold", "Tsetlin Machine threshold", nil, tonumber, 1, 1)
-cmd_create_bitmaps_encoded
-  :option("--spec-min", "Tsetlin Machine specificity min", nil, tonumber, 1, 1)
-cmd_create_bitmaps_encoded
-  :option("--spec-max", "Tsetlin Machine specificity max", nil, tonumber, 1, 1)
-cmd_create_bitmaps_encoded
-  :option("--spec-alpha", "Tsetlin Machine specificity alpha", nil, tonumber, 1, 1)
-cmd_create_bitmaps_encoded
-  :option("--active-clause", "Tsetlin Machine drop clause", 0.75, tonumber, 1, "0-1")
-cmd_create_bitmaps_encoded
-  :option("--loss-alpha", "scale for loss function", nil, tonumber, 1, 1)
-cmd_create_bitmaps_encoded
-  :option("--boost-true-positive",
+cmd_create_bitmaps_encoded:option("--name", "name of created bitmaps", nil, nil, 1, 1)
+cmd_create_bitmaps_encoded:option("--words", "name of words to use", nil, nil, 1, 1)
+cmd_create_bitmaps_encoded:option("--encoded-bits", "number of bits in encoded bitmaps", nil, tonumber, 1, 1)
+cmd_create_bitmaps_encoded:option("--threshold-levels", "number of input dimension thresholds", nil, tonumber, 1, 1)
+cmd_create_bitmaps_encoded:option("--train-test-ratio", "ratio of train to test examples", nil, tonumber, 1, 1)
+cmd_create_bitmaps_encoded:option("--margin", "margin for triplet loss", nil, tonumber, 1, 1)
+cmd_create_bitmaps_encoded:option("--similarity-positive", "threshold for considering a relationship an entailment", nil, tonumber, 1, 1)
+cmd_create_bitmaps_encoded:option("--similarity-negative", "threshold for considering a relationship a contradiction", nil, tonumber, 1, 1)
+cmd_create_bitmaps_encoded:option("--clauses", "Tsetlin Machine clauses", nil, tonumber, 1, 1)
+cmd_create_bitmaps_encoded:option("--state-bits", "Tsetlin Machine state bits", 8, tonumber, 1, "0-1")
+cmd_create_bitmaps_encoded:option("--threshold", "Tsetlin Machine threshold", nil, tonumber, 1, 1)
+cmd_create_bitmaps_encoded:option("--specificity", "Tsetlin Machine specificity", nil, tonumber, 1, 1)
+cmd_create_bitmaps_encoded:option("--active-clause", "Tsetlin Machine drop clause", 0.75, tonumber, 1, "0-1")
+cmd_create_bitmaps_encoded:option("--loss-alpha", "scale for loss function", nil, tonumber, 1, 1)
+cmd_create_bitmaps_encoded:option("--boost-true-positive",
   "Tsetlin Machine boost true positive", "false", fun.bind(op.eq, "true"), 1, "0-1")
     :choices({ "true", "false" })
-cmd_create_bitmaps_encoded
-  :option("--evaluate-every", "Evaluation frequency", 5, tonumber, 1, "0-1")
-cmd_create_bitmaps_encoded
-  :option("--max-records", "Max number records to use in training", nil, tonumber, 1, "0-1")
-cmd_create_bitmaps_encoded
-  :option("--epochs", "Number of epochs", nil, tonumber, 1, 1)
+cmd_create_bitmaps_encoded:option("--evaluate-every", "Evaluation frequency", 5, tonumber, 1, "0-1")
+cmd_create_bitmaps_encoded:option("--max-records", "Max number records to use in training", nil, tonumber, 1, "0-1")
+cmd_create_bitmaps_encoded:option("--epochs", "Number of epochs", nil, tonumber, 1, 1)
 
 local cmd_create_bitmaps_thresholded = cmd_create_bitmaps:command("thresholded", "create bitmaps via thresholding")
 base_flags(cmd_create_bitmaps_thresholded)
-cmd_create_bitmaps_thresholded
-  :option("--name", "name of created bitmaps", nil, nil, 1, 1)
-cmd_create_bitmaps_thresholded
-  :option("--words", "name of words to use", nil, nil, 1, 1)
-cmd_create_bitmaps_thresholded
-  :option("--threshold-levels", "number of input dimension thresholds", nil, tonumber, 1, 1)
+cmd_create_bitmaps_thresholded:option("--name", "name of created bitmaps", nil, nil, 1, 1)
+cmd_create_bitmaps_thresholded:option("--words", "name of words to use", nil, nil, 1, 1)
+cmd_create_bitmaps_thresholded:option("--threshold-levels", "number of input dimension thresholds", nil, tonumber, 1, 1)
 
 local cmd_create_encoder = cmd_create:command("encoder", "create an encoder")
 base_flags(cmd_create_encoder)
 cmd_create_encoder:option("--name", "name of created encoder", nil, nil, 1, 1)
 cmd_create_encoder:option("--bitmaps", "name of word bitmaps to use", nil, nil, 1, 1)
 cmd_create_encoder:option("--sentences", "name of NLI dataset to encode", nil, nil, 1, 1)
+cmd_create_encoder:option("--segments", "number of segments in encoded bitmaps", nil, tonumber, 1, 1)
 cmd_create_encoder:option("--encoded-bits", "number of bits in encoded bitmaps", nil, tonumber, 1, 1)
 cmd_create_encoder:option("--margin", "margin for triplet loss", nil, tonumber, 1, 1)
 cmd_create_encoder:option("--loss-alpha", "scale for loss function", nil, tonumber, 1, 1)
@@ -165,13 +116,9 @@ cmd_create_encoder:option("--train-test-ratio", "ratio of train to test examples
 cmd_create_encoder:option("--clauses", "Tsetlin Machine clauses", nil, tonumber, 1, 1)
 cmd_create_encoder:option("--state-bits", "Tsetlin Machine state bits", 8, tonumber, 1, "0-1")
 cmd_create_encoder:option("--threshold", "Tsetlin Machine threshold", nil, tonumber, 1, 1)
-cmd_create_encoder:option("--spec-min", "Tsetlin Machine specificity min", nil, tonumber, 1, 1)
-cmd_create_encoder:option("--spec-max", "Tsetlin Machine specificity max", nil, tonumber, 1, 1)
-cmd_create_encoder:option("--spec-alpha", "Tsetlin Machine specificity alpha", nil, tonumber, 1, 1)
+cmd_create_encoder:option("--specificity", "Tsetlin Machine specificity", nil, tonumber, 1, 1)
 cmd_create_encoder:option("--active-clause", "Tsetlin Machine drop clause", 0.75, tonumber, 1, "0-1")
-cmd_create_encoder:option("--boost-true-positive",
-  "Tsetlin Machine boost true positive", "false", fun.bind(op.eq, "true"), 1, "0-1")
-    :choices({ "true", "false" })
+cmd_create_encoder:option("--boost-true-positive", "Tsetlin Machine boost true positive", "false", fun.bind(op.eq, "true"), 1, "0-1"):choices({ "true", "false" })
 cmd_create_encoder:option("--evaluate-every", "Evaluation frequency", 5, tonumber, 1, "0-1")
 cmd_create_encoder:option("--max-records", "Max number records to use in training", nil, tonumber, 1, "0-1")
 cmd_create_encoder:option("--epochs", "Number of epochs", nil, tonumber, 1, 1)
