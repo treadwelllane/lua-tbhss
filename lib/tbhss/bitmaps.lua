@@ -251,13 +251,15 @@ local function create_bitmaps_auto_encoded (db, args)
 
     local t = tm.auto_encoder(
       args.encoded_bits, n_features, args.clauses,
-      args.state_bits, args.threshold, args.boost_true_positive)
+      args.state_bits, args.threshold, args.boost_true_positive,
+      args.specificity and args.specificity[1] or nil,
+      args.specificity and args.specificity[2] or nil)
 
     print("Training")
     for epoch = 1, args.epochs do
 
       local start = os.time()
-      tm.train(t, n_train, train, args.active_clause, args.loss_alpha, args.specificity)
+      tm.train(t, n_train, train, args.active_clause, args.loss_alpha)
       local duration = os.time() - start
 
       if epoch == args.epochs or epoch % args.evaluate_every == 0 then
@@ -334,13 +336,15 @@ local function create_bitmaps_encoded (db, args)
 
     local t = tm.encoder(
       args.encoded_bits, dataset.n_features, args.clauses,
-      args.state_bits, args.threshold, args.boost_true_positive)
+      args.state_bits, args.threshold, args.boost_true_positive,
+      args.specificity and args.specificity[1] or nil,
+      args.specificity and args.specificity[2] or nil)
 
     print("Training")
     for epoch = 1, args.epochs do
 
       local start = os.time()
-      tm.train(t, n_train, train_data, args.active_clause, args.margin, args.loss_alpha, args.specificity)
+      tm.train(t, n_train, train_data, args.active_clause, args.margin, args.loss_alpha)
       local duration = os.time() - start
 
       if epoch == args.max_epochs or epoch % args.evaluate_every == 0 then

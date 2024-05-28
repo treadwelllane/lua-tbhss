@@ -1,5 +1,5 @@
 local fs = require("santoku.fs")
--- local str = require("santoku.string")
+local str = require("santoku.string")
 local sys = require("santoku.system")
 -- local bm = require("santoku.bitmap")
 -- local tbhss = require("tbhss")
@@ -44,24 +44,31 @@ sys.execute({
   "--min-similarity", " 0",
 })
 
-sys.execute({
-  "lua", "bin/tbhss.lua", "create", "encoder",
-  "--cache", db_file,
-  "--name", "glove",
-  "--bitmaps", "glove",
-  "--segments", "2",
-  "--encoded-bits", "256",
-  "--sentences", "snli-dev",
-  "--train-test-ratio", "0.5",
-  "--clauses", "256",
-  "--state-bits", "8",
-  "--threshold", "512",
-  "--margin", "0.1",
-  "--loss-alpha", "1",
-  "--specificity", "40",
-  "--active-clause", "0.85",
-  "--boost-true-positive", "false",
-  "--evaluate-every", "1",
-  "--max-records", "1000",
-  "--epochs", "50",
-})
+for i = 112, 112, 16 do
+  print("Threshold", i)
+  sys.execute({
+    "sh", "-c", str.interp([[
+      lua bin/tbhss.lua create encoder \
+      --cache %db \
+      --name glove.%threshold \
+      --bitmaps glove \
+      --sentences snli-dev \
+      --segments 1 \
+      --encoded-bits 256 \
+      --train-test-ratio 0.5 \
+      --clauses 512 \
+      --state-bits 8 \
+      --threshold %threshold \
+      --margin 0.1 \
+      --loss-alpha 1 \
+      --active-clause 0.85 \
+      --boost-true-positive false \
+      --max-records 1000 \
+      --evaluate-every 1 \
+      --epochs 100
+    ]], {
+      db = db_file,
+      threshold = i
+    })
+  })
+end
