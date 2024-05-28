@@ -24,35 +24,29 @@ end
 
 local function get_dataset (db, tokenizer, sentences_model, args)
 
-  local triplets = db.get_sentence_triplets(sentences_model.id)
+  print("Loading sentence triplets")
+  local triplets = db.get_sentence_triplets(sentences_model.id, args.max_records)
 
-  if args.max_records then
-    triplets = it.take(args.max_records, triplets)
-  end
-
-  triplets = it.collect(it.filter(function (s)
+  print("Tokenizing")
+  for i = 1, #triplets do
+    local s = triplets[i]
     s.anchor, s.anchor_words = tokenizer.tokenize(s.anchor)
     s.negative, s.negative_words = tokenizer.tokenize(s.negative)
     s.positive, s.positive_words = tokenizer.tokenize(s.positive)
-    return s.anchor and s.negative and s.positive
-  end, triplets))
-
-  for i = 1, #triplets do
-    local s = triplets[i]
     s.anchor = prep_bitmap(s.anchor, tokenizer.bits)
     s.negative = prep_bitmap(s.negative, tokenizer.bits)
     s.positive = prep_bitmap(s.positive, tokenizer.bits)
-    s.group = bm.matrix({ s.anchor, s.negative, s.positive, }, tokenizer.bits)
+    s.group = bm.matrix({ s.anchor, s.negative, s.positive, }, tokenizer.bits * 2)
   end
 
   for i = 1, 1 --[[#triplets]] do
     local s = triplets[i]
-    str.printf("Anchor: %s\n", table.concat(s.anchor_words, " "))
-    str.printf("  %s\n", bm.tostring(s.anchor, tokenizer.bits))
-    str.printf("Negative: %s\n", table.concat(s.negative_words, " "))
-    str.printf("  %s\n", bm.tostring(s.negative, tokenizer.bits))
-    str.printf("Positive: %s\n", table.concat(s.positive_words, " "))
-    str.printf("  %s\n", bm.tostring(s.positive, tokenizer.bits))
+    str.printf("Anchor: %s\n", arr.concat(s.anchor_words, " "))
+    str.printf("  %s\n", bm.tostring(s.anchor, tokenizer.bits * 2))
+    str.printf("Negative: %s\n", arr.concat(s.negative_words, " "))
+    str.printf("  %s\n", bm.tostring(s.negative, tokenizer.bits * 2))
+    str.printf("Positive: %s\n", arr.concat(s.positive_words, " "))
+    str.printf("  %s\n", bm.tostring(s.positive, tokenizer.bits * 2))
     print()
   end
 
@@ -101,12 +95,7 @@ local function create_encoder (db, args)
     err.error("Sentences model not loaded", args.sentences)
   end
 
-  print("Reading data")
   local dataset = get_dataset(db, tokenizer, sentences_model, args)
-
-  print("Shuffling")
-  rand.seed()
-  arr.shuffle(dataset.triplets)
 
   print("Splitting & packing")
   local n_train = num.floor(#dataset.triplets * args.train_test_ratio)

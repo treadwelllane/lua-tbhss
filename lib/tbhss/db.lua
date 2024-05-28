@@ -345,7 +345,7 @@ return function (db_file)
     )
   ]])
 
-  M.get_sentence_triplets = db.iter([[
+  M.get_sentence_triplets = db.all([[
     select
       a.a as anchor,
       b.b as positive,
@@ -358,9 +358,10 @@ return function (db_file)
     inner join sentences c
       on a.a = c.a
       and a.id_sentences_model = c.id_sentences_model
-      and c.label = 'contradiction'
+      and c.label in ('contradiction', 'neutral')
     where a.id_sentences_model = ?1
     order by random()
+    limit coalesce(?2, -1)
   ]])
 
   return M
