@@ -45,13 +45,15 @@ local function prep_bitmap (word_bitmaps, word_bits, n_segments)
       end
       bm["or"](b0, b1)
     end
-    local flipped = bm.copy(b0)
-    bm.flip(flipped, word_bits)
-    bm.extend(b0, flipped, word_bits)
     segments[i] = b0
   end
 
-  return bm.matrix(segments, word_bits * 2)
+  local out = bm.matrix(segments, word_bits)
+  local flipped = bm.copy(out)
+  bm.flip(flipped, 1, n_segments * word_bits)
+  bm.extend(out, flipped, n_segments * word_bits)
+
+  return out
 
 end
 
