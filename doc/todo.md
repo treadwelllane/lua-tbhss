@@ -1,5 +1,6 @@
 # Now
 
+- Sinusoidal segment assignment
 - Add filter words feature to other bitmap models
 - Extend `positional_bits` feature to work with `max_words`. When there are more
   than `max_words` words, use set intersections to merge word bitmaps, reducing

@@ -9,15 +9,50 @@ local err = require("santoku.error")
 
 local tbhss = require("tbhss")
 
-local function prep_bitmap (word_bitmaps, word_bits)
-  local b0 = bm.create()
-  for i = 1, #word_bitmaps do
-    bm["or"](b0, word_bitmaps[i])
+local function prep_bitmap (word_bitmaps, word_bits, n_segments)
+
+  local segments = {}
+  for i = 1, n_segments do
+    segments[i] = {}
   end
-  local flipped = bm.copy(b0)
-  bm.flip(flipped, word_bits)
-  bm.extend(b0, flipped, word_bits)
-  return b0
+
+  local n_merged = num.floor(#word_bitmaps / n_segments)
+  local remainder = #word_bitmaps % n_segments
+
+  local idx = 1
+  for i = 1, n_segments do
+    local size = n_merged
+    if remainder > 0 then
+      size = size + 1
+      remainder = remainder - 1
+    end
+    for j = 1, size do
+      if idx > #word_bitmaps then
+        break
+      end
+      arr.push(segments[i], word_bitmaps[idx])
+      idx = idx + 1
+    end
+  end
+
+  for i = 1, n_segments do
+    local b0 = bm.create()
+    local s = segments[i]
+    for j = 1, #s do
+      local b1 = s[j]
+      if not b1 then
+        break
+      end
+      bm["or"](b0, b1)
+    end
+    local flipped = bm.copy(b0)
+    bm.flip(flipped, word_bits)
+    bm.extend(b0, flipped, word_bits)
+    segments[i] = b0
+  end
+
+  return bm.matrix(segments, word_bits * 2)
+
 end
 
 local function get_dataset (db, tokenizer, sentences_model, args)
@@ -31,26 +66,26 @@ local function get_dataset (db, tokenizer, sentences_model, args)
     s.anchor, s.anchor_words = tokenizer.tokenize(s.anchor)
     s.negative, s.negative_words = tokenizer.tokenize(s.negative)
     s.positive, s.positive_words = tokenizer.tokenize(s.positive)
-    s.anchor = prep_bitmap(s.anchor, tokenizer.bits)
-    s.negative = prep_bitmap(s.negative, tokenizer.bits)
-    s.positive = prep_bitmap(s.positive, tokenizer.bits)
-    s.group = bm.matrix({ s.anchor, s.negative, s.positive, }, tokenizer.bits * 2)
+    s.anchor = prep_bitmap(s.anchor, tokenizer.bits, args.segments)
+    s.negative = prep_bitmap(s.negative, tokenizer.bits, args.segments)
+    s.positive = prep_bitmap(s.positive, tokenizer.bits, args.segments)
+    s.group = bm.matrix({ s.anchor, s.negative, s.positive, }, tokenizer.bits * args.segments * 2)
   end
 
   for i = 1, 1 --[[#triplets]] do
     local s = triplets[i]
     str.printf("Anchor: %s\n", arr.concat(s.anchor_words, " "))
-    str.printf("  %s\n", bm.tostring(s.anchor, tokenizer.bits * 2))
+    str.printf("  %s\n", bm.tostring(s.anchor, args.segments * tokenizer.bits * 2))
     str.printf("Negative: %s\n", arr.concat(s.negative_words, " "))
-    str.printf("  %s\n", bm.tostring(s.negative, tokenizer.bits * 2))
+    str.printf("  %s\n", bm.tostring(s.negative, args.segments * tokenizer.bits * 2))
     str.printf("Positive: %s\n", arr.concat(s.positive_words, " "))
-    str.printf("  %s\n", bm.tostring(s.positive, tokenizer.bits * 2))
+    str.printf("  %s\n", bm.tostring(s.positive, args.segments * tokenizer.bits * 2))
     print()
   end
 
   return {
     triplets = triplets,
-    token_bits = tokenizer.bits,
+    input_bits = tokenizer.bits * args.segments * 2,
     encoded_bits = args.encoded_bits,
   }
 
@@ -62,7 +97,7 @@ local function split_dataset (dataset, s, e)
     local s = dataset.triplets[i]
     arr.push(gs, s.group)
   end
-  return bm.raw_matrix(gs, dataset.token_bits * 2 * 3)
+  return bm.raw_matrix(gs, dataset.input_bits * 3)
 end
 
 local function create_encoder (db, args)
@@ -108,7 +143,7 @@ local function create_encoder (db, args)
   print("Total Test", n_test)
 
   local t = tm.encoder(
-    args.encoded_bits, dataset.token_bits, args.clauses,
+    args.encoded_bits, dataset.input_bits / 2, args.clauses,
     args.state_bits, args.threshold, args.boost_true_positive)
 
   print("Training")
@@ -121,8 +156,7 @@ local function create_encoder (db, args)
 
     local start = os.time()
     tm.train(t, n_train, train_data, args.active_clause,
-      args.margin, args.loss_alpha,
-      args.spec_min, args.spec_max, args.spec_alpha)
+      args.margin, args.loss_alpha, args.specificity)
     local duration = os.time() - start
 
     if epoch == args.epochs or epoch % args.evaluate_every == 0 then
