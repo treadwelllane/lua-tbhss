@@ -26,7 +26,7 @@ local function prep_bitmap (word_bitmaps, word_bits, n_segments)
       size = size + 1
       remainder = remainder - 1
     end
-    for j = 1, size do
+    for _ = 1, size do
       if idx > #word_bitmaps then
         break
       end
