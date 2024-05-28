@@ -1,3 +1,5 @@
+-- luacheck: no max line length
+
 local argparse = require("argparse")
 local serialize = require("santoku.serialize") -- luacheck: ignore
 

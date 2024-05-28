@@ -63,5 +63,5 @@ sys.execute({
   "--boost-true-positive", "false",
   "--evaluate-every", "1",
   "--max-records", "1000",
-  "--epochs", "50",
+  "--epochs", "0",
 })
