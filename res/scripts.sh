@@ -68,16 +68,15 @@ nohup stdbuf -oL tbhss create encoder \
   --name glove \
   --bitmaps glove.6B.300d.256.test.1.8.00  \
   --sentences snli_1.0.test \
+  --segments 2 \
   --encoded-bits 256 \
   --train-test-ratio 0.5 \
-  --clauses 1024 \
+  --clauses 512 \
   --state-bits 8 \
   --threshold 256 \
   --margin 0.05 \
-  --loss-alpha 2 \
-  --spec-min 2 \
-  --spec-max 60 \
-  --spec-alpha 1 \
+  --loss-alpha 0.125 \
+  --specificity 10 \
   --active-clause 0.85 \
   --boost-true-positive false \
   --evaluate-every 1 \

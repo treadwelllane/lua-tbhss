@@ -49,7 +49,7 @@ sys.execute({
   "--cache", db_file,
   "--name", "glove",
   "--bitmaps", "glove",
-  "--segments", "1",
+  "--segments", "4",
   "--encoded-bits", "256",
   "--sentences", "snli-dev",
   "--train-test-ratio", "0.5",
