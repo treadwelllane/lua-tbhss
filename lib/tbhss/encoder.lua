@@ -137,7 +137,7 @@ local function create_encoder (db, args)
   local train_data = split_dataset(dataset, 1, n_train)
   local test_data = split_dataset(dataset, n_train + 1, n_train + n_test)
 
-  print("Token Bits", dataset.token_bits)
+  print("Input Bits", dataset.input_bits)
   print("Encoded Bits", dataset.encoded_bits)
   print("Total Train", n_train)
   print("Total Test", n_test)
