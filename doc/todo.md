@@ -1,114 +1,30 @@
 # Now
 
+- Move non-clustered bitmap model code to branch & delete
+
 - Sinusoidal segment assignment
-- Add filter words feature to other bitmap models
-- Extend `positional_bits` feature to work with `max_words`. When there are more
-  than `max_words` words, use set intersections to merge word bitmaps, reducing
-  the number of word bitmaps to `max_words`. When `max_words` equals
-  `positional_bits`, Every one of these intersections can be distinctly
 
+- Pre-trained encoders: SNLI & MutiNLI datasets with various settings shared as
+  sqlite.db files with training data pruned
 
-- Consider only persisting word cluster distance matrices instead of individual
-  distances
+- FAISS
 
-- Clean up todo.md and ideas.md now that README.md is restructured
-- Add encoded/clustered bitmaps to README
-
-- Pre-trained encoders on full Glove & NLI datasets shared as sqlite.db files
-  with training data pruned
+- Update README
 
 # Later
 
 - Allow word embeddings auto-encoder to be persisted
 - Improve performance of loading glove embeddings. Write in C? Parallelize?
-
-- Use TF-IDF to filter words first
-- Use GloVe or FastText directly on SNLI dataset first
-
-----
-
-# Now
-
-- Migrate write distances file logic to separate commands: export-distances
-- Migrate generate bitmaps file logic to separate commands: generate-bitmaps
-- Migrate load words logic to separate command: load-glove-model
-- Migrate cluster logic to separate command: cluster-words
-
-- Command to ingest text files to sqlite, tag is file name by default
-- Command to merge sqlite databases
-
-- Support batching of max N words in memory
-- Support incremental runs (picking up where you left off)
-
-- Produce clusters for Glove 6B/42B 300D
-    - 6B   50D   128   x
-    - 6B   300D  128   x
-    - 6B   300D  256   todo
-    - 6B   300D  512   x
-    - 6B   300D  1024  todo
-    - 6B   300D  2048  todo
-    - 6B   300D  4096  todo
-    - 6B   300D  8192  todo
-    - 42B  300D  128   todo
-    - 42B  300D  256   todo
-    - 42B  300D  512   todo
-    - 42B  300D  1024  todo
-    - 42B  300D  2048  todo
-    - 42B  300D  8192  todo
-
-- Host processed files on S3
-
-- Bitmaps supporting multiple clusters
-    - membership_min
-        - default 1
-        - minimum number of bits that should be flipped for a word, bypassing
-          membership_threshold
-        - 0 means word will be ignored if it doesn't have any cluster membership
-          greater than membership_threshold
-    - membership_max
-        - default infinite
-        - max number of bits that can be flipped for a word
-    - membership_threshold
-        - if a fuzzy membership is greater than this amount, the bit is always
-          flipped
-    - membership_probability
-        - if set, membership_threshold is ignored
-        - sets the probability a word will have additional cluster bits flipped,
-          proportional to its distance the clusters in question
-        - see ideas.md
-    - membership_cutoff
-        - default 0
-        - if a fuzzy membership is less than this amount, it is ignored
-
-- Library
-    - Switch to croaring bitmaps
-    - Load model as bitmaps
-    - Sentence similarity (option to get bitmaps or cluster IDs separate from
-      loading the model into memory, for use with sqlite, etc)
-
-- Benchmark basic AND jaccard similarity
-
-# Next
-
-- Tsetlin Machine refinement of sentence representations
-
-# Later
+- Use GloVe or FastText directly on sentence datasets first
+- Instead of strictly using sentence dataset words, include nearest N words to
+  each word
 
 - Move various inner loops to C (see cluster.lua TODOs)
-- Multi-processing
 - Fuzzy c-means clustering, update multi-cluster bitmap logic accordingly
-
-- Benchmarks
-  - TF-IDF standard
-  - TF-IDF (translate words to clusters)
-  - TF-IDF (translate words to multiple clusters)
-  - Average of word embeddings
-  - Bitmap Jaccard (single bit)
-  - Bitmap Jaccard (multi-bit randomized)
-  - Bitmap Jaccard (Tsetlin optimized)
 
 # Eventually
 
-- See ideas.md
+- Finetuning helpers
 
-- Finetuning to a specific domain
+- Consider only persisting word cluster distance matrices instead of individual
+  distances
