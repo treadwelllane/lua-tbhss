@@ -40,7 +40,7 @@ nohup stdbuf -oL tbhss create encoder \
   --state-bits 8 \
   --threshold 256 \
   --margin 0.1 \
-  --loss-alpha 0.5 \
+  --loss-alpha 0.125 \
   --specificity 10 \
   --active-clause 0.85 \
   --boost-true-positive false \
