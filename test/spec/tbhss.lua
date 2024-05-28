@@ -254,37 +254,10 @@ sys.execute({
   "--min-similarity", " 0",
 })
 
--- sys.execute({
---   "lua", "bin/tbhss.lua", "create", "encoder", "recurrent",
---   "--cache", db_file,
---   "--name", "glove",
---   -- "--bitmaps", "glove.thresholded",
---   -- "--bitmaps", "glove.auto-encoded",
---   "--bitmaps", "glove.clustered",
---   "--max-words", "20",
---   -- "--positional-bits", "16",
---   "--encoded-bits", "128",
---   "--sentences", "snli-dev",
---   "--train-test-ratio", "0.5",
---   "--clauses", "512",
---   "--state-bits", "8",
---   "--threshold", "128",
---   "--margin", "0.1",
---   "--loss-alpha", "1",
---   "--specificity", "2.4",
---   "--active-clause", "0.85",
---   "--boost-true-positive", "false",
---   "--evaluate-every", "1",
---   "--max-records", "1000",
---   "--epochs", "100",
--- })
-
 sys.execute({
-  "lua", "bin/tbhss.lua", "create", "encoder", "windowed",
+  "lua", "bin/tbhss.lua", "create", "encoder",
   "--cache", db_file,
   "--name", "glove",
-  -- "--bitmaps", "glove.thresholded",
-  -- "--bitmaps", "glove.auto-encoded",
   "--bitmaps", "glove.clustered",
   "--encoded-bits", "128",
   "--sentences", "snli-dev",
@@ -298,6 +271,5 @@ sys.execute({
   "--active-clause", "0.85",
   "--boost-true-positive", "false",
   "--evaluate-every", "1",
-  "--epochs", "500",
+  "--epochs", "10",
 })
-
