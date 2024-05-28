@@ -1,9 +1,7 @@
 local serialize = require("santoku.serialize") -- luacheck: ignore
 local tm = require("santoku.tsetlin")
-local it = require("santoku.iter")
 local fs = require("santoku.fs")
 local str = require("santoku.string")
-local rand = require("santoku.random")
 local bm = require("santoku.bitmap")
 local arr = require("santoku.array")
 local num = require("santoku.num")
@@ -122,9 +120,9 @@ local function create_encoder (db, args)
   for epoch = 1, args.epochs do
 
     local start = os.time()
-    tm.train(t, n_train, train_data,
-      args.specificity, args.active_clause,
-      args.margin, args.loss_alpha)
+    tm.train(t, n_train, train_data, args.active_clause,
+      args.margin, args.loss_alpha,
+      args.spec_min, args.spec_max, args.spec_alpha)
     local duration = os.time() - start
 
     if epoch == args.epochs or epoch % args.evaluate_every == 0 then

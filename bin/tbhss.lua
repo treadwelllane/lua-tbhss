@@ -79,7 +79,11 @@ cmd_create_bitmaps_auto_encoded
 cmd_create_bitmaps_auto_encoded
   :option("--threshold", "Tsetlin Machine threshold", nil, tonumber, 1, 1)
 cmd_create_bitmaps_auto_encoded
-  :option("--specificity", "Tsetlin Machine specificity", nil, tonumber, 1, 1)
+  :option("--spec-min", "Tsetlin Machine specificity min", nil, tonumber, 1, 1)
+cmd_create_bitmaps_auto_encoded
+  :option("--spec-max", "Tsetlin Machine specificity max", nil, tonumber, 1, 1)
+cmd_create_bitmaps_auto_encoded
+  :option("--spec-alpha", "Tsetlin Machine specificity alpha", nil, tonumber, 1, 1)
 cmd_create_bitmaps_auto_encoded
   :option("--active-clause", "Tsetlin Machine drop clause", 0.75, tonumber, 1, "0-1")
 cmd_create_bitmaps_auto_encoded
@@ -120,7 +124,11 @@ cmd_create_bitmaps_encoded
 cmd_create_bitmaps_encoded
   :option("--threshold", "Tsetlin Machine threshold", nil, tonumber, 1, 1)
 cmd_create_bitmaps_encoded
-  :option("--specificity", "Tsetlin Machine specificity", nil, tonumber, 1, 1)
+  :option("--spec-min", "Tsetlin Machine specificity min", nil, tonumber, 1, 1)
+cmd_create_bitmaps_encoded
+  :option("--spec-max", "Tsetlin Machine specificity max", nil, tonumber, 1, 1)
+cmd_create_bitmaps_encoded
+  :option("--spec-alpha", "Tsetlin Machine specificity alpha", nil, tonumber, 1, 1)
 cmd_create_bitmaps_encoded
   :option("--active-clause", "Tsetlin Machine drop clause", 0.75, tonumber, 1, "0-1")
 cmd_create_bitmaps_encoded
@@ -157,7 +165,9 @@ cmd_create_encoder:option("--train-test-ratio", "ratio of train to test examples
 cmd_create_encoder:option("--clauses", "Tsetlin Machine clauses", nil, tonumber, 1, 1)
 cmd_create_encoder:option("--state-bits", "Tsetlin Machine state bits", 8, tonumber, 1, "0-1")
 cmd_create_encoder:option("--threshold", "Tsetlin Machine threshold", nil, tonumber, 1, 1)
-cmd_create_encoder:option("--specificity", "Tsetlin Machine specificity", nil, tonumber, 1, 1)
+cmd_create_encoder:option("--spec-min", "Tsetlin Machine specificity min", nil, tonumber, 1, 1)
+cmd_create_encoder:option("--spec-max", "Tsetlin Machine specificity max", nil, tonumber, 1, 1)
+cmd_create_encoder:option("--spec-alpha", "Tsetlin Machine specificity alpha", nil, tonumber, 1, 1)
 cmd_create_encoder:option("--active-clause", "Tsetlin Machine drop clause", 0.75, tonumber, 1, "0-1")
 cmd_create_encoder:option("--boost-true-positive",
   "Tsetlin Machine boost true positive", "false", fun.bind(op.eq, "true"), 1, "0-1")
