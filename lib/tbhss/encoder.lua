@@ -21,9 +21,9 @@ local function get_recurrent_dataset (db, tokenizer, sentences_model, args)
   end
 
   triplets = it.collect(it.filter(function (s)
-    s.anchor, s.anchor_words = tokenizer.tokenize(s.anchor, args.max_words, true)
-    s.negative, s.negative_words = tokenizer.tokenize(s.negative, args.max_words, true)
-    s.positive, s.positive_words = tokenizer.tokenize(s.positive, args.max_words, true)
+    s.anchor, s.anchor_words = tokenizer.tokenize(s.anchor, args.max_words)
+    s.negative, s.negative_words = tokenizer.tokenize(s.negative, args.max_words)
+    s.positive, s.positive_words = tokenizer.tokenize(s.positive, args.max_words)
     return s.anchor and s.negative and s.positive
   end, triplets))
 
@@ -188,12 +188,15 @@ local function create_encoder_recurrent (db, args)
 
 end
 
-local function prep_windowed_bitmap (word_bitmaps, word_bits, window_bits)
-  local all = bm.matrix(word_bitmaps, word_bits, 1, #word_bitmaps, window_bits)
-  local flipped = bm.copy(all)
-  bm.flip(flipped, window_bits)
-  bm.extend(all, flipped, window_bits)
-  return all
+local function prep_windowed_bitmap (word_bitmaps, word_bits)
+  local b0 = bm.create()
+  for i = 1, #word_bitmaps do
+    bm["or"](b0, word_bitmaps[i])
+  end
+  local flipped = bm.copy(b0)
+  bm.flip(flipped, word_bits)
+  bm.extend(b0, flipped, word_bits)
+  return b0
 end
 
 local function get_windowed_dataset (db, tokenizer, sentences_model, args)
@@ -205,43 +208,34 @@ local function get_windowed_dataset (db, tokenizer, sentences_model, args)
   end
 
   triplets = it.collect(it.filter(function (s)
-    s.anchor, s.anchor_words = tokenizer.tokenize(s.anchor, args.window_size, true)
-    s.negative, s.negative_words = tokenizer.tokenize(s.negative, args.window_size, true)
-    s.positive, s.positive_words = tokenizer.tokenize(s.positive, args.window_size, true)
+    s.anchor, s.anchor_words = tokenizer.tokenize(s.anchor)
+    s.negative, s.negative_words = tokenizer.tokenize(s.negative)
+    s.positive, s.positive_words = tokenizer.tokenize(s.positive)
     return s.anchor and s.negative and s.positive
   end, triplets))
 
-  local window_bits = args.window_size * tokenizer.bits
-
   for i = 1, #triplets do
     local s = triplets[i]
-    s.group = bm.matrix({
-      prep_windowed_bitmap(s.anchor, tokenizer.bits, window_bits),
-      prep_windowed_bitmap(s.negative, tokenizer.bits, window_bits),
-      prep_windowed_bitmap(s.positive, tokenizer.bits, window_bits)
-    }, window_bits * 2)
+    s.anchor = prep_windowed_bitmap(s.anchor, tokenizer.bits)
+    s.negative = prep_windowed_bitmap(s.negative, tokenizer.bits)
+    s.positive = prep_windowed_bitmap(s.positive, tokenizer.bits)
+    s.group = bm.matrix({ s.anchor, s.negative, s.positive, }, tokenizer.bits)
   end
 
   for i = 1, 1 --[[#triplets]] do
     local s = triplets[i]
     str.printf("Anchor: %s\n", table.concat(s.anchor_words, " "))
-    for j = 1, #s.anchor_words do
-      str.printf("  %10s | %s\n", s.anchor_words[j], bm.tostring(s.anchor[j], tokenizer.bits))
-    end
+    str.printf("  %s\n", bm.tostring(s.anchor, tokenizer.bits))
     str.printf("Negative: %s\n", table.concat(s.negative_words, " "))
-    for j = 1, #s.negative_words do
-      str.printf("  %10s | %s\n", s.negative_words[j], bm.tostring(s.negative[j], tokenizer.bits))
-    end
+    str.printf("  %s\n", bm.tostring(s.negative, tokenizer.bits))
     str.printf("Positive: %s\n", table.concat(s.positive_words, " "))
-    for j = 1, #s.positive_words do
-      str.printf("  %10s | %s\n", s.positive_words[j], bm.tostring(s.positive[j], tokenizer.bits))
-    end
+    str.printf("  %s\n", bm.tostring(s.positive, tokenizer.bits))
     print()
   end
 
   return {
     triplets = triplets,
-    window_bits = window_bits,
+    token_bits = tokenizer.bits,
     encoded_bits = args.encoded_bits,
   }
 
@@ -253,7 +247,7 @@ local function split_windowed_dataset (dataset, s, e)
     local s = dataset.triplets[i]
     arr.push(gs, s.group)
   end
-  return bm.raw_matrix(gs, dataset.window_bits * 2 * 3)
+  return bm.raw_matrix(gs, dataset.token_bits * 2 * 3)
 end
 
 local function create_encoder_windowed (db, args)
@@ -298,14 +292,13 @@ local function create_encoder_windowed (db, args)
   local train_data = split_windowed_dataset(dataset, 1, n_train)
   local test_data = split_windowed_dataset(dataset, n_train + 1, n_train + n_test)
 
-  print("Window Words", args.window_size)
-  print("Window Bits", dataset.window_bits)
+  print("Token Bits", dataset.token_bits)
   print("Encoded Bits", dataset.encoded_bits)
   print("Total Train", n_train)
   print("Total Test", n_test)
 
   local t = tm.encoder(
-    args.encoded_bits, dataset.window_bits, args.clauses,
+    args.encoded_bits, dataset.token_bits, args.clauses,
     args.state_bits, args.threshold, args.boost_true_positive)
 
   print("Training")

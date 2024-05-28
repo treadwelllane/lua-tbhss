@@ -358,7 +358,7 @@ return function (db_file)
     inner join sentences c
       on a.a = c.a
       and a.id_sentences_model = c.id_sentences_model
-      and c.label in ('contradiction', 'neutral')
+      and c.label = 'contradiction'
     where a.id_sentences_model = ?1
     order by random()
   ]])

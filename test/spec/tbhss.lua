@@ -1,5 +1,5 @@
 local fs = require("santoku.fs")
-local str = require("santoku.string")
+-- local str = require("santoku.string")
 local sys = require("santoku.system")
 -- local bm = require("santoku.bitmap")
 -- local tbhss = require("tbhss")
@@ -212,6 +212,7 @@ sys.execute({
 --   "--max-records", "200",
 --   "--epochs", "1000",
 -- })
+
 -- sys.execute({
 --  "lua", "bin/tbhss.lua", "create", "bitmaps", "encoded",
 --  "--cache", db_file,
@@ -240,7 +241,7 @@ sys.execute({
   "--name", "glove",
   "--words", "glove",
   "--filter-words", "snli-dev",
-  "--clusters", "64"
+  "--clusters", "32"
 })
 
 sys.execute({
@@ -248,57 +249,55 @@ sys.execute({
   "--cache", db_file,
   "--name", "glove.clustered",
   "--clusters", "glove",
-  "--min-set", "3",
-  "--max-set", "3",
-  "--min-similarity", " -1",
-})
-
-sys.execute({
-  "lua", "bin/tbhss.lua", "create", "encoder", "recurrent",
-  "--cache", db_file,
-  "--name", "glove",
-  -- "--bitmaps", "glove.thresholded",
-  -- "--bitmaps", "glove.auto-encoded",
-  "--bitmaps", "glove.clustered",
-  "--max-words", "10",
-  "--positional-bits", "16",
-  "--encoded-bits", "128",
-  "--sentences", "snli-dev",
-  "--train-test-ratio", "0.5",
-  "--clauses", "512",
-  "--state-bits", "8",
-  "--threshold", "256",
-  "--margin", "0.1",
-  "--loss-alpha", "1.5",
-  "--specificity", "5",
-  "--active-clause", "0.85",
-  "--boost-true-positive", "false",
-  "--evaluate-every", "1",
-  "--max-records", "1000",
-  "--epochs", "100",
+  "--min-set", "1",
+  "--max-set", "4",
+  "--min-similarity", " 0",
 })
 
 -- sys.execute({
---   "lua", "bin/tbhss.lua", "create", "encoder", "windowed",
+--   "lua", "bin/tbhss.lua", "create", "encoder", "recurrent",
 --   "--cache", db_file,
 --   "--name", "glove",
 --   -- "--bitmaps", "glove.thresholded",
 --   -- "--bitmaps", "glove.auto-encoded",
 --   "--bitmaps", "glove.clustered",
+--   "--max-words", "20",
+--   -- "--positional-bits", "16",
 --   "--encoded-bits", "128",
---   "--window-size", "20",
 --   "--sentences", "snli-dev",
 --   "--train-test-ratio", "0.5",
---   "--clauses", "256",
+--   "--clauses", "512",
 --   "--state-bits", "8",
---   "--threshold", "100",
---   "--margin", "0.2",
+--   "--threshold", "128",
+--   "--margin", "0.1",
 --   "--loss-alpha", "1",
---   "--specificity", "10",
+--   "--specificity", "2.4",
 --   "--active-clause", "0.85",
 --   "--boost-true-positive", "false",
 --   "--evaluate-every", "1",
 --   "--max-records", "1000",
---   "--epochs", "500",
+--   "--epochs", "100",
 -- })
+
+sys.execute({
+  "lua", "bin/tbhss.lua", "create", "encoder", "windowed",
+  "--cache", db_file,
+  "--name", "glove",
+  -- "--bitmaps", "glove.thresholded",
+  -- "--bitmaps", "glove.auto-encoded",
+  "--bitmaps", "glove.clustered",
+  "--encoded-bits", "128",
+  "--sentences", "snli-dev",
+  "--train-test-ratio", "0.5",
+  "--clauses", "256",
+  "--state-bits", "8",
+  "--threshold", "128",
+  "--margin", "0.05",
+  "--loss-alpha", "1",
+  "--specificity", "10",
+  "--active-clause", "0.85",
+  "--boost-true-positive", "false",
+  "--evaluate-every", "1",
+  "--epochs", "500",
+})
 

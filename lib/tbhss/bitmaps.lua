@@ -46,7 +46,7 @@ local function create_bitmaps_clustered (db, args)
         bitmap.set(bm, c.id)
       end
       if bitmap.cardinality(bm) == 0 then
-        err.error("Unexpected empty bitmap for word", clusters_model.id, id_words)
+        err.error("Unexpected empty bitmap for word", clusters_model.id, w.id_words)
       end
       db.add_bitmap(bitmaps_model.id, w.id_words, bitmap.raw(bm, clusters_model.clusters))
     end
