@@ -114,7 +114,7 @@ local function encoder (db_file, model_name)
     bits = encoder_model.params.encoded_bits,
     encode = function (s)
       return db.db.transaction(function ()
-        local tokens = tokenizer.tokenize(s, encoder_model.params.max_words, true)
+        local tokens = tokenizer.tokenize(s, encoder_model.params.max_words)
         if tokens then
           return bitmap.from_raw(tm.predict(t, #tokens, bitmap.raw_matrix(tokens, encoder_model.params.encoded_bits)))
         end
