@@ -124,28 +124,42 @@ local function create_encoder (db, args)
     err.error("Encoder already created")
   end
 
-  local sentences_model = db.get_sentences_model_by_name(args.sentences)
+  local n_train, train_data, train_dataset
+  local n_test, test_data, test_dataset
 
-  if not sentences_model or sentences_model.loaded ~= 1 then
-    err.error("Sentences model not loaded", args.sentences)
+  if #args.sentences == 1 then
+    args.sentences = args.sentences[1]
+    local sentences_model = db.get_sentences_model_by_name(args.sentences)
+    if not sentences_model or sentences_model.loaded ~= 1 then
+      err.error("Sentences model not loaded", args.sentences)
+    end
+    train_dataset = get_dataset(db, tokenizer, sentences_model, args)
+    print("Splitting & packing")
+    n_train = num.floor(#train_dataset.triplets * args.train_test_ratio)
+    n_test = #train_dataset.triplets - n_train
+    train_data = split_dataset(train_dataset, 1, n_train)
+    test_data = split_dataset(train_dataset, n_train + 1, n_train + n_test)
+  else
+    local sm_train = db.get_sentences_model_by_name(args.sentences[1])
+    local sm_test = db.get_sentences_model_by_name(args.sentences[2])
+    if not (sm_train and sm_test and sm_train.loaded == 1 and sm_test.loaded == 1) then
+      err.error("Sentences model not loaded", args.sentences[1] or "nil", args.sentences[2] or "nil")
+    end
+    train_dataset = get_dataset(db, tokenizer, sm_train, args)
+    test_dataset = get_dataset(db, tokenizer, sm_test, args)
+    n_train = #train_dataset.triplets
+    n_test = #test_dataset.triplets
+    train_data = split_dataset(train_dataset, 1, n_train)
+    test_data = split_dataset(test_dataset, 1, n_test)
   end
 
-  local dataset = get_dataset(db, tokenizer, sentences_model, args)
-
-  print("Splitting & packing")
-  local n_train = num.floor(#dataset.triplets * args.train_test_ratio)
-  local n_test = #dataset.triplets - n_train
-
-  local train_data = split_dataset(dataset, 1, n_train)
-  local test_data = split_dataset(dataset, n_train + 1, n_train + n_test)
-
-  print("Input Bits", dataset.input_bits)
-  print("Encoded Bits", dataset.encoded_bits)
+  print("Input Bits", train_dataset.input_bits)
+  print("Encoded Bits", train_dataset.encoded_bits)
   print("Total Train", n_train)
   print("Total Test", n_test)
 
   local t = tm.encoder(
-    args.encoded_bits, dataset.input_bits / 2, args.clauses,
+    args.encoded_bits, train_dataset.input_bits / 2, args.clauses,
     args.state_bits, args.threshold, args.boost_true_positive,
     args.specificity and args.specificity[1] or nil,
     args.specificity and args.specificity[2] or nil)
