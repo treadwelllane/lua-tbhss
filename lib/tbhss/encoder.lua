@@ -51,7 +51,7 @@ local function prep_bitmap (word_bitmaps, word_bits, n_segments)
   local out = bm.matrix(segments, word_bits)
   local flipped = bm.copy(out)
   bm.flip(flipped, 1, n_segments * word_bits)
-  bm.extend(out, flipped, n_segments * word_bits)
+  bm.extend(out, flipped, n_segments * word_bits + 1)
 
   return out
 
