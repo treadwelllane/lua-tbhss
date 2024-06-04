@@ -1,13 +1,13 @@
 <%
-    fs = require("santoku.fs")
-    files = fs.files
-    basename = fs.basename
+  fs = require("santoku.fs")
+  files = fs.files
+  basename = fs.basename
 
-    iter = require("santoku.iter")
-    tabulate = iter.tabulate
-    map = iter.map
+  iter = require("santoku.iter")
+  tabulate = iter.tabulate
+  map = iter.map
 
-    serialize = require("santoku.serialize")
+  serialize = require("santoku.serialize")
 %>
 
 local sql = require("santoku.sqlite")
