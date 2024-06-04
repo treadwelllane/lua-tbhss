@@ -1,9 +1,7 @@
 # Now
 
+- Tokenization is very slow
 - Move non-clustered bitmap model code to branch & delete
-
-- Sinusoidal segment assignment
-
 - Pre-trained encoders: SNLI & MutiNLI datasets with various settings shared as
   sqlite.db files with training data pruned
 
@@ -12,6 +10,11 @@
 - Update README
 
 # Later
+
+- Explore sinusoidal segment assignment
+    for i = 1, #words
+      pos = sin((i / #words) * PI)
+      idx = floor((pos + 1) / 2 * #segments)
 
 - Allow word embeddings auto-encoder to be persisted
 - Improve performance of loading glove embeddings. Write in C? Parallelize?
