@@ -66,7 +66,7 @@ create table sentences (
   id_sentences_model integer references sentences_model (id) on delete cascade,
   label varchar not null,
   a varchar not null,
-  b blob not null,
+  b varchar not null,
   primary key (id_sentences_model, id)
 );
 

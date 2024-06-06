@@ -1,8 +1,6 @@
 local fs = require("santoku.fs")
 local str = require("santoku.string")
 local sys = require("santoku.system")
--- local bm = require("santoku.bitmap")
--- local tbhss = require("tbhss")
 
 local db_file = "tmp/test.db"
 
@@ -62,7 +60,7 @@ sys.execute({
     --loss-alpha 0.25 \
     --active-clause 0.85 \
     --boost-true-positive false \
-    --max-records 1000 \
+    --max-records 4000 \
     --evaluate-every 1 \
     --epochs 100
   ]], {

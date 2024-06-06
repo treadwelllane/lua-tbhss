@@ -346,20 +346,28 @@ return function (db_file)
   ]])
 
   M.get_sentence_triplets = db.all([[
-    select
-      a.a as anchor,
-      b.b as positive,
-      c.b as negative
-    from sentences a
-    inner join sentences b
-      on a.a = b.a
-      and a.id_sentences_model = b.id_sentences_model
-      and b.label = 'entailment'
-    inner join sentences c
-      on a.a = c.a
-      and a.id_sentences_model = c.id_sentences_model
-      and c.label in ('contradiction', 'neutral')
-    where a.id_sentences_model = ?1
+    select distinct
+      anchor.a as anchor,
+      positive.b as positive,
+      negative.b as negative
+    from
+      sentences as anchor
+    join
+      sentences as positive
+      on anchor.a = positive.a
+      and positive.id_sentences_model = anchor.id_sentences_model
+      and positive.label = 'entailment'
+    join
+      sentences as negative
+      on anchor.a = negative.a
+      and negative.id_sentences_model = anchor.id_sentences_model
+      and (negative.label = 'neutral' or negative.label = 'contradiction')
+    where
+      anchor.label in ('entailment', 'neutral', 'contradiction')
+      and anchor.id_sentences_model = ?1
+      and anchor.b <> positive.b
+      and anchor.b <> negative.b
+      and positive.b <> negative.b
     order by random()
     limit coalesce(?2, -1)
   ]])
