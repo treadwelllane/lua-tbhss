@@ -28,7 +28,7 @@ nohup stdbuf -oL tbhss create bitmaps clustered \
 nohup stdbuf -oL tbhss create encoder \
   --cache tbhss.db \
   --name glove.6B.300d.256.test.1.8.00.8.256 \
-  --bitmaps glove.6B.300d.256.test.1.8.00  \
+  --bitmaps glove.6B.300d.256.test.1.8.00 \
   --sentences snli_1.0.test \
   --segments 8 \
   --encoded-bits 256 \
@@ -69,7 +69,7 @@ nohup stdbuf -oL tbhss create bitmaps clustered \
 nohup stdbuf -oL tbhss create encoder \
   --cache tbhss.db \
   --name glove.6B.300d.256.train.1.8.00.8.256 \
-  --bitmaps glove.6B.300d.256.train.1.8.00  \
+  --bitmaps glove.6B.300d.256.train.1.8.00 \
   --sentences snli_1.0.train snli_1.0.test \
   --segments 8 \
   --encoded-bits 256 \
