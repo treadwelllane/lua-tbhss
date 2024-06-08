@@ -108,7 +108,7 @@ cmd_create_bitmaps_thresholded:option("--threshold-levels", "number of input dim
 local cmd_create_encoder = cmd_create:command("encoder", "create an encoder")
 base_flags(cmd_create_encoder)
 cmd_create_encoder:option("--name", "name of created encoder", nil, nil, 1, 1)
-cmd_create_encoder:option("--bitmaps", "name of word bitmaps to use", nil, nil, 1, 1)
+cmd_create_encoder:option("--bitmaps", "name of word bitmaps to use (omit for trigram hashing)", nil, nil, 1, "0-1")
 cmd_create_encoder:option("--sentences", "name of NLI dataset(s) to encode", nil, nil, "1-2", 1)
 cmd_create_encoder:option("--segments", "number of segments in encoded bitmaps", nil, tonumber, 1, 1)
 cmd_create_encoder:option("--encoded-bits", "number of bits in encoded bitmaps", nil, tonumber, 1, 1)

@@ -8,56 +8,17 @@ local num = require("santoku.num")
 local err = require("santoku.error")
 
 local tbhss = require("tbhss")
+local hash = require("tbhss.hash")
 
-local function prep_bitmap (word_bitmaps, word_bits, n_segments)
-
-  local segments = {}
-  for i = 1, n_segments do
-    segments[i] = {}
-  end
-
-  local n_merged = num.floor(#word_bitmaps / n_segments)
-  local remainder = #word_bitmaps % n_segments
-
-  local idx = 1
-  for i = 1, n_segments do
-    local size = n_merged
-    if remainder > 0 then
-      size = size + 1
-      remainder = remainder - 1
-    end
-    for _ = 1, size do
-      if idx > #word_bitmaps then
-        break
-      end
-      arr.push(segments[i], word_bitmaps[idx])
-      idx = idx + 1
-    end
-  end
-
-  for i = 1, n_segments do
-    local b0 = bm.create()
-    local s = segments[i]
-    for j = 1, #s do
-      local b1 = s[j]
-      if not b1 then
-        break
-      end
-      bm["or"](b0, b1)
-    end
-    segments[i] = b0
-  end
-
-  local out = bm.matrix(segments, word_bits)
-  local flipped = bm.copy(out)
-  bm.flip(flipped, 1, n_segments * word_bits)
-  bm.extend(out, flipped, n_segments * word_bits + 1)
-
-  return out
-
+local function prep_hash (hash, segments)
+  local b = bm.from_raw(hash)
+  local flipped = bm.copy(b)
+  bm.flip(b, 1, 64 * segments)
+  bm.extend(b, flipped, 64 * segments + 1)
+  return b
 end
 
-local function get_dataset (db, tokenizer, sentences_model, args)
+local function get_dataset (db, sentences_model, args)
 
   print("Loading sentence triplets")
   local triplets = db.get_sentence_triplets(sentences_model.id, args.max_records)
@@ -65,29 +26,15 @@ local function get_dataset (db, tokenizer, sentences_model, args)
   print("Tokenizing")
   for i = 1, #triplets do
     local s = triplets[i]
-    s.anchor, s.anchor_words = tokenizer.tokenize(s.anchor)
-    s.negative, s.negative_words = tokenizer.tokenize(s.negative)
-    s.positive, s.positive_words = tokenizer.tokenize(s.positive)
-    s.anchor = prep_bitmap(s.anchor, tokenizer.bits, args.segments)
-    s.negative = prep_bitmap(s.negative, tokenizer.bits, args.segments)
-    s.positive = prep_bitmap(s.positive, tokenizer.bits, args.segments)
-    s.group = bm.matrix({ s.anchor, s.negative, s.positive, }, tokenizer.bits * args.segments * 2)
-  end
-
-  for i = 1, 1 --[[#triplets]] do
-    local s = triplets[i]
-    str.printf("Anchor: %s\n", arr.concat(s.anchor_words, " "))
-    str.printf("  %s\n", bm.tostring(s.anchor, args.segments * tokenizer.bits * 2))
-    str.printf("Negative: %s\n", arr.concat(s.negative_words, " "))
-    str.printf("  %s\n", bm.tostring(s.negative, args.segments * tokenizer.bits * 2))
-    str.printf("Positive: %s\n", arr.concat(s.positive_words, " "))
-    str.printf("  %s\n", bm.tostring(s.positive, args.segments * tokenizer.bits * 2))
-    print()
+    s.anchor = prep_hash(hash(s.anchor, args.segments), args.segments)
+    s.negative = prep_hash(hash(s.negative, args.segments), args.segments)
+    s.positive = prep_hash(hash(s.positive, args.segments), args.segments)
+    s.group = bm.matrix({ s.anchor, s.negative, s.positive, }, 64 * args.segments * 2)
   end
 
   return {
     triplets = triplets,
-    input_bits = tokenizer.bits * args.segments * 2,
+    input_bits = 64 * args.segments * 2,
     encoded_bits = args.encoded_bits,
   }
 
@@ -106,16 +53,10 @@ local function create_encoder (db, args)
 
   print("Creating encoder")
 
-  local tokenizer = tbhss.tokenizer(db, args.bitmaps)
-
-  if not tokenizer then
-    err.error("Tokenzer not loaded")
-  end
-
   local encoder_model = db.get_encoder_model_by_name(args.name)
 
   if not encoder_model then
-    local id = db.add_encoder_model(args.name, tokenizer.bitmaps_model.id, args)
+    local id = db.add_encoder_model(args.name, nil, args)
     encoder_model = db.get_encoder_model_by_id(id)
     assert(encoder_model, "this is a bug! encoder model not created")
   end
@@ -133,7 +74,7 @@ local function create_encoder (db, args)
     if not sentences_model or sentences_model.loaded ~= 1 then
       err.error("Sentences model not loaded", args.sentences)
     end
-    train_dataset = get_dataset(db, tokenizer, sentences_model, args)
+    train_dataset = get_dataset(db, sentences_model, args)
     print("Splitting & packing")
     n_train = num.floor(#train_dataset.triplets * args.train_test_ratio)
     n_test = #train_dataset.triplets - n_train
@@ -145,8 +86,8 @@ local function create_encoder (db, args)
     if not (sm_train and sm_test and sm_train.loaded == 1 and sm_test.loaded == 1) then
       err.error("Sentences model not loaded", args.sentences[1] or "nil", args.sentences[2] or "nil")
     end
-    train_dataset = get_dataset(db, tokenizer, sm_train, args)
-    test_dataset = get_dataset(db, tokenizer, sm_test, args)
+    train_dataset = get_dataset(db, sm_train, args)
+    test_dataset = get_dataset(db, sm_test, args)
     n_train = #train_dataset.triplets
     n_test = #test_dataset.triplets
     train_data = split_dataset(train_dataset, 1, n_train)
