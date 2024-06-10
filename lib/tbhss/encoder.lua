@@ -8,33 +8,57 @@ local num = require("santoku.num")
 local err = require("santoku.error")
 
 local tbhss = require("tbhss")
-local hash = require("tbhss.hash")
+local fingerprint = require("tbhss.fingerprint")
 
-local function prep_hash (hash, segments)
-  local b = bm.from_raw(hash)
+local function get_fingerprint (data, normalizer, args)
+  local tokens = normalizer.normalize(data, args.clusters[2], args.clusters[3], args.clusters[3], true)
+  local b = bm.from_raw(fingerprint(tokens, args.segments))
   local flipped = bm.copy(b)
-  bm.flip(b, 1, 64 * segments)
-  bm.extend(b, flipped, 64 * segments + 1)
-  return b
+  bm.flip(b, 1, args.segments * 32 * 2)
+  bm.extend(b, flipped, args.segments * 32 * 2 + 1)
+  return b, tokens
 end
 
-local function get_dataset (db, sentences_model, args)
+local function get_dataset (db, normalizer, sentences_model, args)
 
   print("Loading sentence triplets")
   local triplets = db.get_sentence_triplets(sentences_model.id, args.max_records)
 
+  local input_bits = args.segments * 32 * 2 * 2
+
   print("Tokenizing")
   for i = 1, #triplets do
     local s = triplets[i]
-    s.anchor = prep_hash(hash(s.anchor, args.segments), args.segments)
-    s.negative = prep_hash(hash(s.negative, args.segments), args.segments)
-    s.positive = prep_hash(hash(s.positive, args.segments), args.segments)
-    s.group = bm.matrix({ s.anchor, s.negative, s.positive, }, 64 * args.segments * 2)
+    s.original = { anchor = s.anchor, negative = s.negative, positive = s.positive }
+    s.anchor, s.anchor_tokens = get_fingerprint(s.anchor, normalizer, args)
+    s.negative, s.negative_tokens = get_fingerprint(s.negative, normalizer, args)
+    s.positive, s.positive_tokens = get_fingerprint(s.positive, normalizer, args)
+    s.group = bm.matrix({ s.anchor, s.negative, s.positive, }, input_bits)
   end
+
+  -- for i = 1, #triplets do
+  --   local x = triplets[i]
+  --   print()
+  --   print("Anchor: ", x.original.anchor)
+  --   print(arr.concat(x.anchor_tokens, " "))
+  --   print(bm.tostring(x.anchor, input_bits))
+  --   print()
+  --   print("Negative: ", x.original.negative)
+  --   print(arr.concat(x.negative_tokens, " "))
+  --   print(bm.tostring(x.negative, input_bits))
+  --   print()
+  --   print("Positive: ", x.original.positive)
+  --   print(arr.concat(x.positive_tokens, " "))
+  --   print(bm.tostring(x.positive, input_bits))
+  --   print()
+  --   print(bm.hamming(x.anchor, x.negative))
+  --   print(bm.hamming(x.anchor, x.positive))
+  -- end
+  -- os.exit(0)
 
   return {
     triplets = triplets,
-    input_bits = 64 * args.segments * 2,
+    input_bits = input_bits,
     encoded_bits = args.encoded_bits,
   }
 
@@ -52,6 +76,8 @@ end
 local function create_encoder (db, args)
 
   print("Creating encoder")
+
+  local normalizer = tbhss.normalizer(db, args.clusters[1])
 
   local encoder_model = db.get_encoder_model_by_name(args.name)
 
@@ -74,7 +100,7 @@ local function create_encoder (db, args)
     if not sentences_model or sentences_model.loaded ~= 1 then
       err.error("Sentences model not loaded", args.sentences)
     end
-    train_dataset = get_dataset(db, sentences_model, args)
+    train_dataset = get_dataset(db, normalizer, sentences_model, args)
     print("Splitting & packing")
     n_train = num.floor(#train_dataset.triplets * args.train_test_ratio)
     n_test = #train_dataset.triplets - n_train
@@ -86,8 +112,8 @@ local function create_encoder (db, args)
     if not (sm_train and sm_test and sm_train.loaded == 1 and sm_test.loaded == 1) then
       err.error("Sentences model not loaded", args.sentences[1] or "nil", args.sentences[2] or "nil")
     end
-    train_dataset = get_dataset(db, sm_train, args)
-    test_dataset = get_dataset(db, sm_test, args)
+    train_dataset = get_dataset(db, normalizer, sm_train, args)
+    test_dataset = get_dataset(db, normalizer, sm_test, args)
     n_train = #train_dataset.triplets
     n_test = #test_dataset.triplets
     train_data = split_dataset(train_dataset, 1, n_train)

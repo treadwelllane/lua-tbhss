@@ -118,3 +118,42 @@ nohup stdbuf -oL tbhss create encoder \
   --boost-true-positive false \
   --evaluate-every 1 \
   --epochs 100 2>&1 > log.txt & tail -f log.txt
+
+## Hash
+
+nohup stdbuf -oL tbhss create encoder \
+  --cache tbhss.db \
+  --name glove.6B.300d.hashed.8.256 \
+  --sentences snli_1.0.test \
+  --segments 8 \
+  --encoded-bits 256 \
+  --train-test-ratio 0.8 \
+  --clauses 1024 \
+  --state-bits 8 \
+  --threshold 256 \
+  --specificity 35 45 \
+  --margin 0.1 \
+  --loss-alpha 0.5 \
+  --active-clause 0.85 \
+  --boost-true-positive false \
+  --evaluate-every 1 \
+  --epochs 1000 2>&1 > log.txt & tail -f log.txt
+
+nohup stdbuf -oL tbhss create encoder \
+  --cache tbhss.db \
+  --name glove.6B.300d.hashed.8.256 \
+  --sentences snli_1.0.train snli_1.0.test \
+  --segments 8 \
+  --encoded-bits 256 \
+  --train-test-ratio 0.5 \
+  --clauses 512 \
+  --state-bits 8 \
+  --threshold 256 \
+  --specificity 2 200 \
+  --margin 0.1 \
+  --loss-alpha 0.25 \
+  --active-clause 0.85 \
+  --boost-true-positive false \
+  --evaluate-every 1 \
+  --epochs 100 2>&1 > log.txt & tail -f log.txt
+
