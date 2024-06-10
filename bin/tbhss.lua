@@ -108,9 +108,9 @@ cmd_create_bitmaps_thresholded:option("--threshold-levels", "number of input dim
 local cmd_create_encoder = cmd_create:command("encoder", "create an encoder")
 base_flags(cmd_create_encoder)
 cmd_create_encoder:option("--name", "name of created encoder", nil, nil, 1, 1)
-cmd_create_encoder:option("--bitmaps", "name of word bitmaps to use (omit for trigram hashing)", nil, nil, 1, "0-1")
 cmd_create_encoder:option("--sentences", "name of NLI dataset(s) to encode", nil, nil, "1-2", 1)
-cmd_create_encoder:option("--segments", "number of segments in encoded bitmaps", nil, tonumber, 1, 1)
+cmd_create_encoder:option("--clusters", "name of word clusters, min-set, max-set, min-similarity", nil, nil, 4, 1)
+cmd_create_encoder:option("--segments", "number of segments for topic and positional bits", nil, tonumber, 1, 1)
 cmd_create_encoder:option("--encoded-bits", "number of bits in encoded bitmaps", nil, tonumber, 1, 1)
 cmd_create_encoder:option("--margin", "margin for triplet loss", nil, tonumber, 1, 1)
 cmd_create_encoder:option("--loss-alpha", "scale for loss function", nil, tonumber, 1, 1)
@@ -144,6 +144,9 @@ elseif args.cmd == "create" and args.cmd_create == "bitmaps" and args.cmd_create
 elseif args.cmd == "create" and args.cmd_create == "bitmaps" and args.cmd_create_bitmaps == "thresholded"  then
   bitmaps.create_bitmaps_thresholded(db, args)
 elseif args.cmd == "create" and args.cmd_create == "encoder" then
+  for i = 2, 4 do
+    args.clusters[i] = tonumber(args.clusters[i])
+  end
   encoder.create_encoder(db, args)
 else
   print(parser:get_usage())

@@ -1,13 +1,30 @@
 local test = require("santoku.test")
-local hash = require("tbhss.hash")
+local fingerprint = require("tbhss.fingerprint")
 local bm = require("santoku.bitmap")
 
-local str = "@@ -69,7 +69,7 @@ nohup stdbuf -oL tbhss create bitmaps clustered  nohup stdbuf -oL tbhss create encoder  --cache tbhss.db  --name glove.6B.300d.256.train.1.8.00.8.256  -  --bitmaps glove.6B.300d.256.train.1.8.00   +  --bitmaps glove.6B.300d.256.train.1.8.00  --sentences snli_1.0.train snli_1.0.test  --segments 8  ...skipping... diff --git a/res/scripts.sh b/res/scripts.sh index 62cf717..e9b7650 100644 --- a/res/scripts.sh +++ b/res/scripts.sh @@ -28,7 +28,7 @@ nohup stdbuf -oL tbhss create bitmaps clustered  nohup stdbuf -oL tbhss create encoder  --cache tbhss.db  --name glove.6B.300d.256.test.1.8.00.8.256  -  --bitmaps glove.6B.300d.256.test.1.8.00   +  --bitmaps glove.6B.300d.256.test.1.8.00  --sentences snli_1.0.test  --segments 8  --encoded-bits 256  @@ -69,7 +69,7 @@ nohup stdbuf -oL tbhss create bitmaps clustered  nohup stdbuf -oL tbhss create encoder  --cache tbhss.db  --name glove.6B.300d.256.train.1.8.00.8.256  -  --bitmaps glove.6B.300d.256.train.1.8.00   +  --bitmaps glove.6B.300d.256.train.1.8.00  --sentences snli_1.0.train snli_1.0.test  --segments 8  ...skipping... diff --git a/res/scripts.sh b/res/scripts.sh index 62cf717..e9b7650 100644" -- luacheck: ignore
+test("fingerprint", function ()
 
-test("hash", function ()
-  print(bm.tostring(bm.from_raw(hash(str)), 64))
-  print(bm.tostring(bm.from_raw(hash(str)), 64))
-  print(bm.tostring(bm.from_raw(hash(str, 2)), 64 * 2))
-  print(bm.tostring(bm.from_raw(hash(str, 3)), 64 * 3))
-  print(bm.tostring(bm.from_raw(hash(str, 4)), 64 * 4))
+  local t = {}
+
+  for i = 1, 100 do
+    t[i] = i
+  end
+
+  local a = bm.from_raw(fingerprint(t, 2))
+  print("> a", bm.tostring(a, 128))
+
+  t[1] = 100
+  local b = bm.from_raw(fingerprint(t, 2))
+  print("> b", bm.tostring(b, 128))
+
+  t[2] = 101
+  t[3] = 102
+  t[4] = 103
+  local c = bm.from_raw(fingerprint(t, 2))
+  print("> c", bm.tostring(c, 128))
+
+  print("> dist a a", bm.hamming(a, a))
+  print("> dist a b", bm.hamming(a, b))
+  print("> dist a c", bm.hamming(a, c))
+
 end)

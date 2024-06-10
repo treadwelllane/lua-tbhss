@@ -135,19 +135,18 @@ local function normalizer (db_file, model_name)
 
   return {
     clusters_model = clusters_model,
-    normalize = function (s, min_set, max_set, min_similarity)
+    normalize = function (s, min_set, max_set, min_similarity, return_table)
       return db.db.transaction(function ()
-        local matches = {}
-        return (str.gsub(s, "%S+", function (w)
-          arr.clear(matches)
+        local tokens = {}
+        for w in str.gmatch(s, "%S+") do
           for c in db.get_nearest_clusters_by_word(
             clusters_model.id, str.lower(w),
             min_set, max_set, min_similarity)
           do
-            matches[#matches + 1] = c.id
+            arr.push(tokens, c.id)
           end
-          return arr.concat(matches, " ")
-        end))
+        end
+        return return_table and tokens or arr.concat(tokens, " ")
       end)
     end,
   }
