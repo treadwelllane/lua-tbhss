@@ -23,6 +23,20 @@ static inline unsigned int tk_lua_optunsigned (lua_State *L, int i, unsigned int
   return tk_lua_checkunsigned(L, i);
 }
 
+static inline void tk_lua_register (lua_State *L, luaL_Reg *regs, int nup)
+{
+  while (true) {
+    if ((*regs).name == NULL)
+      break;
+    for (int i = 0; i < nup; i ++)
+      lua_pushvalue(L, -nup); // t upsa upsb
+    lua_pushcclosure(L, (*regs).func, nup); // t upsa fn
+    lua_setfield(L, -nup - 2, (*regs).name); // t
+    regs ++;
+  }
+  lua_pop(L, nup);
+}
+
 static inline uint32_t rotl32 (uint32_t x, int8_t r)
 {
   return (x << r) | (x >> (32 - r));
@@ -127,32 +141,49 @@ static inline void aggregate (uint32_t *hashes, size_t n, uint32_t *out, unsigne
 // TODO: bm25 weighting
 static inline int tb_fingerprint (lua_State *L)
 {
+  lua_settop(L, 3);
   luaL_checktype(L, 1, LUA_TTABLE);
   size_t n = lua_objlen(L, 1);
   unsigned int segments = tk_lua_checkunsigned(L, 2);
+  bool add_pos = lua_toboolean(L, 3);
+  size_t hash_chunks = segments * (add_pos ? 2 : 1);
   // TODO: Can we avoid malloc each time?
-  uint32_t *hashes = malloc(sizeof(uint32_t) * segments * 2 * n);
-  memset(hashes, 0, sizeof(uint32_t) * segments * 2 * n);
+  uint32_t *hashes = malloc(sizeof(uint32_t) * hash_chunks * n);
+  memset(hashes, 0, sizeof(uint32_t) * hash_chunks * n);
   for (size_t i = 0; i < n; i ++) {
-    uint32_t *hash = hashes + i * segments * 2;
+    uint32_t *hash = hashes + i * hash_chunks;
     lua_pushinteger(L, i + 1); // t i
     lua_gettable(L, 1); // t v
     lua_Integer x = luaL_checkinteger(L, -1);
     lua_pop(L, 1); // t
     murmur(&x, sizeof(x), 0, hash, segments);
   }
-  uint32_t result[segments * 2];
-  memset(result, 0, sizeof(uint32_t) * segments * 2);
+  uint32_t result[hash_chunks];
+  memset(result, 0, sizeof(uint32_t) * hash_chunks);
   aggregate(hashes, n, result, segments);
-  add_positions(hashes, n, segments);
-  aggregate(hashes, n, &result[segments], segments);
-  lua_pushlstring(L, (char *) result, sizeof(uint32_t) * segments * 2);
+  if (add_pos) {
+    add_positions(hashes, n, segments);
+    aggregate(hashes, n, &result[segments], segments);
+  }
+  lua_pushlstring(L, (char *) result, sizeof(uint32_t) * hash_chunks);
+  lua_pushinteger(L, hash_chunks * 32);
   free(hashes);
-  return 1;
+  return 2;
 }
 
-int luaopen_tbhss_fingerprint (lua_State *L)
+static luaL_Reg tb_fns[] =
 {
-  lua_pushcfunction(L, tb_fingerprint);
+  { "fingerprint", tb_fingerprint },
+  { NULL, NULL }
+};
+
+int luaopen_tbhss_hash (lua_State *L)
+{
+  lua_newtable(L); // t
+  tk_lua_register(L, tb_fns, 0); // t
+
+  lua_pushinteger(L, sizeof(uint32_t) * CHAR_BIT); // t i
+  lua_setfield(L, -2, "segment_bits"); // t
+
   return 1;
 }

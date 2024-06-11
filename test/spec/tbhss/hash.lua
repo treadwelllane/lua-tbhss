@@ -10,21 +10,34 @@ test("fingerprint", function ()
     t[i] = i
   end
 
-  local a = bm.from_raw(fingerprint(t, 2))
-  print("> a", bm.tostring(a, 128))
+  local segments = 2
+
+  local a, bits = fingerprint(t, segments)
+  a = bm.from_raw(a)
+  print("> a", bm.tostring(a, bits))
 
   t[1] = 100
-  local b = bm.from_raw(fingerprint(t, 2))
-  print("> b", bm.tostring(b, 128))
+  local b, bits = fingerprint(t, segments)
+  b = bm.from_raw(b)
+  print("> b", bm.tostring(b, bits))
 
   t[2] = 101
   t[3] = 102
   t[4] = 103
-  local c = bm.from_raw(fingerprint(t, 2))
-  print("> c", bm.tostring(c, 128))
+  local c, bits = fingerprint(t, segments)
+  c = bm.from_raw(c)
+  print("> c", bm.tostring(c, bits))
+
+  t[5] = 104
+  t[6] = 105
+  t[7] = 106
+  local d, bits = fingerprint(t, segments)
+  d = bm.from_raw(d)
+  print("> d", bm.tostring(d, bits))
 
   print("> dist a a", bm.hamming(a, a))
   print("> dist a b", bm.hamming(a, b))
   print("> dist a c", bm.hamming(a, c))
+  print("> dist a d", bm.hamming(a, d))
 
 end)

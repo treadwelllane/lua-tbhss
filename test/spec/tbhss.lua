@@ -39,13 +39,14 @@ sys.execute({
     --name glove \
     --clusters glove 1 1 0 \
     --sentences snli-dev \
-    --segments 1 \
-    --encoded-bits 128 \
+    --segments 4 \
+    --positions \
+    --encoded-bits 256 \
     --train-test-ratio 0.8 \
-    --clauses 128 \
+    --clauses 512 \
     --state-bits 8 \
     --threshold 256 \
-    --specificity 35 45 \
+    --specificity 2 200 \
     --margin 0.1 \
     --loss-alpha 0.25 \
     --active-clause 0.85 \
