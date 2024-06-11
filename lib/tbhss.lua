@@ -135,15 +135,29 @@ local function normalizer (db_file, model_name)
 
   return {
     clusters_model = clusters_model,
-    normalize = function (s, min_set, max_set, min_similarity, return_table)
+    normalize = function (s, min_set, max_set, min_similarity, return_table, include_raw)
       return db.db.transaction(function ()
         local tokens = {}
-        for w in str.gmatch(s, "%S+") do
-          for c in db.get_nearest_clusters_by_word(
-            clusters_model.id, str.lower(w),
-            min_set, max_set, min_similarity)
-          do
-            arr.push(tokens, c.id)
+        local words = split(s)
+        for i = 1, #words do
+          local w = words[i]
+          local wid = db.get_word_id(clusters_model.id_words_model, w)
+          -- NOTE: raw tokens represented as their words_model ids offset but
+          -- the number of clusters + 1. The offset is so that word ids don't
+          -- conflict with cluster ids, and the + 1 allows unknown words to be
+          -- collectively represented by clusters + 1.
+          if include_raw and wid then
+            arr.push(tokens, clusters_model.clusters + 1 + wid)
+          elseif include_raw then
+            arr.push(tokens, clusters_model.clusters + 1)
+          end
+          if wid then
+            for c in db.get_nearest_clusters_by_id(
+              clusters_model.id, wid,
+              min_set, max_set, min_similarity)
+            do
+              arr.push(tokens, c.id)
+            end
           end
         end
         return return_table and tokens or arr.concat(tokens, " ")
