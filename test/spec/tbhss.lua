@@ -40,7 +40,6 @@ sys.execute({
     --clusters glove 1 1 0 \
     --sentences snli-dev \
     --segments 4 \
-    --positions \
     --encoded-bits 256 \
     --train-test-ratio 0.8 \
     --clauses 512 \

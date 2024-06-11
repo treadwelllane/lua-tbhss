@@ -12,7 +12,7 @@ local hash = require("tbhss.hash")
 
 local function get_fingerprint (data, normalizer, args)
   local tokens = normalizer.normalize(data, args.clusters[2], args.clusters[3], args.clusters[3], true)
-  local raw, bits = hash.fingerprint(tokens, args.segments, args.positions)
+  local raw, bits = hash.fingerprint(tokens, args.segments)
   local b = bm.from_raw(raw)
   local flipped = bm.copy(b)
   bm.flip(flipped, 1, bits)
@@ -25,7 +25,7 @@ local function get_dataset (db, normalizer, sentences_model, args)
   print("Loading sentence triplets")
   local triplets = db.get_sentence_triplets(sentences_model.id, args.max_records)
 
-  local input_bits = args.segments * hash.segment_bits * (args.positions and 4 or 2)
+  local input_bits = args.segments * hash.segment_bits * 4
 
   print("Tokenizing")
   for i = 1, #triplets do

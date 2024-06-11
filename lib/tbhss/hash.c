@@ -145,8 +145,7 @@ static inline int tb_fingerprint (lua_State *L)
   luaL_checktype(L, 1, LUA_TTABLE);
   size_t n = lua_objlen(L, 1);
   unsigned int segments = tk_lua_checkunsigned(L, 2);
-  bool add_pos = lua_toboolean(L, 3);
-  size_t hash_chunks = segments * (add_pos ? 2 : 1);
+  size_t hash_chunks = segments * 2;
   // TODO: Can we avoid malloc each time?
   uint32_t *hashes = malloc(sizeof(uint32_t) * hash_chunks * n);
   memset(hashes, 0, sizeof(uint32_t) * hash_chunks * n);
@@ -161,10 +160,8 @@ static inline int tb_fingerprint (lua_State *L)
   uint32_t result[hash_chunks];
   memset(result, 0, sizeof(uint32_t) * hash_chunks);
   aggregate(hashes, n, result, segments);
-  if (add_pos) {
-    add_positions(hashes, n, segments);
-    aggregate(hashes, n, &result[segments], segments);
-  }
+  add_positions(hashes, n, segments);
+  aggregate(hashes, n, &result[segments], segments);
   lua_pushlstring(L, (char *) result, sizeof(uint32_t) * hash_chunks);
   lua_pushinteger(L, hash_chunks * 32);
   free(hashes);
