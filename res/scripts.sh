@@ -106,13 +106,13 @@ nohup stdbuf -oL tbhss create encoder \
 
 nohup stdbuf -oL tbhss create encoder \
   --cache tbhss.db \
-  --name glove.6B.300d.64.test.hashed.8.256 \
-  --clusters glove.6B.300d.64.test 1 8 0 \
+  --name glove.6B.300d.512.test.hashed.8.256 \
+  --clusters glove.6B.300d.512.test 1 8 0 \
   --sentences snli_1.0.test \
   --segments 8 \
-  --encoded-bits 256 \
+  --encoded-bits 512 \
   --train-test-ratio 0.8 \
-  --clauses 512 \
+  --clauses 1024 \
   --state-bits 8 \
   --threshold 256 \
   --specificity 50 70 \

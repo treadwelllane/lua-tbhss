@@ -317,34 +317,6 @@ return function (db_file)
     )
   ]])
 
-  M.get_nearest_clusters_by_word = db.iter([[
-    with e as (
-      select e.id
-      from words e, clusters_model cm
-      where e.name = ?2
-      and e.id_words_model = cm.id_words_model
-      and cm.id = ?1
-    )
-    select * from (
-      select id from (
-        select c.id from e, clusters c
-        where c.id_clusters_model = ?1
-        and c.id_words = e.id
-        order by c.similarity desc
-        limit ?3
-      )
-      union
-      select id from (
-        select c.id from e, clusters c
-        where c.id_clusters_model = ?1
-        and c.id_words = e.id
-        and c.similarity >= ?5
-        order by c.similarity desc
-        limit ?4 - ?3 offset ?3
-      )
-    )
-  ]])
-
   M.get_sentence_triplets = db.all([[
     select distinct
       anchor.a as anchor,

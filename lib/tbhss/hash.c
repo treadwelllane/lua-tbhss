@@ -90,30 +90,6 @@ static inline void murmur (const void *key, const int len, uint32_t seed, uint32
     out[i] = murmur32(key, len, i == 0 ? 0 : out[i - 1]);
 }
 
-static inline void encode_position (uint32_t *out, int pos, unsigned int segments) {
-  memset(out, 0, sizeof(uint32_t) * segments);
-  for (unsigned int i = 0; i < segments * 32; i += 2) {
-    unsigned int chunk = i / (sizeof(uint32_t) * CHAR_BIT);
-    unsigned int bit = i % (sizeof(uint32_t) * CHAR_BIT);
-    float angle = pos / pow(10000, (2 * (i / 2)) / (segments * 32));
-    if (sin(angle) >= 0)
-      out[chunk] |= (1 << bit);
-    if (cos(angle) >= 0)
-      out[chunk + 2] |= (1 << (bit + 1));
-  }
-}
-
-static inline void add_positions (uint32_t *hashes, size_t n, unsigned int segments)
-{
-  uint32_t pos[segments];
-  for (size_t i = 0; i < n; i ++) {
-    encode_position(pos, i, segments);
-    uint32_t *hash = hashes + i * segments;
-    for (unsigned int j = 0; j < segments; j ++)
-      hash[j] ^= pos[j];
-  }
-}
-
 static inline void aggregate (uint32_t *hashes, size_t n, uint32_t *out, unsigned int segments)
 {
   uint32_t counts[segments * 32];
@@ -135,36 +111,97 @@ static inline void aggregate (uint32_t *hashes, size_t n, uint32_t *out, unsigne
   }
 }
 
+static inline void populate_token_hashes (
+  lua_State *L,
+  uint32_t *token_hashes,
+  size_t n,
+  unsigned int segments,
+  unsigned int hash_chunks
+) {
+  memset(token_hashes, 0, sizeof(uint32_t) * hash_chunks * n);
+  for (size_t i = 0; i < n; i ++) {
+    uint32_t *token_hash = token_hashes + i * hash_chunks;
+    lua_pushinteger(L, i + 1); // t i
+    lua_gettable(L, 1); // t v
+    lua_Integer x = luaL_checkinteger(L, -1);
+    lua_pop(L, 1); // t
+    murmur(&x, sizeof(x), 0, token_hash, segments);
+  }
+}
+
+static inline unsigned int encode_pos (
+  size_t pos,
+  unsigned int dim,
+  unsigned int n_dims,
+  unsigned int pos_buckets
+) {
+  double angle = (double) pos / pow(10000.0, (2.0 * ((double) dim / 2)) / (double) n_dims);
+  double val = (dim % 2 == 0) ? sin(angle) : cos(angle);
+  return (unsigned int) ((val + 1.0) / 2.0 * (pos_buckets - 1));
+}
+
+static inline void populate_pos_hashes (
+  lua_State *L,
+  uint32_t *pos_hashes,
+  size_t n_tokens,
+  unsigned int segments,
+  unsigned int dimensions,
+  unsigned int hash_chunks,
+  unsigned int pos_buckets
+) {
+  memset(pos_hashes, 0, sizeof(uint32_t) * hash_chunks * dimensions * n_tokens);
+  for (size_t i = 0; i < n_tokens; i ++) {
+    for (unsigned int j = 0; j < dimensions; j ++) {
+      uint32_t *pos_hash = pos_hashes + (i * dimensions * hash_chunks) + (j * hash_chunks);
+      lua_pushinteger(L, i + 1); // t i
+      lua_gettable(L, 1); // t v
+      unsigned int input[2] = {
+        tk_lua_checkunsigned(L, -1),
+        encode_pos(i, j, dimensions, pos_buckets)
+      };
+      lua_pop(L, 1); // t
+      murmur(input, sizeof(unsigned int) * 2, 0, pos_hash, segments);
+    }
+  }
+}
+
+static inline void aggregate_results (
+  uint32_t *token_hashes,
+  uint32_t *pos_hashes,
+  uint32_t *result,
+  size_t n,
+  unsigned int segments,
+  unsigned int pos_dimensions,
+  unsigned int hash_chunks
+) {
+  memset(result, 0, sizeof(uint32_t) * hash_chunks);
+  aggregate(token_hashes, n, result, segments);
+  aggregate(pos_hashes, n * pos_dimensions, &result[segments], segments);
+}
+
 // Given a table of integers (tokens), return a fingerprint. The first half of
 // the bits are a traditional simhash, the second half are a simhash with
 // sinusoidal positional encodings XOR'd to token hashes.
 // TODO: bm25 weighting
 static inline int tb_fingerprint (lua_State *L)
 {
-  lua_settop(L, 3);
+  lua_settop(L, 4);
   luaL_checktype(L, 1, LUA_TTABLE);
   size_t n = lua_objlen(L, 1);
   unsigned int segments = tk_lua_checkunsigned(L, 2);
+  unsigned int pos_dimensions = tk_lua_checkunsigned(L, 3);
+  unsigned int pos_buckets = tk_lua_checkunsigned(L, 4);
   size_t hash_chunks = segments * 2;
   // TODO: Can we avoid malloc each time?
-  uint32_t *hashes = malloc(sizeof(uint32_t) * hash_chunks * n);
-  memset(hashes, 0, sizeof(uint32_t) * hash_chunks * n);
-  for (size_t i = 0; i < n; i ++) {
-    uint32_t *hash = hashes + i * hash_chunks;
-    lua_pushinteger(L, i + 1); // t i
-    lua_gettable(L, 1); // t v
-    lua_Integer x = luaL_checkinteger(L, -1);
-    lua_pop(L, 1); // t
-    murmur(&x, sizeof(x), 0, hash, segments);
-  }
+  uint32_t *token_hashes = malloc(sizeof(uint32_t) * hash_chunks * n);
+  uint32_t *pos_hashes = malloc(sizeof(uint32_t) * hash_chunks * pos_dimensions * n);
   uint32_t result[hash_chunks];
-  memset(result, 0, sizeof(uint32_t) * hash_chunks);
-  aggregate(hashes, n, result, segments);
-  add_positions(hashes, n, segments);
-  aggregate(hashes, n, &result[segments], segments);
+  populate_token_hashes(L, token_hashes, n, segments, hash_chunks);
+  populate_pos_hashes(L, pos_hashes, n, segments, pos_dimensions, hash_chunks, pos_buckets);
+  aggregate_results(token_hashes, pos_hashes, result, n, segments, pos_dimensions, hash_chunks);
   lua_pushlstring(L, (char *) result, sizeof(uint32_t) * hash_chunks);
   lua_pushinteger(L, hash_chunks * 32);
-  free(hashes);
+  free(token_hashes);
   return 2;
 }
 

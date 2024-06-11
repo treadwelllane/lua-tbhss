@@ -40,6 +40,9 @@ sys.execute({
     --clusters glove 1 1 0 \
     --sentences snli-dev \
     --segments 4 \
+    --include-raw true \
+    --position-dimensions 8 \
+    --position-buckets 100 \
     --encoded-bits 256 \
     --train-test-ratio 0.8 \
     --clauses 512 \
