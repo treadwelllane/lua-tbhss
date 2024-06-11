@@ -8,14 +8,15 @@ local num = require("santoku.num")
 local err = require("santoku.error")
 
 local tbhss = require("tbhss")
-local fingerprint = require("tbhss.fingerprint")
+local hash = require("tbhss.hash")
 
 local function get_fingerprint (data, normalizer, args)
   local tokens = normalizer.normalize(data, args.clusters[2], args.clusters[3], args.clusters[3], true)
-  local b = bm.from_raw(fingerprint(tokens, args.segments))
+  local raw, bits = hash.fingerprint(tokens, args.segments, args.positions)
+  local b = bm.from_raw(raw)
   local flipped = bm.copy(b)
-  bm.flip(b, 1, args.segments * 32 * 2)
-  bm.extend(b, flipped, args.segments * 32 * 2 + 1)
+  bm.flip(flipped, 1, bits)
+  bm.extend(b, flipped, bits + 1)
   return b, tokens
 end
 
@@ -24,7 +25,7 @@ local function get_dataset (db, normalizer, sentences_model, args)
   print("Loading sentence triplets")
   local triplets = db.get_sentence_triplets(sentences_model.id, args.max_records)
 
-  local input_bits = args.segments * 32 * 2 * 2
+  local input_bits = args.segments * hash.segment_bits * (args.positions and 4 or 2)
 
   print("Tokenizing")
   for i = 1, #triplets do
@@ -35,26 +36,6 @@ local function get_dataset (db, normalizer, sentences_model, args)
     s.positive, s.positive_tokens = get_fingerprint(s.positive, normalizer, args)
     s.group = bm.matrix({ s.anchor, s.negative, s.positive, }, input_bits)
   end
-
-  -- for i = 1, #triplets do
-  --   local x = triplets[i]
-  --   print()
-  --   print("Anchor: ", x.original.anchor)
-  --   print(arr.concat(x.anchor_tokens, " "))
-  --   print(bm.tostring(x.anchor, input_bits))
-  --   print()
-  --   print("Negative: ", x.original.negative)
-  --   print(arr.concat(x.negative_tokens, " "))
-  --   print(bm.tostring(x.negative, input_bits))
-  --   print()
-  --   print("Positive: ", x.original.positive)
-  --   print(arr.concat(x.positive_tokens, " "))
-  --   print(bm.tostring(x.positive, input_bits))
-  --   print()
-  --   print(bm.hamming(x.anchor, x.negative))
-  --   print(bm.hamming(x.anchor, x.positive))
-  -- end
-  -- os.exit(0)
 
   return {
     triplets = triplets,
