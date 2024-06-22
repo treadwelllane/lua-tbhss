@@ -110,14 +110,17 @@ nohup stdbuf -oL tbhss create encoder \
   --clusters glove.6B.300d.512.test 1 8 0 \
   --sentences snli_1.0.test \
   --segments 8 \
-  --encoded-bits 512 \
+  --include-raw true \
+  --position-dimensions 8 \
+  --position-buckets 100 \
+  --encoded-bits 256 \
   --train-test-ratio 0.8 \
-  --clauses 1024 \
+  --clauses 2048 \
   --state-bits 8 \
   --threshold 256 \
   --specificity 50 70 \
   --margin 0.1 \
-  --loss-alpha 0.5 \
+  --loss-alpha 0.25 \
   --active-clause 0.85 \
   --boost-true-positive false \
   --evaluate-every 1 \

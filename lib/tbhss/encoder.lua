@@ -11,8 +11,9 @@ local tbhss = require("tbhss")
 local hash = require("tbhss.hash")
 
 local function get_fingerprint (data, normalizer, args)
-  local tokens = normalizer.normalize(data, args.clusters[2], args.clusters[3], args.clusters[3], true, args.include_raw)
-  local raw, bits = hash.fingerprint(tokens, args.segments, args.position_dimensions, args.position_buckets)
+  local tokens = normalizer.normalize(data)
+  local raw, bits = hash.fingerprint(tokens,
+    args.segments, args.position_dimensions, args.position_buckets)
   local b = bm.from_raw(raw)
   local flipped = bm.copy(b)
   bm.flip(flipped, 1, bits)
@@ -58,8 +59,7 @@ local function create_encoder (db, args)
 
   print("Creating encoder")
 
-  local normalizer = tbhss.normalizer(db, args.clusters[1])
-
+  local normalizer = tbhss.normalizer(db, args.words, arr.spread(args.clusters or {}))
   local encoder_model = db.get_encoder_model_by_name(args.name)
 
   if not encoder_model then

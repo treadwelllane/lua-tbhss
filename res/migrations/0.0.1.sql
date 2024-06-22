@@ -7,80 +7,80 @@ create table words_model (
   embeddings blob not null
 );
 
-create table words (
-  id integer not null, -- 1-N for each word (not a primary key)
-  id_words_model integer references words_model (id) on delete cascade,
-  name varchar not null,
-  primary key (id_words_model, id),
-  unique (id_words_model, name),
-  unique (id_words_model, id)
-);
-
 create table clusters_model (
   id integer primary key,
-  id_words_model integer references words_model (id) on delete cascade,
+  id_words_model integer not null references words_model (id) on delete cascade,
   name varchar not null unique,
   clusters integer not null,
-  clustered boolean not null default false,
-  iterations integer not null default 0
-);
-
-create table clusters (
-  id integer not null, -- 1-N for each cluster (not a primary key)
-  id_clusters_model integer references clusters_model (id) on delete cascade,
-  id_words integer references words (id) on delete cascade,
-  similarity real not null,
-  primary key (id_clusters_model, id_words, id)
-);
-
-create table bitmaps_model (
-  id integer primary key,
-  id_words_model integer references words_model (id) on delete cascade,
-  id_clusters_model integer references clusters_model (id) on delete cascade,
-  params json not null,
-  name varchar not null unique,
-  created boolean not null default false
-);
-
-create table bitmaps (
-  id_bitmaps_model integer references bitmaps_model (id) on delete cascade,
-  id_words integer references words (id) on delete cascade,
-  bitmap blob not null,
-  primary key (id_bitmaps_model, id_words)
+  clustered boolean not null default false
 );
 
 create table sentences_model (
   id integer primary key,
   name varchar not null unique,
+  id_clusters_model integer references clusters_model (id) on delete cascade,
+  min_set integer,
+  max_set integer,
+  min_similarity real,
+  include_raw boolean,
+  segments integer not null,
+  position_dimensions integer not null,
+  position_buckets integer not null,
   loaded boolean not null default false
 );
 
-create table sentences_words (
-  name varchar not null,
-  id_sentences_model integer references sentences_model (id) on delete cascade,
-  primary key (id_sentences_model, name)
+create table words (
+  id integer not null, -- 1-N for each word (not a primary key)
+  id_words_model integer not null references words_model (id) on delete cascade,
+  word varchar not null,
+  primary key (id_words_model, id),
+  unique (id_words_model, word),
+  unique (id_words_model, id)
+);
+
+create table clusters (
+  id integer not null, -- 1-N for each cluster (not a primary key)
+  id_clusters_model integer not null references clusters_model (id) on delete cascade,
+  id_words integer not null references words (id) on delete cascade,
+  similarity real not null,
+  primary key (id_clusters_model, id_words, id)
 );
 
 create table sentences (
   id integer not null, -- 1-N for each sentence (not a primary key)
-  id_sentences_model integer references sentences_model (id) on delete cascade,
-  label varchar not null,
-  a varchar not null,
-  b varchar not null,
+  id_sentences_model integer not null references sentences_model (id) on delete cascade,
+  sentence varchar not null,
+  tokens json,
   primary key (id_sentences_model, id)
+);
+
+create table sentence_pairs (
+  id_sentences_model integer not null references sentences_model (id) on delete cascade,
+  label varchar,
+  id_a integer,
+  id_b integer,
+  unique (id_sentences_model, id_a, id_b)
+);
+
+create table sentence_words (
+  id integer not null, -- 1-N for each word (not a primary key)
+  id_sentences_model integer not null references sentences_model (id) on delete cascade,
+  word varchar not null,
+  primary key (id_sentences_model, id),
+  unique (id_sentences_model, word)
 );
 
 create table encoder_model (
   id integer primary key,
-  id_bitmaps_model integer references bitmaps_model (id) on delete cascade,
+  id_sentences_model integer not null references sentences_model (id) on delete cascade,
   params json not null,
   name varchar not null unique,
   trained boolean not null default false,
   model blob
 );
 
-create index sentences_id_sentences_model_a_label
-  on sentences (id_sentences_model, a, label);
+create index sentences_id_sentences_model_sentence
+  on sentences (id_sentences_model, sentence);
 
-create index sentences_id_sentences_model_b_label
-  on sentences (id_sentences_model, b, label);
+create index clusters_id_clusters_model_similarity
+  on clusters (id_clusters_model, similarity);

@@ -35,6 +35,11 @@ local cmd_load_sentences = cmd_load:command("sentences", "load NLI dataset")
 base_flags(cmd_load_sentences)
 cmd_load_sentences:option("--name", "name of loaded dataset", nil, nil, 1, 1)
 cmd_load_sentences:option("--file", "path to NLI dataset file", nil, nil, 1, 1)
+cmd_load_sentences:option("--clusters", "name of word clusters, num, min-set, max-set, min-similarity, include-raw", nil, nil, 6, 1)
+cmd_load_sentences:option("--segments", "number of segments for topic and positional bits", nil, tonumber, 1, 1)
+cmd_load_sentences:option("--position-dimensions", "number of position dimensions", nil, tonumber, 1, 1)
+cmd_load_sentences:option("--position-buckets", "number of position buckets", nil, tonumber, 1, 1)
+cmd_load_sentences:option("--max-records", "Max number records to use in training", nil, tonumber, 1, "0-1")
 
 local cmd_create = parser:command("create")
 cmd_create:command_target("cmd_create")
@@ -108,12 +113,8 @@ cmd_create_bitmaps_thresholded:option("--threshold-levels", "number of input dim
 local cmd_create_encoder = cmd_create:command("encoder", "create an encoder")
 base_flags(cmd_create_encoder)
 cmd_create_encoder:option("--name", "name of created encoder", nil, nil, 1, 1)
+cmd_create_encoder:option("--words", "name of words model to use", nil, nil, 1, 1)
 cmd_create_encoder:option("--sentences", "name of NLI dataset(s) to encode", nil, nil, "1-2", 1)
-cmd_create_encoder:option("--clusters", "name of word clusters, min-set, max-set, min-similarity", nil, nil, 4, 1)
-cmd_create_encoder:option("--segments", "number of segments for topic and positional bits", nil, tonumber, 1, 1)
-cmd_create_encoder:option("--include-raw", "include non-clustered word IDs", nil, fun.bind(op.eq, "true"), 1, 1):choices({ "true", "false" })
-cmd_create_encoder:option("--position-dimensions", "number of position dimensions", nil, tonumber, 1, 1)
-cmd_create_encoder:option("--position-buckets", "number of position buckets", nil, tonumber, 1, 1)
 cmd_create_encoder:option("--encoded-bits", "number of bits in encoded bitmaps", nil, tonumber, 1, 1)
 cmd_create_encoder:option("--margin", "margin for triplet loss", nil, tonumber, 1, 1)
 cmd_create_encoder:option("--loss-alpha", "scale for loss function", nil, tonumber, 1, 1)
@@ -135,6 +136,16 @@ local db = init_db(args.cache)
 if args.cmd == "load" and args.cmd_load == "words" then
   words.load_words(db, args)
 elseif args.cmd == "load" and args.cmd_load == "sentences" then
+  if args.clusters then
+    args.clusters = {
+      words = args.clusters[1],
+      clusters = tonumber(args.clusters[2]),
+      min_set = tonumber(args.clusters[3]),
+      max_set = tonumber(args.clusters[4]),
+      min_similarity = tonumber(args.clusters[5]),
+      include_raw = args.clusters[6] == "true",
+    }
+  end
   sentences.load_sentences(db, args)
 elseif args.cmd == "create" and args.cmd_create == "clusters" then
   clusters.create_clusters(db, args)
@@ -147,9 +158,6 @@ elseif args.cmd == "create" and args.cmd_create == "bitmaps" and args.cmd_create
 elseif args.cmd == "create" and args.cmd_create == "bitmaps" and args.cmd_create_bitmaps == "thresholded"  then
   bitmaps.create_bitmaps_thresholded(db, args)
 elseif args.cmd == "create" and args.cmd_create == "encoder" then
-  for i = 2, 4 do
-    args.clusters[i] = tonumber(args.clusters[i])
-  end
   encoder.create_encoder(db, args)
 else
   print(parser:get_usage())

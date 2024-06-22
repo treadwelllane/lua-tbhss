@@ -14,8 +14,10 @@ end
 local function split (s, max, words)
   words = words or {}
   local n = 1
-  for w in str.gmatch(str.gsub(s, "[^%w%s]", ""), "%S+") do
+  for w in str.gmatch(s, "%S+") do
     words[n] = str.lower(w)
+    words[n] = str.gsub(words[n], "^%p*", "")
+    words[n] = str.gsub(words[n], "%p*$", "")
     n = n + 1
     if max and n > max then
       break
@@ -124,44 +126,57 @@ local function encoder (db_file, model_name)
 
 end
 
-local function normalizer (db_file, model_name)
+local function normalizer (db_file, opts)
 
   local db = get_db(db_file)
-  local clusters_model = db.get_clusters_model_by_name(model_name)
 
-  if not clusters_model then
-    err.error("clusters model not found", model_name)
+  local words_model = db.get_words_model_by_name(opts.words)
+  if not words_model then
+    err.error("words model not found", opts.words)
+  end
+
+  local clusters_model
+  if opts.name then
+    clusters_model = db.get_clusters_model_by_name(opts.name)
+    if not clusters_model then
+      err.error("clusters model not found", opts.name)
+    end
+    if clusters_model.id_words_model ~= words_model.id then
+      err.error("clusters model doesn't match words model", clusters_model.id_words_model, words_model.id)
+    end
   end
 
   return {
     clusters_model = clusters_model,
-    normalize = function (s, min_set, max_set, min_similarity, return_table, include_raw)
-      return db.db.transaction(function ()
-        local tokens = {}
-        local words = split(s)
-        for i = 1, #words do
-          local w = words[i]
-          local wid = db.get_word_id(clusters_model.id_words_model, w)
+    normalize = function (s)
+      local tokens = {}
+      local words = split(s)
+      for i = 1, #words do
+        local w = words[i]
+        local wid = db.get_word_id(words_model.id, w)
+        if clusters_model then
           -- NOTE: raw tokens represented as their words_model ids offset but
           -- the number of clusters + 1. The offset is so that word ids don't
           -- conflict with cluster ids, and the + 1 allows unknown words to be
           -- collectively represented by clusters + 1.
-          if include_raw and wid then
+          if opts.include_raw and wid then
             arr.push(tokens, clusters_model.clusters + 1 + wid)
-          elseif include_raw then
+          elseif opts.include_raw then
             arr.push(tokens, clusters_model.clusters + 1)
           end
           if wid then
             for c in db.get_nearest_clusters_by_id(
               clusters_model.id, wid,
-              min_set, max_set, min_similarity)
+              opts.min_set, opts.max_set, opts.min_similarity)
             do
               arr.push(tokens, c.id)
             end
           end
+        elseif wid then
+          arr.push(tokens, wid)
         end
-        return return_table and tokens or arr.concat(tokens, " ")
-      end)
+      end
+      return tokens
     end,
   }
 

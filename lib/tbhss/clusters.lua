@@ -102,7 +102,7 @@ local function cluster_words (db, clusters_model, args)
   local words_model = db.get_words_model_by_name(args.words)
 
   if not words_model or words_model.loaded ~= 1 then
-    err.error("Words model not loaded")
+    err.error("Words model not loaded", args.words)
   end
 
   local word_idmap = {}
@@ -176,7 +176,9 @@ local function cluster_words (db, clusters_model, args)
     end
   end
 
-  db.set_words_clustered(id_model, num_iterations)
+  db.set_words_clustered(id_model)
+
+  return db.get_clusters_model_by_id(id_model)
 
 end
 
@@ -189,7 +191,6 @@ local function create_clusters (db, args)
       err.error("Words already clustered")
     end
   end)
-
 end
 
 return {

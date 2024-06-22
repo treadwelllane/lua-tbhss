@@ -15,7 +15,7 @@ local env = {
     "santoku-tsetlin == 0.0.49-1",
     "santoku-bitmap == 0.0.15-1",
     "santoku-matrix == 0.0.8-1",
-    "santoku-sqlite == 0.0.13-1",
+    "santoku-sqlite == 0.0.17-1",
     "santoku-sqlite-migrate == 0.0.13-1",
     "lsqlite3 >= 0.9.5-1"
   },
