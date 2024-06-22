@@ -13,8 +13,9 @@
 local sql = require("santoku.sqlite")
 local migrate = require("santoku.sqlite.migrate")
 local tm = require("santoku.tsetlin")
-local bm = require("santoku.bitmap")
 local fs = require("santoku.fs")
+local str = require("santoku.string")
+local it = require("santoku.iter")
 local cjson = require("cjson")
 local sqlite = require("lsqlite3")
 local open = sqlite.open
@@ -42,30 +43,16 @@ return function (db_file)
   ]])
 
   M.add_sentences_model = db.inserter([[
-    insert into sentences_model (name)
-    values (?)
+    insert into sentences_model
+    (name, segments, position_dimensions, position_buckets)
+    values
+    (:name, :segments, :position_dimensions, :position_buckets)
   ]])
 
   M.add_clusters_model = db.inserter([[
     insert into clusters_model (name, id_words_model, clusters)
     values (?, ?, ?)
   ]])
-
-  local encode_bitmaps_model = function (inserter)
-    return function (n, iw, ic, p)
-      return inserter(n, iw, ic, cjson.encode(p))
-    end
-  end
-
-  local decode_bitmaps_model = function (getter)
-    return function (...)
-      local model = getter(...)
-      if model and model.params then
-        model.params = cjson.decode(model.params)
-        return model
-      end
-    end
-  end
 
   local encode_encoder_model = function (inserter)
     return function (n, e, p)
@@ -95,13 +82,8 @@ return function (db_file)
     end
   end
 
-  M.add_bitmaps_model = encode_bitmaps_model(db.inserter([[
-    insert into bitmaps_model (name, id_words_model, id_clusters_model, params)
-    values (?, ?, ?, ?)
-  ]]))
-
   M.add_encoder_model = encode_encoder_model(db.inserter([[
-    insert into encoder_model (name, id_bitmaps_model, params)
+    insert into encoder_model (name, id_sentences_model, params)
     values (?, ?, ?)
   ]]))
 
@@ -117,6 +99,16 @@ return function (db_file)
     where id = ?
   ]])
 
+  M.set_sentences_clusters = db.runner([[
+    update sentences_model
+    set id_clusters_model = :id_clusters_model,
+        min_set = :min_set,
+        max_set = :max_set,
+        min_similarity = :min_similarity,
+        include_raw = :include_raw
+    where id = :id_sentences_model
+  ]])
+
   M.set_encoder_trained = db.runner([[
     update encoder_model
     set trained = true, model = ?2
@@ -129,15 +121,8 @@ return function (db_file)
 
   M.set_words_clustered = db.runner([[
     update clusters_model
-    set clustered = true,
-        iterations = ?2
+    set clustered = true
     where id = ?1
-  ]])
-
-  M.set_bitmaps_created = db.runner([[
-    update bitmaps_model
-    set created = true
-    where id = ?
   ]])
 
   M.get_words_model_by_name = db.getter([[
@@ -163,12 +148,6 @@ return function (db_file)
     from clusters_model
     where name = ?
   ]])
-
-  M.get_bitmaps_model_by_name = decode_bitmaps_model(db.getter([[
-    select *
-    from bitmaps_model
-    where name = ?
-  ]]))
 
   M.get_encoder_model_by_name = decode_encoder_model(db.getter([[
     select *
@@ -200,12 +179,6 @@ return function (db_file)
     where id = ?
   ]])
 
-  M.get_bitmaps_model_by_id = decode_bitmaps_model(db.getter([[
-    select *
-    from bitmaps_model
-    where id = ?
-  ]]))
-
   M.get_encoder_model_by_id = decode_encoder_model(db.getter([[
     select *
     from encoder_model
@@ -213,24 +186,106 @@ return function (db_file)
   ]]))
 
   M.add_word = db.inserter([[
-    insert into words (id, id_words_model, name)
+    insert into words (id, id_words_model, word)
     values (?, ?, ?)
+    on conflict (id_words_model, word) do nothing
   ]])
 
   M.add_sentence = db.inserter([[
-    insert into sentences (id, id_sentences_model, label, a, b)
-    values (?, ?, ?, ?, ?)
-  ]])
-
-  M.add_sentence_word = db.inserter([[
-    insert into sentences_words (id_sentences_model, name)
-    values (?, ?) on conflict (id_sentences_model, name) do nothing
-  ]])
-
-  M.add_bitmap = db.inserter([[
-    insert into bitmaps (id_bitmaps_model, id_words, bitmap)
+    insert into sentences (id, id_sentences_model, sentence)
     values (?, ?, ?)
   ]])
+
+  M.get_sentence_id = db.getter([[
+    select id
+    from sentences
+    where id_sentences_model = ?1
+    and sentence = ?2
+  ]], "id")
+
+  M.create_sentences_fts5 = function (id_model)
+    db.exec(str.interp([[
+      create virtual table sentences_%d#(1)_fts using fts5 (sentence);
+      create virtual table sentences_%d#(1)_fts_aux using fts5vocab (sentences_%d#(1)_fts, 'instance');
+    ]], { id_model }))
+  end
+
+  M.sentence_fts_adder = function (id_model)
+    return db.inserter(str.interp([[
+      insert into sentences_%d#(1)_fts (sentence)
+      values (?)
+    ]], { id_model }))
+  end
+
+  M.add_sentence_pair = db.inserter([[
+    insert into sentence_pairs (id_sentences_model, id_a, id_b, label)
+    values (?, ?, ?, ?) on conflict (id_sentences_model, id_a, id_b) do nothing
+  ]])
+
+  local get_sentence_word_id = db.getter([[
+    select id
+    from sentence_words
+    where id_sentences_model = ?1
+    and word = ?2
+  ]], "id")
+
+  local add_sentence_word = db.inserter([[
+    insert into sentence_words (id_sentences_model, id, word)
+    values (?, ?, ?)
+  ]])
+
+  M.get_sentence_word_max = db.getter([[
+    select max(id) as max
+    from sentence_words
+    where id_sentences_model = ?1
+  ]], "max")
+
+  M.add_sentence_word = function (id_model, word)
+    local id = get_sentence_word_id(id_model, word)
+    if id then
+      return id
+    else
+      local max = M.get_sentence_word_max(id_model)
+      id = (max or 0) + 1
+      add_sentence_word(id_model, id, word)
+      return id
+    end
+  end
+
+  local set_sentence_tokens = db.runner([[
+    update sentences
+    set tokens = ?3
+    where id_sentences_model = ?1
+    and id = ?2
+  ]])
+
+  local has_sentence_tokens = db.getter([[
+    select 1 as ok
+    from sentences
+    where id_sentences_model = ?1
+    and id = ?2
+    and tokens is not null
+  ]], "ok")
+
+  M.set_sentence_tokens = function (idm, id, ws, keep)
+    if not keep or not has_sentence_tokens(idm, id) then
+      set_sentence_tokens(idm, id, cjson.encode(ws))
+    end
+  end
+
+  local get_sentences = db.iter([[
+    select * from
+    sentences
+    where id_sentences_model = ?1
+    order by id asc
+  ]])
+
+  M.get_sentences = function (...)
+    return it.map(function (s)
+      s.tokens = cjson.decode(s.tokens)
+      return s
+    end, get_sentences(...))
+  end
 
   M.set_word_cluster_similarity = db.inserter([[
     insert into clusters (id_clusters_model, id_words, id, similarity)
@@ -240,7 +295,7 @@ return function (db_file)
   M.get_word_id = db.getter([[
     select id from words
     where id_words_model = ?1
-    and name = ?2
+    and word = ?2
   ]], "id")
 
   M.get_clusters = db.iter([[
@@ -259,23 +314,6 @@ return function (db_file)
     where name = ?
   ]])
 
-  local get_bitmap = db.getter([[
-    select b.bitmap
-    from bitmaps_model bm, bitmaps b, words e
-    where bm.id = ?1
-    and e.name = ?2
-    and e.id_words_model = bm.id_words_model
-    and b.id_bitmaps_model = bm.id
-    and b.id_words = e.id
-  ]])
-
-  M.get_bitmap = function (...)
-    local r = get_bitmap(...)
-    if r then
-      return bm.from_raw(r.bitmap, r.clusters)
-    end
-  end
-
   M.get_all_filtered_words = db.all([[
     select
       w.id
@@ -283,13 +321,13 @@ return function (db_file)
       words_model wm,
       words w,
       sentences_model sm,
-      sentences_words sw
+      sentence_words sw
     where
       wm.id = ?1 and
       sm.name = ?2 and
       wm.id = w.id_words_model and
       sm.id = sw.id_sentences_model and
-      sw.name = w.name
+      sw.word = w.word
     order by
       w.id asc
   ]], "id")
@@ -298,48 +336,87 @@ return function (db_file)
     select distinct(id_words) from clusters where id_clusters_model = ?
   ]])
 
-  M.get_nearest_clusters_by_id = db.iter([[
-    select id from (
-      select id from clusters
-      where id_clusters_model = ?1
-      and id_words = ?2
-      order by similarity desc
+  M.get_nearest_clusters = db.iter([[
+
+    select * from (
+      select c.id, c.similarity
+      from sentences_model sm,
+           clusters_model cm,
+           words_model wm,
+           clusters c,
+           words w,
+           sentence_words sw
+      where sm.id = ?1
+      and cm.id = sm.id_clusters_model
+      and wm.id = cm.id_words_model
+      and c.id_clusters_model = cm.id
+      and c.id_words = w.id
+      and w.id_words_model = wm.id
+      and sw.id_sentences_model = sm.id
+      and sw.word = w.word
+      and sw.id = ?2
+      order by c.similarity desc
       limit ?3
     )
-    union
-    select id from (
-      select id from clusters
-      where id_clusters_model = ?1
-      and id_words = ?2
-      and similarity >= ?5
-      order by similarity desc
+
+    union all
+
+    select * from (
+      select c.id, c.similarity
+      from sentences_model sm,
+           clusters_model cm,
+           words_model wm,
+           clusters c,
+           words w,
+           sentence_words sw
+      where sm.id = ?1
+      and cm.id = sm.id_clusters_model
+      and wm.id = cm.id_words_model
+      and c.id_clusters_model = cm.id
+      and c.id_words = w.id
+      and w.id_words_model = wm.id
+      and sw.id_sentences_model = sm.id
+      and sw.word = w.word
+      and sw.id = ?2
+      and c.similarity >= ?5
+      order by c.similarity desc
       limit ?4 - ?3 offset ?3
     )
+
   ]])
 
   M.get_sentence_triplets = db.all([[
     select distinct
-      anchor.a as anchor,
-      positive.b as positive,
-      negative.b as negative
+      anchor_sent.sentence as anchor,
+      positive_sent.sentence as positive,
+      negative_sent.sentence as negative
     from
-      sentences as anchor
+      sentence_pairs as anchor
     join
-      sentences as positive
-      on anchor.a = positive.a
+      sentence_pairs as positive
+      on anchor.id_a = positive.id_a
       and positive.id_sentences_model = anchor.id_sentences_model
       and positive.label = 'entailment'
     join
-      sentences as negative
-      on anchor.a = negative.a
+      sentence_pairs as negative
+      on anchor.id_a = negative.id_a
       and negative.id_sentences_model = anchor.id_sentences_model
       and (negative.label = 'neutral' or negative.label = 'contradiction')
+    join sentences anchor_sent
+      on anchor.id_a = anchor_sent.id
+      and anchor_sent.id_sentences_model = anchor.id_sentences_model
+    join sentences positive_sent
+      on positive.id_b = positive_sent.id
+      and positive_sent.id_sentences_model = positive.id_sentences_model
+    join sentences negative_sent
+      on negative.id_b = negative_sent.id
+      and negative_sent.id_sentences_model = negative.id_sentences_model
     where
       anchor.label in ('entailment', 'neutral', 'contradiction')
       and anchor.id_sentences_model = ?1
-      and anchor.b <> positive.b
-      and anchor.b <> negative.b
-      and positive.b <> negative.b
+      and anchor.id_b != positive.id_b
+      and anchor.id_b != negative.id_b
+      and positive.id_b != negative.id_b
     order by random()
     limit coalesce(?2, -1)
   ]])
