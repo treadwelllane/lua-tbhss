@@ -7,40 +7,55 @@ local arr = require("santoku.array")
 local num = require("santoku.num")
 local err = require("santoku.error")
 
-local tbhss = require("tbhss")
 local hash = require("tbhss.hash")
 
-local function get_fingerprint (data, normalizer, args)
-  local tokens = normalizer.normalize(data)
-  local raw, bits = hash.fingerprint(tokens,
-    args.segments, args.position_dimensions, args.position_buckets)
-  local b = bm.from_raw(raw)
-  local flipped = bm.copy(b)
+local function prep_fingerprint (fingerprint, bits)
+  local flipped = bm.copy(fingerprint)
   bm.flip(flipped, 1, bits)
-  bm.extend(b, flipped, bits + 1)
-  return b, tokens
+  bm.extend(fingerprint, flipped, bits + 1)
+  return fingerprint
 end
 
-local function get_dataset (db, normalizer, sentences_model, args)
+local function get_baseline (dataset, s, e)
+  local correct = 0
+  s, e = s or 1, e or #dataset.triplets
+  for i = s, e do
+    local t = dataset.triplets[i]
+    local dn = bm.hamming(t.anchor_fingerprint, t.negative_fingerprint)
+    local dp = bm.hamming(t.anchor_fingerprint, t.positive_fingerprint)
+    if dp < dn then
+      correct = correct + 1
+    end
+  end
+  return correct / #dataset.triplets
+end
+
+local function get_dataset (db, sentences_model, args)
 
   print("Loading sentence triplets")
   local triplets = db.get_sentence_triplets(sentences_model.id, args.max_records)
 
-  local input_bits = args.segments * hash.segment_bits * 4
+  local fingerprint_bits = hash.segment_bits *
+    (sentences_model.topic_segments +
+     sentences_model.position_segments *
+     sentences_model.position_dimensions)
 
-  print("Tokenizing")
   for i = 1, #triplets do
     local s = triplets[i]
-    s.original = { anchor = s.anchor, negative = s.negative, positive = s.positive }
-    s.anchor, s.anchor_tokens = get_fingerprint(s.anchor, normalizer, args)
-    s.negative, s.negative_tokens = get_fingerprint(s.negative, normalizer, args)
-    s.positive, s.positive_tokens = get_fingerprint(s.positive, normalizer, args)
-    s.group = bm.matrix({ s.anchor, s.negative, s.positive, }, input_bits)
+    s.anchor_fingerprint = bm.from_raw(s.anchor_fingerprint, fingerprint_bits)
+    s.negative_fingerprint = bm.from_raw(s.negative_fingerprint, fingerprint_bits)
+    s.positive_fingerprint = bm.from_raw(s.positive_fingerprint, fingerprint_bits)
+    s.group = bm.matrix({
+      prep_fingerprint(s.anchor_fingerprint, fingerprint_bits),
+      prep_fingerprint(s.negative_fingerprint, fingerprint_bits),
+      prep_fingerprint(s.positive_fingerprint, fingerprint_bits),
+    }, fingerprint_bits * 2)
   end
 
   return {
     triplets = triplets,
-    input_bits = input_bits,
+    fingerprint_bits = fingerprint_bits,
+    input_bits = fingerprint_bits * 2,
     encoded_bits = args.encoded_bits,
   }
 
@@ -59,11 +74,16 @@ local function create_encoder (db, args)
 
   print("Creating encoder")
 
-  local normalizer = tbhss.normalizer(db, args.words, arr.spread(args.clusters or {}))
+  local sentences_model_train = db.get_sentences_model_by_name(args.sentences[1])
+
+  if not sentences_model_train or sentences_model_train.loaded ~= 1 then
+    err.error("Sentences model not loaded", args.sentences[1])
+  end
+
   local encoder_model = db.get_encoder_model_by_name(args.name)
 
   if not encoder_model then
-    local id = db.add_encoder_model(args.name, nil, args)
+    local id = db.add_encoder_model(args.name, sentences_model_train.id, args)
     encoder_model = db.get_encoder_model_by_id(id)
     assert(encoder_model, "this is a bug! encoder model not created")
   end
@@ -72,33 +92,31 @@ local function create_encoder (db, args)
     err.error("Encoder already created")
   end
 
-  local n_train, train_data, train_dataset
-  local n_test, test_data, test_dataset
+  local n_train, train_data, train_dataset, train_baseline
+  local n_test, test_data, test_dataset, test_baseline
 
   if #args.sentences == 1 then
-    args.sentences = args.sentences[1]
-    local sentences_model = db.get_sentences_model_by_name(args.sentences)
-    if not sentences_model or sentences_model.loaded ~= 1 then
-      err.error("Sentences model not loaded", args.sentences)
-    end
-    train_dataset = get_dataset(db, normalizer, sentences_model, args)
+    train_dataset = get_dataset(db, sentences_model_train, args)
     print("Splitting & packing")
     n_train = num.floor(#train_dataset.triplets * args.train_test_ratio)
     n_test = #train_dataset.triplets - n_train
     train_data = split_dataset(train_dataset, 1, n_train)
     test_data = split_dataset(train_dataset, n_train + 1, n_train + n_test)
+    train_baseline = get_baseline(train_dataset, 1, n_train)
+    test_baseline = get_baseline(train_dataset, n_train + 1, n_train + n_test)
   else
-    local sm_train = db.get_sentences_model_by_name(args.sentences[1])
-    local sm_test = db.get_sentences_model_by_name(args.sentences[2])
-    if not (sm_train and sm_test and sm_train.loaded == 1 and sm_test.loaded == 1) then
-      err.error("Sentences model not loaded", args.sentences[1] or "nil", args.sentences[2] or "nil")
+    local sentences_model_test = db.get_sentences_model_by_name(args.sentences[2])
+    if not sentences_model_test or sentences_model_test.loaded ~= 1 then
+      err.error("Sentences model not loaded", args.sentences[2])
     end
-    train_dataset = get_dataset(db, normalizer, sm_train, args)
-    test_dataset = get_dataset(db, normalizer, sm_test, args)
+    train_dataset = get_dataset(db, sentences_model_train, args)
+    test_dataset = get_dataset(db, sentences_model_test, args)
     n_train = #train_dataset.triplets
     n_test = #test_dataset.triplets
     train_data = split_dataset(train_dataset, 1, n_train)
     test_data = split_dataset(test_dataset, 1, n_test)
+    train_baseline = get_baseline(train_dataset, 1, n_train)
+    test_baseline = get_baseline(test_dataset, 1, n_test)
   end
 
   print("Input Bits", train_dataset.input_bits)
@@ -114,9 +132,7 @@ local function create_encoder (db, args)
 
   print("Training")
 
-  local train_score = tm.evaluate(t, n_train, train_data, args.margin, args.loss_alpha)
-  local test_score = tm.evaluate(t, n_test, test_data, args.margin, args.loss_alpha)
-  str.printf("Initial                Test %4.2f  Train %4.2f\n", test_score, train_score)
+  str.printf("Initial                Test %4.2f  Train %4.2f\n", test_baseline, train_baseline)
 
   for epoch = 1, args.epochs do
 

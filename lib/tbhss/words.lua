@@ -19,7 +19,7 @@ local iter = require("santoku.iter")
 local imap = iter.map
 local icollect = iter.collect
 
-local tbhss = require("tbhss")
+local util = require("tbhss.util")
 
 local function load_words_from_file (db, model, args)
 
@@ -35,7 +35,7 @@ local function load_words_from_file (db, model, args)
 
     local chunks = smatches(line, "%S+")
     local orig = ssub(chunks())
-    local word = tbhss.split(orig)[1]
+    local word = util.split(orig)[1]
 
     icollect(imap(snumber, chunks), floats, 1)
 

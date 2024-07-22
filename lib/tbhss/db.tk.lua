@@ -15,6 +15,7 @@ local migrate = require("santoku.sqlite.migrate")
 local tm = require("santoku.tsetlin")
 local fs = require("santoku.fs")
 local str = require("santoku.string")
+local arr = require("santoku.array")
 local it = require("santoku.iter")
 local cjson = require("cjson")
 local sqlite = require("lsqlite3")
@@ -44,9 +45,13 @@ return function (db_file)
 
   M.add_sentences_model = db.inserter([[
     insert into sentences_model
-    (name, segments, position_dimensions, position_buckets)
+    (name, topic_segments, position_segments,
+     position_dimensions, position_buckets, saturation,
+     length_normalization)
     values
-    (:name, :segments, :position_dimensions, :position_buckets)
+    (:name, :topic_segments, :position_segments,
+     :position_dimensions, :position_buckets, :saturation,
+     :length_normalization)
   ]])
 
   M.add_clusters_model = db.inserter([[
@@ -196,6 +201,13 @@ return function (db_file)
     values (?, ?, ?)
   ]])
 
+  M.add_sentence_fingerprint = db.runner([[
+    update sentences
+    set fingerprint = ?3
+    where id_sentences_model = ?1
+    and id = ?2
+  ]])
+
   M.get_sentence_id = db.getter([[
     select id
     from sentences
@@ -204,10 +216,11 @@ return function (db_file)
   ]], "id")
 
   M.create_sentences_fts5 = function (id_model)
-    db.exec(str.interp([[
-      create virtual table sentences_%d#(1)_fts using fts5 (sentence);
-      create virtual table sentences_%d#(1)_fts_aux using fts5vocab (sentences_%d#(1)_fts, 'instance');
-    ]], { id_model }))
+    local sql = str.interp([[
+      create virtual table sentences_%d#(1)_fts using fts5 (sentence, tokenize = "unicode61 tokenchars '-'");
+      create virtual table sentences_%d#(1)_fts_aux using fts5vocab (sentences_%d#(1)_fts, 'row');
+    ]], { id_model })
+    db.exec(sql)
   end
 
   M.sentence_fts_adder = function (id_model)
@@ -285,6 +298,71 @@ return function (db_file)
       s.tokens = cjson.decode(s.tokens)
       return s
     end, get_sentences(...))
+  end
+
+  M.sentence_token_scores_getter = function (id_sentences_model)
+
+    local fts = arr.concat({ "sentences_", id_sentences_model, "_fts" })
+    local ftsvocab = arr.concat({ "sentences_", id_sentences_model, "_fts_aux" })
+
+    local total_docs = db.getter(str.interp([[
+      select count(*) as total_docs
+      from %fts
+    ]], { fts = fts }), "total_docs")()
+
+    local average_length = db.getter(str.interp([[
+      select avg(length(sentence)) as avgdl
+      from %fts
+    ]], { fts = fts }), "avgdl")()
+
+    local iter = db.iter(str.interp([[
+
+      with tokens as (
+
+        select distinct j.value as token
+        from sentences s, json_each(s.tokens) j
+        where s.id_sentences_model = ?1 and s.id = ?2
+
+      ), token_freq as (
+
+        select cast(term as integer) as token, doc, cnt
+        from %ftsvocab
+        where token in tokens
+
+      ), idf as (
+
+        select token,
+          log(?5 - cnt + 0.5) - log(cnt + 0.5) + 1 as idf
+        from token_freq
+
+      )
+
+      select tf.token,
+             tf.cnt * idf.idf * (?3 + 1) / (tf.cnt + ?3 * (1 - ?4 + ?4 *
+               (length(sentence) / ?6)))
+               as weight
+
+      from token_freq tf
+      join idf on tf.token = idf.token
+      join %fts sf on sf.rowid = tf.doc
+
+    ]], { fts = fts, ftsvocab = ftsvocab }))
+
+    return function (id_sentence, saturation, length_normalization)
+      local r = {}
+      for t in iter(
+        id_sentences_model,
+        id_sentence,
+        saturation,
+        length_normalization,
+        total_docs,
+        average_length)
+      do
+        r[t.token] = t.weight
+      end
+      return r
+    end
+
   end
 
   M.set_word_cluster_similarity = db.inserter([[
@@ -388,8 +466,11 @@ return function (db_file)
   M.get_sentence_triplets = db.all([[
     select distinct
       anchor_sent.sentence as anchor,
+      anchor_sent.fingerprint as anchor_fingerprint,
       positive_sent.sentence as positive,
-      negative_sent.sentence as negative
+      positive_sent.fingerprint as positive_fingerprint,
+      negative_sent.sentence as negative,
+      negative_sent.fingerprint as negative_fingerprint
     from
       sentence_pairs as anchor
     join

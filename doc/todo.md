@@ -15,23 +15,25 @@ x Sentence modeling:
   x Clusters are created on the fly
   x "tokens" array is updated to include cluster IDs (as negatives) per configuration
   x Stringified tokens arrays are inserted into FTS5
-  - Bitmaps are created using tokens arrays and fts5vocab
-  - First half of bitmap hashes the de-duped SET of tokens, and then aggregates
-    bit counts using bm25 weights
-  - Second half of bitmap hashes all token/position pairs an and then aggregates
-    as above
-  - Separate num segments for topic and positional hash (can be zero to omit)
-  - Replace normalizer and tokenizer with modeler, which takes a sentence and
+  x Bitmaps are created using tokens arrays and fts5vocab
+    x For each sentence, get bm25 weights for each term
+    x The first half of the bitmap hashes the set of tokens and aggregates using
+      the bm25 weights
+    x The second half of bitmap hashes token/position pairs sinusoidally and
+      also aggregates using the bm25 weights
+    x Aggregate by weight
+  x Replace normalizer and tokenizer with modeler, which takes a sentence and
     returns a bitmap as per the above process
-  - Performance
+  x Update test/tbhss/hash to test the modeler:
+    x Similar sentences should have smaller hamming distances
+  - Improve performance of expanding tokens and creating fingerprints
 
 - Encoder creation
-  - Direcly uses bitmaps created in sentence loading step
-  - Position dimensions/buckets approach potentially revised
+  - Uses fingerprints from sentence loading step
 
 - Classifier creation
-  - Direcly uses bitmaps created in sentence loading step
-  - Accepts two sentence bitmaps concatenated and predicts the label
+  - Given two sentence fingerprints concatenated, predit entailment, neutral, or
+    contradiction
 
 # Later
 
@@ -49,6 +51,11 @@ x Sentence modeling:
 
 - Move various inner loops to C (see cluster.lua TODOs)
 - Fuzzy c-means clustering
+
+# Consider
+
+- Removing position segments flag and just use position dimensions flag
+- Flag for weight of token without score in modeler (currently ignores)
 
 # Eventually
 

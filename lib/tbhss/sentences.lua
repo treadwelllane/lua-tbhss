@@ -3,8 +3,9 @@ local it = require("santoku.iter")
 local str = require("santoku.string")
 local arr = require("santoku.array")
 local fs = require("santoku.fs")
-local tbhss = require("tbhss")
+local util = require("tbhss.util")
 local clusters = require("tbhss.clusters")
+local hash = require("tbhss.hash")
 
 local function read_sentences (db, id_model, args)
   local n = 0
@@ -14,8 +15,8 @@ local function read_sentences (db, id_model, args)
     chunks = it.drop(4, chunks)
     local a = str.sub(chunks())
     local b = str.sub(chunks())
-    local a_words = tbhss.split(a)
-    local b_words = tbhss.split(b)
+    local a_words = util.split(a)
+    local b_words = util.split(b)
     a = arr.concat(a_words, " ")
     b = arr.concat(b_words, " ")
     local a_id = db.get_sentence_id(id_model, a)
@@ -52,7 +53,6 @@ local function create_clusters (db, args)
     words = args.clusters.words,
     filter_words = args.name,
     clusters = args.clusters.clusters,
-    transaction = false,
   })
   args.clusters.name = clusters_model.name
   args.id_clusters_model = clusters_model.id
@@ -68,19 +68,30 @@ local function create_model (db, model, args)
   return id_model
 end
 
+local function get_cached_nearest_clusters (db, id_model, t, min_set, max_set, min_similarity, cache)
+  cache = cache or {}
+  if not cache[t] then
+    cache[t] = {}
+    for c in db.get_nearest_clusters(id_model, t, min_set, max_set, min_similarity) do
+      arr.push(cache[t], -c.id)
+    end
+  end
+  return cache[t]
+end
+
 local function expand_tokens (db, id_model, args)
   print("Expanding tokens")
+  local cache = {}
   for s in db.get_sentences(id_model) do
     local tokens = {}
     for i = 1, #s.tokens do
       local t = s.tokens[i]
       arr.push(tokens, t)
-      for c in db.get_nearest_clusters(
-          id_model, t,
-          args.clusters.min_set, args.clusters.max_set,
-          args.clusters.min_similarity) do
-        arr.push(tokens, -c.id)
-      end
+      arr.extend(tokens, get_cached_nearest_clusters(db, id_model, t,
+        args.clusters.min_set,
+        args.clusters.max_set,
+        args.clusters.min_similarity,
+        cache))
     end
     db.set_sentence_tokens(id_model, s.id, tokens)
   end
@@ -96,6 +107,21 @@ local function update_fts (db, id_model)
   end
 end
 
+local function create_fingerprints (db, id_model, args)
+  print("Creating fingerprints")
+  local get_scores = db.sentence_token_scores_getter(id_model)
+  for sentence in db.get_sentences(id_model) do
+    local scores = get_scores(sentence.id, args.saturation, args.length_normalization)
+    sentence.fingerprint = hash.fingerprint(
+      sentence.tokens, scores,
+      args.topic_segments,
+      args.position_segments,
+      args.position_dimensions,
+      args.position_buckets)
+    db.add_sentence_fingerprint(id_model, sentence.id, sentence.fingerprint)
+  end
+end
+
 local function load_sentences_from_file (db, model, args)
 
   print("Loading sentences from file:", args.file)
@@ -106,6 +132,7 @@ local function load_sentences_from_file (db, model, args)
   create_clusters(db, args)
   expand_tokens(db, id_model, args)
   update_fts(db, id_model, args)
+  create_fingerprints(db, id_model, args)
 
   db.set_sentences_loaded(id_model)
 
@@ -122,6 +149,57 @@ local function load_sentences (db, args)
   end)
 end
 
+local function modeler (db, m)
+
+  db = util.get_db(db)
+
+  local model =
+    (type(m) == "table" and m) or
+    (type(m) == "number" and db.get_sentences_model_by_id(m)) or
+    (type(m) == "string" and db.get_sentences_model_by_name(m))
+
+  if not model or model.loaded ~= 1 then
+    err.error("Sentences not loaded")
+  end
+
+  return {
+    sentences_model = model,
+    model = function (s, tokens_only)
+      local words = util.split(s)
+      local tokens = {}
+      for i = 1, #words do
+        local t = db.get_sentence_word(model.id, words[i])
+        if t then
+          arr.push(tokens, t)
+          for c in db.get_nearest_clusters(
+              model.id, t,
+              model.min_set, model.max_set,
+              model.min_similarity) do
+            arr.push(tokens, -c.id)
+          end
+        end
+      end
+      if tokens_only then
+        return tokens
+      end
+      local scores = db.get_token_scores(
+        model.id,
+        tokens,
+        model.saturation,
+        model.length_normalization)
+      return hash.fingerprint(
+        tokens,
+        scores,
+        model.topic_segments,
+        model.position_segments,
+        model.position_dimensions,
+        model.position_buckets)
+    end
+  }
+
+end
+
 return {
   load_sentences = load_sentences,
+  modeler = modeler
 }
