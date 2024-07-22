@@ -23,9 +23,12 @@ create table sentences_model (
   max_set integer,
   min_similarity real,
   include_raw boolean,
-  segments integer not null,
+  topic_segments integer not null,
+  position_segments integer not null,
   position_dimensions integer not null,
   position_buckets integer not null,
+  saturation integer not null,
+  length_normalization integer not null,
   loaded boolean not null default false
 );
 
@@ -51,6 +54,7 @@ create table sentences (
   id_sentences_model integer not null references sentences_model (id) on delete cascade,
   sentence varchar not null,
   tokens json,
+  fingerprint blob,
   primary key (id_sentences_model, id)
 );
 
