@@ -28,8 +28,8 @@ x Sentence modeling:
     x Similar sentences should have smaller hamming distances
   - Improve performance of expanding tokens and creating fingerprints
 
-- Encoder creation
-  - Uses fingerprints from sentence loading step
+x Encoder creation
+  x Uses fingerprints from sentence loading step
 
 - Classifier creation
   - Given two sentence fingerprints concatenated, predit entailment, neutral, or

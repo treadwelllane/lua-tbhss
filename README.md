@@ -5,17 +5,31 @@
 Loads a GloVe text file into the database for use in clustering, conversion to
 bitmaps, etc.
 
-    tbhss load embeddings
+    tbhss load words
       --cache cache.db
       --name glove2500
       --file glove-2500.txt
 
 ### Loading a NLI dataset
 
+Loads sentences and labels from an NLI dataset file, modeling the sentences as
+bitmaps. Sentences are modeled as a concatenation of two bm25-weighted simhash
+fingerprints. The first fingerprint is created using the words from the
+sentences along with their most associated word clusters. The second fingerprint
+is created with the words and clusters hashed with their positions in the
+sentence using a sinusoidal positional encoding.
+
     tbhss load sentences
       --cache cache.db
       --name snli-dev
       --file snli_1.0_dev.txt
+      --clusters glove2500 128 1 3 0.5 true
+      --topic-segments 4
+      --position-segments 1
+      --position-dimensions 4
+      --position-buckets 20
+      --saturation 1.2
+      --length-normalization 0.75
 
 ## Clustering Word Embeddings
 
@@ -24,49 +38,17 @@ Apply K-means clustering to assign words to clusters.
     tbhss create clusters
       --cache cache.db
       --name glove2500
-      --embeddings glove2500
+      --words glove2500
       --clusters 256
-
-## Converting Word Embeddings to Clustered Word Bitmaps
-
-Word bitmaps are created by setting bits in an initially empty bitmap accorrding
-to the word's distance from a cluster. In this example, the bit corresponding to
-the clusters with similarity scores greater than 0.8 are set to 1.
-
-    tbhss create bitmaps clustered
-      --cache cache.db
-      --name glove2500
-      --clusters glove2500
-      --min-similarity 0.8
-      --min-set 1
-      --max-set 10
+      --filter-words snli-dev
 
 ## Encoding Sentences
 
-A recurrent siamese Tsetlin Machine model is used to convert text into bitmaps
-such that the jaccard similarity of bitmaps approximates the semantic similarity
-of the text.
+TODO
 
-### Training the Encoder
+## Predicting Sentence Entailment
 
-    tbhss create encoder
-      --cache cache.db
-      --name glove2500
-      --bitmaps glove2500
-      --sentences snli-dev
-      --encoded-bits 1024
-      --margin 0.1
-      --scale-loss 0.5
-      --train-test-ratio 0.1
-      --clauses 40
-      --state-bits 8
-      --threshold 80
-      --specificity 3
-      --active-clause 0.75
-      --boost-true-positive false
-      --evaluate-every 5
-      --max-records 1000
-      --epochs 250
+TODO
 
 # Lua Interface
 
@@ -77,18 +59,12 @@ their cluster IDs. When used with a TF-IDF based model, this adds a level of
 word-based semantic normalization.
 
     local tbhss = require("tbhss")
-    local normalizer = tbhss.normalizer("./cache.db", "glove")
+    local modeler = tbhss.modeler("./cache.db", "snli-dev")
 
     local str0 = "the quick brown fox jumped over the lazy dog"
 
-    local str1 = normalizer.normalize(str0, 1, 1, 0)
-    assert(str1 == "$43 $9 $3 $21 $10 $65 $33 $24 $65")
-
-    local str2 = normalizer.normalize(str0, 1, 10, 0.8)
-    assert(str2 == "$43 ...etc, each word converted to multiple cluster IDs")
-
-The last arguments correspond to `min-set`, `max-set`, and `min-similarity` from
-the section on converting embeddings to bitmaps using clusters above.
+    local str1 = table.concat(modeler.model(str0, true), " ")
+    assert(str1 == "43 -12 9 -4 3 -1 21 -23 10 -5 65 -9 33 -43 24 -22 65 -1")
 
 In the case of SQLite, this can be used to pre-process text for use with the
 FTS5 extension, augmenting full-text search with semantic concepts.
@@ -96,7 +72,7 @@ FTS5 extension, augmenting full-text search with semantic concepts.
 ## Encoding Sentences
 
     local tbhss = require("tbhss")
-    local encoder = tbhss.encoder("./cache.db", "glove")
+    local encoder = tbhss.encoder("./cache.db", "snli-dev")
     local str = "the quick brown fox jumped over the lazy dog"
     local bitmap = encoder.encode(str)
 
