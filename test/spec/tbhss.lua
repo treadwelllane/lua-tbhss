@@ -16,13 +16,13 @@ sys.execute({
   "--file", os.getenv("GLOVE") or "test/res/glove.txt",
 })
 
-sys.execute({
-  "lua", "bin/tbhss.lua", "create", "clusters",
-  "--cache", db_file,
-  "--name", "glove",
-  "--words", "glove",
-  "--clusters", "64"
-})
+-- sys.execute({
+--   "lua", "bin/tbhss.lua", "create", "clusters",
+--   "--cache", db_file,
+--   "--name", "glove",
+--   "--words", "glove",
+--   "--clusters", "64"
+-- })
 
 sys.execute({
   "lua", "bin/tbhss.lua", "load", "sentences",
@@ -36,7 +36,7 @@ sys.execute({
   "--position-buckets", "20",
   "--saturation", "1.2",
   "--length-normalization", "0.75",
-  "--max-records", 5000
+  -- "--max-records", "5000"
 })
 
 sys.execute({
@@ -54,7 +54,7 @@ sys.execute({
   "--loss-alpha", "0.25",
   "--active-clause", "0.85",
   "--boost-true-positive", "false",
-  "--max-records", "2000",
   "--evaluate-every", "1",
   "--epochs", "10"
+  -- "--max-records", "2000",
 })
