@@ -315,52 +315,33 @@ return function (db_file)
       from %fts
     ]], { fts = fts }), "avgdl")()
 
-    local iter = db.iter(str.interp([[
-
-      with tokens as (
-
-        select distinct j.value as token
-        from sentences s, json_each(s.tokens) j
-        where s.id_sentences_model = ?1 and s.id = ?2
-
-      ), token_freq as (
-
-        select cast(term as integer) as token, doc, cnt
-        from %ftsvocab
-        where token in tokens
-
-      ), idf as (
-
-        select token,
-          log(?5 - cnt + 0.5) - log(cnt + 0.5) + 1 as idf
-        from token_freq
-
-      )
-
-      select tf.token,
-             tf.cnt * idf.idf * (?3 + 1) / (tf.cnt + ?3 * (1 - ?4 + ?4 *
-               (length(sentence) / ?6)))
+    local get_weights = db.all(str.interp([[
+      select distinct j.value as token,
+             x.cnt *
+             (log(?5 - x.cnt + 0.5) - log(x.cnt + 0.5) + 1) *
+             (?3 + 1) / (x.cnt + ?3 * (1 - ?4 + ?4 *
+               (length(sf.sentence) / ?6)))
                as weight
-
-      from token_freq tf
-      join idf on tf.token = idf.token
-      join %fts sf on sf.rowid = tf.doc
-
+      from json_each(s.tokens) j
+      join sentences s on s.id_sentences_model = ?1 and s.id = ?2
+      join %fts sf on sf.rowid = x.doc
+      join %ftsvocab x on cast(x.term as integer) = j.value
     ]], { fts = fts, ftsvocab = ftsvocab }))
 
     return function (id_sentence, saturation, length_normalization)
-      local r = {}
-      for t in iter(
+      local out = {}
+      local weights = get_weights(
         id_sentences_model,
         id_sentence,
         saturation,
         length_normalization,
         total_docs,
         average_length)
-      do
-        r[t.token] = t.weight
+      for i = 1, #weights do
+        local w = weights[i]
+        out[w.token] = w.weight
       end
-      return r
+      return out
     end
 
   end
