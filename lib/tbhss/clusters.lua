@@ -117,6 +117,10 @@ local function cluster_words (db, clusters_model, args)
     end
   end
 
+  if mrows(word_matrix) < args.clusters then
+    args.clusters = mrows(word_matrix)
+  end
+
   mnormalize(word_matrix)
 
   local cluster_matrix, distance_matrix = select_initial_clusters(word_matrix, args.clusters)

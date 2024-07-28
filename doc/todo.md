@@ -31,11 +31,9 @@ x Sentence modeling:
 x Encoder creation
   x Uses fingerprints from sentence loading step
 
-- Classifier creation
-  - Given two sentence fingerprints concatenated, predit entailment, neutral, or
-    contradiction
-
 # Later
+
+- Classifier using pairwise xor predicting entailment, contradiction, or neutral
 
 - Pre-trained encoders: SNLI & MutiNLI datasets with various settings shared as
   sqlite.db files with training data pruned

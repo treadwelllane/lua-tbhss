@@ -29,14 +29,13 @@ sys.execute({
   "--cache", db_file,
   "--name", "snli-dev",
   "--file", os.getenv("SNLI") or "test/res/snli_1.0_dev.txt",
-  "--clusters", "glove", "128", "1", "1", "0", "true",
-  "--topic-segments", "4",
-  "--position-segments", "1",
-  "--position-dimensions", "4",
-  "--position-buckets", "20",
+  "--clusters", "glove", "256", "1", "3", "0.5", "false",
+  "--segments", "4",
+  "--dimensions", "16",
+  "--buckets", "200",
   "--saturation", "1.2",
   "--length-normalization", "0.75",
-  -- "--max-records", "5000"
+  "--max-records", "2000",
 })
 
 sys.execute({
@@ -44,17 +43,16 @@ sys.execute({
   "--cache", db_file,
   "--name", "snli-dev",
   "--sentences", "snli-dev",
-  "--encoded-bits", "256",
   "--train-test-ratio", "0.8",
-  "--clauses", "512",
+  "--encoded-bits", "512",
+  "--clauses", "256",
   "--state-bits", "8",
-  "--threshold", "256",
+  "--threshold", "64",
   "--specificity", "2", "200",
   "--margin", "0.1",
   "--loss-alpha", "0.25",
   "--active-clause", "0.85",
   "--boost-true-positive", "false",
   "--evaluate-every", "1",
-  "--epochs", "10"
-  -- "--max-records", "2000",
+  "--epochs", "50"
 })

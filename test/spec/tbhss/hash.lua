@@ -4,7 +4,7 @@ local hash = require("tbhss.hash")
 local bm = require("santoku.bitmap")
 local arr = require("santoku.array")
 
-test("fingerprint", function ()
+test("simhash", function ()
 
   local sentences = {
     { original = "The quick brown fox" },
@@ -49,17 +49,15 @@ test("fingerprint", function ()
   }
 
   local bits
-  local topic_segments = 1
-  local pos_segments = 1
-  local pos_dimensions = 2
+  local pos_segments = 4
+  local pos_dimensions = 16
   local pos_buckets = 4
 
   for i = 1, #sentences do
     local raw
-    raw, bits = hash.fingerprint(
+    raw, bits = hash.simhash(
       sentences[i].tokens,
       scores,
-      topic_segments,
       pos_segments,
       pos_dimensions,
       pos_buckets)
@@ -72,7 +70,9 @@ test("fingerprint", function ()
 
   for i = 2, #sentences do
     local dist = bm.hamming(sentences[1].fingerprint, sentences[i].fingerprint) / bits
-    print(sentences[i].original, dist)
+    print(sentences[i].original, dist
+      --, bm.tostring(sentences[i].fingerprint), bits
+    )
   end
 
 end)

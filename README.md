@@ -24,10 +24,9 @@ sentence using a sinusoidal positional encoding.
       --name snli-dev
       --file snli_1.0_dev.txt
       --clusters glove2500 128 1 3 0.5 true
-      --topic-segments 4
-      --position-segments 1
-      --position-dimensions 4
-      --position-buckets 20
+      --segments 1
+      --dimensions 4
+      --buckets 20
       --saturation 1.2
       --length-normalization 0.75
 

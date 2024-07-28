@@ -23,10 +23,9 @@ create table sentences_model (
   max_set integer,
   min_similarity real,
   include_raw boolean,
-  topic_segments integer not null,
-  position_segments integer not null,
-  position_dimensions integer not null,
-  position_buckets integer not null,
+  segments integer not null,
+  dimensions integer not null,
+  buckets integer not null,
   saturation integer not null,
   length_normalization integer not null,
   loaded boolean not null default false
@@ -54,8 +53,24 @@ create table sentences (
   id_sentences_model integer not null references sentences_model (id) on delete cascade,
   sentence varchar not null,
   tokens json,
+  positions json,
   fingerprint blob,
   primary key (id_sentences_model, id)
+);
+
+create table sentences_tf (
+  id_sentences_model integer not null references sentences_model (id) on delete cascade,
+  id_sentence integer not null,
+  token integer not null,
+  freq integer not null,
+  unique (id_sentences_model, id_sentence, token)
+);
+
+create table sentences_df (
+  id_sentences_model integer not null references sentences_model (id) on delete cascade,
+  token integer not null,
+  freq integer not null,
+  unique (id_sentences_model, token)
 );
 
 create table sentence_pairs (
