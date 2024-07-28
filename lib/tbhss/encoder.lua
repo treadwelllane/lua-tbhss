@@ -35,10 +35,7 @@ local function get_dataset (db, sentences_model, args)
   print("Loading sentence triplets")
   local triplets = db.get_sentence_triplets(sentences_model.id, args.max_records)
 
-  local fingerprint_bits = hash.segment_bits *
-    (sentences_model.topic_segments +
-     sentences_model.position_segments *
-     sentences_model.position_dimensions)
+  local fingerprint_bits = hash.segment_bits * sentences_model.segments * sentences_model.dimensions
 
   for i = 1, #triplets do
     local s = triplets[i]

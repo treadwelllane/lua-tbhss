@@ -6,6 +6,9 @@
 #include <string.h>
 #include <math.h>
 
+#define BYTES (sizeof(uint32_t))
+#define BITS (BYTES * CHAR_BIT)
+
 static inline unsigned int tk_lua_checkunsigned (lua_State *L, int i)
 {
   lua_Integer l = luaL_checkinteger(L, i);
@@ -84,157 +87,108 @@ static inline uint32_t murmur32 (const void *key, int len, uint32_t seed)
   return h1;
 }
 
-static inline void murmur (const void *key, const int len, uint32_t seed, uint32_t *out, unsigned int segments)
-{
+static inline void murmur (
+  const void *key,
+  const int len,
+  uint32_t seed,
+  uint32_t *out,
+  unsigned int segments
+) {
   for (unsigned int i = 0; i < segments; i ++)
     out[i] = murmur32(key, len, i == 0 ? 0 : out[i - 1]);
-}
-
-static inline void aggregate (
-  lua_State *L,
-  uint32_t *hashes,
-  size_t n,
-  uint32_t *out,
-  unsigned int segments,
-  unsigned int dimensions
-) {
-  unsigned int positive[segments * dimensions * 32];
-  unsigned int negative[segments * dimensions * 32];
-  memset(positive, 0, sizeof(unsigned int) * segments * dimensions * 32);
-  memset(negative, 0, sizeof(unsigned int) * segments * dimensions * 32);
-  for (size_t i = 0; i < n; i ++) {
-    lua_pushinteger(L, i + 1); // n
-    lua_gettable(L, 1); // tok
-    lua_gettable(L, 2); // weight
-    // TODO: This currently causes all terms without weights to be ignored from
-    // the model
-    unsigned int weight  = tk_lua_optunsigned(L, -1, 0);
-    lua_pop(L, 1); //
-    uint32_t *hash = hashes + i * segments * dimensions;
-    for (unsigned int j = 0; j < segments * dimensions * 32; j ++) {
-      unsigned int chunk = j / (sizeof(uint32_t) * CHAR_BIT);
-      unsigned int pos = j % (sizeof(uint32_t) * CHAR_BIT);
-      if (hash[chunk] & (1 << pos))
-        positive[j] += weight;
-      else
-        negative[j] += weight;
-    }
-  }
-  for (unsigned int j = 0; j < segments * dimensions * 32; j ++) {
-    unsigned int chunk = j / (sizeof(uint32_t) * CHAR_BIT);
-    unsigned int pos = j % (sizeof(uint32_t) * CHAR_BIT);
-    if (positive[j] > negative[j])
-      out[chunk] |= (1 << pos);
-  }
-}
-
-static inline void populate_topic_hashes (
-  lua_State *L,
-  uint32_t *topic_hashes,
-  size_t n,
-  unsigned int topic_segments
-) {
-  memset(topic_hashes, 0, sizeof(uint32_t) * n * topic_segments);
-  for (size_t i = 0; i < n; i ++) {
-    uint32_t *topic_hash = topic_hashes + i * topic_segments;
-    lua_pushinteger(L, i + 1); // t i
-    lua_gettable(L, 1); // t v
-    lua_Integer x = luaL_checkinteger(L, -1);
-    lua_pop(L, 1); // t
-    murmur(&x, sizeof(x), 0, topic_hash, topic_segments);
-  }
 }
 
 static inline unsigned int encode_pos (
   size_t pos,
   unsigned int dim,
   unsigned int n_dims,
-  unsigned int pos_buckets
+  unsigned int buckets
 ) {
   double angle = (double) pos / pow(10000.0, (2.0 * ((double) dim / 2)) / (double) n_dims);
   double val = (dim % 2 == 0) ? sin(angle) : cos(angle);
-  return (unsigned int) ((val + 1.0) / 2.0 * (pos_buckets - 1));
+  return (unsigned int) ((val + 1.0) / 2.0 * (buckets - 1));
 }
 
-static inline void populate_pos_hashes (
+static inline void populate_hash (
   lua_State *L,
-  uint32_t *pos_hashes,
+  uint32_t *result,
   size_t n,
-  unsigned int pos_segments,
-  unsigned int pos_dimensions,
-  unsigned int pos_buckets
+  unsigned int segments,
+  unsigned int dimensions,
+  unsigned int buckets
 ) {
-  memset(pos_hashes, 0, sizeof(uint32_t) * n * pos_segments * pos_dimensions);
-  unsigned int pos = 0;
+  lua_Number counts_0[segments * dimensions * BITS];
+  lua_Number counts_1[segments * dimensions * BITS];
+  uint32_t hash[segments];
+  lua_Integer data[2];
+  memset(counts_0, 0, segments * dimensions * BITS * sizeof(lua_Number));
+  memset(counts_1, 0, segments * dimensions * BITS * sizeof(lua_Number));
   for (size_t i = 0; i < n; i ++) {
-    for (unsigned int j = 0; j < pos_dimensions; j ++) {
-      uint32_t *pos_hash = pos_hashes + (i * pos_segments * pos_dimensions) + (j * pos_segments);
-      lua_pushinteger(L, i + 1); // t i
-      lua_gettable(L, 1); // t v
-      lua_Integer t = luaL_checkinteger(L, -1);
-      if (t > 0)
-        pos ++;
-      unsigned int input[2] = { t, encode_pos(pos, j, pos_dimensions, pos_buckets) };
-      lua_pop(L, 1); // t
-      murmur(input, sizeof(unsigned int) * 2, 0, pos_hash, pos_segments);
+    lua_pushinteger(L, i + 1); // t i
+    lua_gettable(L, 1); // t v
+    lua_pushinteger(L, i + 1); // t i
+    lua_gettable(L, 2); // t v p
+    lua_pushvalue(L, -2); // t v p v
+    lua_gettable(L, 3); // t v p w
+    lua_Integer token = luaL_checkinteger(L, -3);
+    lua_Integer position = luaL_checkinteger(L, -2);
+    lua_Number weight = luaL_optnumber(L, -1, 0);
+    lua_pop(L, 3); // t
+    data[0] = token;
+    for (unsigned int dimension = 0; dimension < dimensions; dimension ++) {
+      data[1] = encode_pos(position, dimension, dimensions, buckets);
+      murmur(data, sizeof(lua_Integer) * 2, 0, hash, segments);
+      for (unsigned int bit = 0; bit < segments * BITS; bit ++) {
+        unsigned int chunk = bit / BITS;
+        unsigned int pos = bit % BITS;
+        if (hash[chunk] & (1 << pos))
+          counts_1[dimension * segments * BITS + bit] += weight;
+        else
+          counts_0[dimension * segments * BITS + bit] += weight;
+      }
     }
+  }
+  memset(result, 0, BYTES * segments * dimensions);
+  for (unsigned int i = 0; i < segments * dimensions * BITS; i ++) {
+    unsigned int chunk = i / BITS;
+    unsigned int bit = i % BITS;
+    if (counts_1[i] > counts_0[i])
+      result[chunk] |= (1 << bit);
   }
 }
 
-static inline void aggregate_results (
-  lua_State *L,
-  uint32_t *topic_hashes,
-  uint32_t *pos_hashes,
-  uint32_t *result,
-  size_t n,
-  unsigned int topic_segments,
-  unsigned int pos_segments,
-  unsigned int pos_dimensions
-) {
-  memset(result, 0, sizeof(uint32_t) * (topic_segments + pos_segments * pos_dimensions));
-  aggregate(L, topic_hashes, n, result, topic_segments, 1);
-  aggregate(L, pos_hashes, n, &result[topic_segments], pos_segments, pos_dimensions);
-}
-
-// Given a table of integers (tokens), return a fingerprint. The first half of
-// the bits are a traditional simhash, the second half are a simhash with
-// sinusoidal positional encodings XOR'd to token hashes.
-// TODO: bm25 weighting
-static inline int tb_fingerprint (lua_State *L)
+static inline int tb_simhash (lua_State *L)
 {
-  lua_settop(L, 6);
   luaL_checktype(L, 1, LUA_TTABLE);
   luaL_checktype(L, 2, LUA_TTABLE);
+  luaL_checktype(L, 3, LUA_TTABLE);
   size_t n = lua_objlen(L, 1);
-  unsigned int topic_segments = tk_lua_checkunsigned(L, 3);
-  unsigned int pos_segments = tk_lua_checkunsigned(L, 4);
-  unsigned int pos_dimensions = tk_lua_checkunsigned(L, 5);
-  unsigned int pos_buckets = tk_lua_checkunsigned(L, 6);
-  uint32_t *topic_hashes = malloc(sizeof(uint32_t) * n * topic_segments);
-  uint32_t *pos_hashes = malloc(sizeof(uint32_t) * n * pos_segments * pos_dimensions);
-  uint32_t result[topic_segments + pos_segments * pos_dimensions];
-  populate_topic_hashes(L, topic_hashes, n, topic_segments);
-  populate_pos_hashes(L, pos_hashes, n, pos_segments, pos_dimensions, pos_buckets);
-  aggregate_results(L, topic_hashes, pos_hashes, result, n, topic_segments, pos_segments, pos_dimensions);
-  lua_pushlstring(L, (char *) result, sizeof(uint32_t) * (topic_segments + pos_segments * pos_dimensions));
-  lua_pushinteger(L, (topic_segments + pos_segments * pos_dimensions) * 32);
-  free(topic_hashes);
-  free(pos_hashes);
+  unsigned int segments = tk_lua_checkunsigned(L, 4);
+  unsigned int dimensions = tk_lua_checkunsigned(L, 5);
+  unsigned int buckets = tk_lua_checkunsigned(L, 6);
+  if (!segments)
+    luaL_argerror(L, 4, "segments must be greater than 0");
+  if (!dimensions)
+    luaL_argerror(L, 5, "dimensions must be greater than 0");
+  uint32_t result[segments * dimensions];
+  populate_hash(L, result, n, segments, dimensions, buckets);
+  lua_pushlstring(L, (char *) result, segments * dimensions * BYTES);
+  lua_pushinteger(L, segments * dimensions * BITS);
   return 2;
 }
 
 static luaL_Reg tb_fns[] =
-  {
-    { "fingerprint", tb_fingerprint },
-    { NULL, NULL }
-  };
+{
+  { "simhash", tb_simhash },
+  { NULL, NULL }
+};
 
 int luaopen_tbhss_hash (lua_State *L)
 {
   lua_newtable(L); // t
   tk_lua_register(L, tb_fns, 0); // t
 
-  lua_pushinteger(L, sizeof(uint32_t) * CHAR_BIT); // t i
+  lua_pushinteger(L, BITS); // t i
   lua_setfield(L, -2, "segment_bits"); // t
 
   return 1;

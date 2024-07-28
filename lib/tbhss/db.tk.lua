@@ -14,29 +14,32 @@ local sql = require("santoku.sqlite")
 local migrate = require("santoku.sqlite.migrate")
 local tm = require("santoku.tsetlin")
 local fs = require("santoku.fs")
-local str = require("santoku.string")
-local arr = require("santoku.array")
 local it = require("santoku.iter")
 local cjson = require("cjson")
 local sqlite = require("lsqlite3")
 local open = sqlite.open
 
-return function (db_file)
+return function (db_file, skip_init)
 
   local db = sql(open(db_file))
 
   db.exec("pragma journal_mode = WAL")
   db.exec("pragma synchronous = NORMAL")
+  db.exec("pragma busy_timeout = 30000")
 
-  -- luacheck: push ignore
-  migrate(db, <%
-    return serialize(tabulate(map(function (fp)
-      return basename(fp), readfile(fp)
-    end, files("res/migrations")))), false
-  %>)
-  -- luacheck: pop
+  if not skip_init then
 
-  local M = { db = db }
+    -- luacheck: push ignore
+    migrate(db, <%
+      return serialize(tabulate(map(function (fp)
+        return basename(fp), readfile(fp)
+      end, files("res/migrations")))), false
+    %>)
+    -- luacheck: pop
+
+  end
+
+  local M = { db = db, file = db_file }
 
   M.add_words_model = db.inserter([[
     insert into words_model (name, total, dimensions, embeddings)
@@ -45,13 +48,9 @@ return function (db_file)
 
   M.add_sentences_model = db.inserter([[
     insert into sentences_model
-    (name, topic_segments, position_segments,
-     position_dimensions, position_buckets, saturation,
-     length_normalization)
+    (name, segments, dimensions, buckets, saturation, length_normalization)
     values
-    (:name, :topic_segments, :position_segments,
-     :position_dimensions, :position_buckets, :saturation,
-     :length_normalization)
+    (:name, :segments, :dimensions, :buckets, :saturation, :length_normalization)
   ]])
 
   M.add_clusters_model = db.inserter([[
@@ -208,27 +207,30 @@ return function (db_file)
     and id = ?2
   ]])
 
+  M.set_sentence_tf = db.runner([[
+    insert into sentences_tf (id_sentences_model, id_sentence, token, freq)
+    select s.id_sentences_model, s.id as id_sentence, j.value as token, count(*) as freq
+    from sentences s
+    join json_each(s.tokens) j on 1 = 1
+    where s.id_sentences_model = ?1
+    group by s.id, j.value
+  ]])
+
+  M.set_sentence_df = db.runner([[
+    insert into sentences_df (id_sentences_model, token, freq)
+    select s.id_sentences_model, j.value as token, count(distinct s.id) as freq
+    from sentences s
+    join json_each(s.tokens) j on 1 = 1
+    where s.id_sentences_model = ?1
+    group by j.value
+  ]]);
+
   M.get_sentence_id = db.getter([[
     select id
     from sentences
     where id_sentences_model = ?1
     and sentence = ?2
   ]], "id")
-
-  M.create_sentences_fts5 = function (id_model)
-    local sql = str.interp([[
-      create virtual table sentences_%d#(1)_fts using fts5 (sentence, tokenize = "unicode61 tokenchars '-'");
-      create virtual table sentences_%d#(1)_fts_aux using fts5vocab (sentences_%d#(1)_fts, 'row');
-    ]], { id_model })
-    db.exec(sql)
-  end
-
-  M.sentence_fts_adder = function (id_model)
-    return db.inserter(str.interp([[
-      insert into sentences_%d#(1)_fts (sentence)
-      values (?)
-    ]], { id_model }))
-  end
 
   M.add_sentence_pair = db.inserter([[
     insert into sentence_pairs (id_sentences_model, id_a, id_b, label)
@@ -272,6 +274,13 @@ return function (db_file)
     and id = ?2
   ]])
 
+  local set_sentence_token_positions = db.runner([[
+    update sentences
+    set positions = ?3
+    where id_sentences_model = ?1
+    and id = ?2
+  ]])
+
   local has_sentence_tokens = db.getter([[
     select 1 as ok
     from sentences
@@ -280,9 +289,23 @@ return function (db_file)
     and tokens is not null
   ]], "ok")
 
+  local has_sentence_token_positions = db.getter([[
+    select 1 as ok
+    from sentences
+    where id_sentences_model = ?1
+    and id = ?2
+    and positions is not null
+  ]], "ok")
+
   M.set_sentence_tokens = function (idm, id, ws, keep)
     if not keep or not has_sentence_tokens(idm, id) then
       set_sentence_tokens(idm, id, cjson.encode(ws))
+    end
+  end
+
+  M.set_sentence_token_positions = function (idm, id, ps, keep)
+    if not keep or not has_sentence_token_positions(idm, id) then
+      set_sentence_token_positions(idm, id, cjson.encode(ps))
     end
   end
 
@@ -296,53 +319,68 @@ return function (db_file)
   M.get_sentences = function (...)
     return it.map(function (s)
       s.tokens = cjson.decode(s.tokens)
+      s.positions = cjson.decode(s.positions)
       return s
     end, get_sentences(...))
   end
 
-  M.sentence_token_scores_getter = function (id_sentences_model)
+  db.db:create_function("token_weight", 7, function (
+      ctx,
+      saturation,
+      length_normalization,
+      total_docs,
+      average_doc_length,
+      token_freq,
+      doc_freq,
+      query_length)
+    local tf =
+      token_freq * (saturation + 1) /
+      (token_freq + saturation *
+        (1 - length_normalization + length_normalization *
+          (query_length / average_doc_length)))
+    local idf = math.log((total_docs - doc_freq + 0.5) / (doc_freq + 0.5) + 1)
+    local score = tf * idf
+    ctx:result_number(score)
+  end)
 
-    local fts = arr.concat({ "sentences_", id_sentences_model, "_fts" })
-    local ftsvocab = arr.concat({ "sentences_", id_sentences_model, "_fts_aux" })
+  local get_token_scores = db.all([[
+    select
+      distinct j.value as token,
+      token_weight(?3, ?4, ?5, ?6, tf.freq, df.freq, json_array_length(s.tokens)) as weight
+    from json_each(s.tokens) j
+    join sentences s on s.id_sentences_model = ?1 and s.id = ?2
+    join sentences_df df on df.token = j.value
+    join sentences_tf tf on tf.token = j.value and tf.id_sentence = s.id
+  ]])
 
-    local total_docs = db.getter(str.interp([[
+  M.get_token_scores = function (id_sentences_model, id_sentence, saturation, length_normalization)
+
+    local total_docs = db.getter([[
       select count(*) as total_docs
-      from %fts
-    ]], { fts = fts }), "total_docs")()
+      from sentences where id_sentences_model = ?1
+    ]], "total_docs")(id_sentences_model)
 
-    local average_length = db.getter(str.interp([[
-      select avg(length(sentence)) as avgdl
-      from %fts
-    ]], { fts = fts }), "avgdl")()
+    local average_length = db.getter([[
+      select avg(json_array_length(tokens)) as avgdl
+      from sentences where id_sentences_model = ?1
+    ]], "avgdl")(id_sentences_model)
 
-    local get_weights = db.all(str.interp([[
-      select distinct j.value as token,
-             x.cnt *
-             (log(?5 - x.cnt + 0.5) - log(x.cnt + 0.5) + 1) *
-             (?3 + 1) / (x.cnt + ?3 * (1 - ?4 + ?4 *
-               (length(sf.sentence) / ?6)))
-               as weight
-      from json_each(s.tokens) j
-      join sentences s on s.id_sentences_model = ?1 and s.id = ?2
-      join %fts sf on sf.rowid = x.doc
-      join %ftsvocab x on cast(x.term as integer) = j.value
-    ]], { fts = fts, ftsvocab = ftsvocab }))
+    local out = {}
 
-    return function (id_sentence, saturation, length_normalization)
-      local out = {}
-      local weights = get_weights(
-        id_sentences_model,
-        id_sentence,
-        saturation,
-        length_normalization,
-        total_docs,
-        average_length)
-      for i = 1, #weights do
-        local w = weights[i]
-        out[w.token] = w.weight
-      end
-      return out
+    local weights = get_token_scores(
+      id_sentences_model,
+      id_sentence,
+      saturation,
+      length_normalization,
+      total_docs,
+      average_length)
+
+    for i = 1, #weights do
+      local w = weights[i]
+      out[w.token] = w.weight
     end
+
+    return out
 
   end
 
@@ -479,6 +517,9 @@ return function (db_file)
       and anchor.id_b != positive.id_b
       and anchor.id_b != negative.id_b
       and positive.id_b != negative.id_b
+      and anchor_sent.fingerprint is not null
+      and positive_sent.fingerprint is not null
+      and negative_sent.fingerprint is not null
     order by random()
     limit coalesce(?2, -1)
   ]])
