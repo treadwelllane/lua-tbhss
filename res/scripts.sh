@@ -6,20 +6,20 @@ nohup stdbuf -oL tbhss load words \
 
 nohup stdbuf -oL tbhss load sentences \
   --cache tbhss.db \
-  --name snli4.test \
+  --name snli5.test \
   --file snli_1.0/snli_1.0_test.txt \
   --clusters glove 1024 1 3 0 false \
   --segments 1 \
   --dimensions 16 \
-  --buckets 10 \
+  --buckets 20 \
   --saturation 1.2 \
   --length-normalization 0.75 \
     2>&1 > log.txt & tail -f log.txt
 
 nohup stdbuf -oL tbhss create encoder \
   --cache tbhss.db \
-  --name snli4.test  \
-  --sentences snli4.test \
+  --name snli5.test  \
+  --sentences snli5.test \
   --train-test-ratio 0.8 \
   --encoded-bits 256 \
   --clauses 4096 \

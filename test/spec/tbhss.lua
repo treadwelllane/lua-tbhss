@@ -31,7 +31,7 @@ sys.execute({
   "--clusters", "glove", "1024", "1", "3", "0", "false",
   "--segments", "1",
   "--dimensions", "4",
-  "--buckets", "10",
+  "--buckets", "20",
   "--saturation", "1.2",
   "--length-normalization", "0.75",
   "--max-records", "2000",
