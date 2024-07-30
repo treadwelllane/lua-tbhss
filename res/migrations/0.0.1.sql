@@ -53,7 +53,9 @@ create table sentences (
   id_sentences_model integer not null references sentences_model (id) on delete cascade,
   sentence varchar not null,
   tokens json,
+  length integer,
   positions json,
+  similarities json,
   fingerprint blob,
   primary key (id_sentences_model, id)
 );
