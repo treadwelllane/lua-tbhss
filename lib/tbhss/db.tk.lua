@@ -14,7 +14,6 @@ local sql = require("santoku.sqlite")
 local migrate = require("santoku.sqlite.migrate")
 local tm = require("santoku.tsetlin")
 local fs = require("santoku.fs")
-local it = require("santoku.iter")
 local cjson = require("cjson")
 local sqlite = require("lsqlite3")
 local open = sqlite.open
@@ -269,14 +268,7 @@ return function (db_file, skip_init)
 
   local set_sentence_tokens = db.runner([[
     update sentences
-    set tokens = ?3
-    where id_sentences_model = ?1
-    and id = ?2
-  ]])
-
-  local set_sentence_token_positions = db.runner([[
-    update sentences
-    set positions = ?3
+    set tokens = ?3, positions = ?4, similarities = ?5, length = ?6
     where id_sentences_model = ?1
     and id = ?2
   ]])
@@ -289,27 +281,17 @@ return function (db_file, skip_init)
     and tokens is not null
   ]], "ok")
 
-  local has_sentence_token_positions = db.getter([[
-    select 1 as ok
-    from sentences
-    where id_sentences_model = ?1
-    and id = ?2
-    and positions is not null
-  ]], "ok")
-
-  M.set_sentence_tokens = function (idm, id, ws, keep)
+  M.set_sentence_tokens = function (idm, id, ws, ps, ss, len, keep)
     if not keep or not has_sentence_tokens(idm, id) then
-      set_sentence_tokens(idm, id, cjson.encode(ws))
+      set_sentence_tokens(idm, id,
+        cjson.encode(ws),
+        cjson.encode(ps),
+        cjson.encode(ss),
+        len)
     end
   end
 
-  M.set_sentence_token_positions = function (idm, id, ps, keep)
-    if not keep or not has_sentence_token_positions(idm, id) then
-      set_sentence_token_positions(idm, id, cjson.encode(ps))
-    end
-  end
-
-  local get_sentences = db.iter([[
+  local get_sentences = db.all([[
     select * from
     sentences
     where id_sentences_model = ?1
@@ -317,72 +299,20 @@ return function (db_file, skip_init)
   ]])
 
   M.get_sentences = function (...)
-    return it.map(function (s)
+    local ss = get_sentences(...)
+    for i = 1, #ss do
+      local s = ss[i]
       s.tokens = cjson.decode(s.tokens)
       s.positions = cjson.decode(s.positions)
-      return s
-    end, get_sentences(...))
-  end
-
-  db.db:create_function("token_weight", 7, function (
-      ctx,
-      saturation,
-      length_normalization,
-      total_docs,
-      average_doc_length,
-      token_freq,
-      doc_freq,
-      query_length)
-    local tf =
-      token_freq * (saturation + 1) /
-      (token_freq + saturation *
-        (1 - length_normalization + length_normalization *
-          (query_length / average_doc_length)))
-    local idf = math.log((total_docs - doc_freq + 0.5) / (doc_freq + 0.5) + 1)
-    local score = tf * idf
-    ctx:result_number(score)
-  end)
-
-  local get_token_scores = db.all([[
-    select
-      distinct j.value as token,
-      token_weight(?3, ?4, ?5, ?6, tf.freq, df.freq, json_array_length(s.tokens)) as weight
-    from json_each(s.tokens) j
-    join sentences s on s.id_sentences_model = ?1 and s.id = ?2
-    join sentences_df df on df.token = j.value
-    join sentences_tf tf on tf.token = j.value and tf.id_sentence = s.id
-  ]])
-
-  M.get_token_scores = function (id_sentences_model, id_sentence, saturation, length_normalization)
-
-    local total_docs = db.getter([[
-      select count(*) as total_docs
-      from sentences where id_sentences_model = ?1
-    ]], "total_docs")(id_sentences_model)
-
-    local average_length = db.getter([[
-      select avg(json_array_length(tokens)) as avgdl
-      from sentences where id_sentences_model = ?1
-    ]], "avgdl")(id_sentences_model)
-
-    local out = {}
-
-    local weights = get_token_scores(
-      id_sentences_model,
-      id_sentence,
-      saturation,
-      length_normalization,
-      total_docs,
-      average_length)
-
-    for i = 1, #weights do
-      local w = weights[i]
-      out[w.token] = w.weight
+      s.similarities = cjson.decode(s.similarities)
     end
-
-    return out
-
+    return ss
   end
+
+  M.get_average_doc_length = db.getter([[
+    select avg(length) as avgdl
+    from sentences where id_sentences_model = ?1
+  ]], "avgdl")
 
   M.set_word_cluster_similarity = db.inserter([[
     insert into clusters (id_clusters_model, id_words, id, similarity)
@@ -433,54 +363,78 @@ return function (db_file, skip_init)
     select distinct(id_words) from clusters where id_clusters_model = ?
   ]])
 
-  M.get_nearest_clusters = db.iter([[
+  local get_nearest_clusters = db.all([[
 
-    select * from (
-      select c.id, c.similarity
-      from sentences_model sm,
-           clusters_model cm,
-           words_model wm,
-           clusters c,
-           words w,
-           sentence_words sw
-      where sm.id = ?1
-      and cm.id = sm.id_clusters_model
-      and wm.id = cm.id_words_model
-      and c.id_clusters_model = cm.id
-      and c.id_words = w.id
-      and w.id_words_model = wm.id
-      and sw.id_sentences_model = sm.id
-      and sw.word = w.word
-      and sw.id = ?2
-      order by c.similarity desc
-      limit ?3
+    with ranked_clusters as (
+      select
+        c.id_words as token,
+        c.id as cluster,
+        c.similarity,
+        row_number() over (
+          partition by c.id_words order by c.similarity desc
+        ) as rank
+      from
+        clusters c,
+        sentences_model sm
+      where
+        sm.id = ?1 and
+        c.id_clusters_model = sm.id_clusters_model
     )
-
+    select token, cluster, similarity
+    from ranked_clusters
+    where rank <= ?2
     union all
-
-    select * from (
-      select c.id, c.similarity
-      from sentences_model sm,
-           clusters_model cm,
-           words_model wm,
-           clusters c,
-           words w,
-           sentence_words sw
-      where sm.id = ?1
-      and cm.id = sm.id_clusters_model
-      and wm.id = cm.id_words_model
-      and c.id_clusters_model = cm.id
-      and c.id_words = w.id
-      and w.id_words_model = wm.id
-      and sw.id_sentences_model = sm.id
-      and sw.word = w.word
-      and sw.id = ?2
-      and c.similarity >= ?5
-      order by c.similarity desc
-      limit ?4 - ?3 offset ?3
-    )
+    select token, cluster, similarity
+    from ranked_clusters
+    where rank > ?2 and rank <= ?3 and similarity >= ?4
 
   ]])
+
+  M.get_nearest_clusters = function (...)
+    local ts = get_nearest_clusters(...)
+    local r = {}
+    for i = 1, #ts do
+      local t = ts[i]
+      local cs = r[t.token] or {}
+      cs[#cs + 1] = t
+      r[t.token] = cs
+    end
+    return r
+  end
+
+  local get_dfs = db.all([[
+    select token, freq
+    from sentences_df
+    where id_sentences_model = ?1
+  ]])
+
+  M.get_dfs = function (...)
+    local dfs = get_dfs(...)
+    local r = {}
+    for i = 1, #dfs do
+      local t = dfs[i]
+      r[t.token] = t.freq
+    end
+    return r
+  end
+
+  local get_tfs = db.all([[
+    select id_sentence as sentence, token, freq
+    from sentences_tf
+    where id_sentences_model = ?1
+  ]])
+
+  M.get_tfs = function (...)
+    local tfs = get_tfs(...)
+    local r = {}
+    for i = 1, #tfs do
+      local t = tfs[i]
+      local tf = r[t.sentence] or {}
+      r[t.sentence] = tf
+      tf[t.token] = t.freq
+    end
+    return r
+  end
 
   M.get_sentence_triplets = db.all([[
     select distinct
