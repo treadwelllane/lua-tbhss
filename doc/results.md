@@ -1,5 +1,40 @@
 # Dev 2000
 
+    Epoch 97    Time 2     Test 0.91  Train 0.98
+
+    sys.execute({
+      "lua", "bin/tbhss.lua", "load", "sentences",
+      "--cache", db_file,
+      "--name", "snli-dev",
+      "--file", "test/res/snli_1.0_dev.txt",
+      "--clusters", "glove", "1024", "1", "3", "0", "false",
+      "--segments", "1",
+      "--dimensions", "4",
+      "--buckets", "20",
+      "--saturation", "1.2",
+      "--length-normalization", "0.75",
+      "--max-records", "2000",
+    })
+
+    sys.execute({
+      "lua", "bin/tbhss.lua", "create", "encoder",
+      "--cache", db_file,
+      "--name", "snli-dev",
+      "--sentences", "snli-dev",
+      "--train-test-ratio", "0.8",
+      "--encoded-bits", "128",
+      "--clauses", "2048",
+      "--state-bits", "8",
+      "--threshold", "32",
+      "--specificity", "2", "200",
+      "--margin", "0.5",
+      "--loss-alpha", "0.25",
+      "--active-clause", "0.85",
+      "--boost-true-positive", "true",
+      "--evaluate-every", "1",
+      "--epochs", "100"
+    })
+
     Epoch 100   Time 3     Test 0.91  Train 0.97
 
     sys.execute({
