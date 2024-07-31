@@ -74,7 +74,7 @@ local function create_encoder (db, args)
   local sentences_model_train = db.get_sentences_model_by_name(args.sentences[1])
 
   if not sentences_model_train or sentences_model_train.loaded ~= 1 then
-    err.error("Sentences model not loaded", args.sentences[1])
+    err.error("Sentences model not loaded", args.sentences)
   end
 
   local encoder_model = db.get_encoder_model_by_name(args.name)
@@ -92,29 +92,16 @@ local function create_encoder (db, args)
   local n_train, train_data, train_dataset, train_baseline
   local n_test, test_data, test_dataset, test_baseline
 
-  if #args.sentences == 1 then
-    train_dataset = get_dataset(db, sentences_model_train, args)
-    print("Splitting & packing")
-    n_train = num.floor(#train_dataset.triplets * args.train_test_ratio)
-    n_test = #train_dataset.triplets - n_train
-    train_data = split_dataset(train_dataset, 1, n_train)
-    test_data = split_dataset(train_dataset, n_train + 1, n_train + n_test)
-    train_baseline = get_baseline(train_dataset, 1, n_train)
-    test_baseline = get_baseline(train_dataset, n_train + 1, n_train + n_test)
-  else
-    local sentences_model_test = db.get_sentences_model_by_name(args.sentences[2])
-    if not sentences_model_test or sentences_model_test.loaded ~= 1 then
-      err.error("Sentences model not loaded", args.sentences[2])
-    end
-    train_dataset = get_dataset(db, sentences_model_train, args)
-    test_dataset = get_dataset(db, sentences_model_test, args)
-    n_train = #train_dataset.triplets
-    n_test = #test_dataset.triplets
-    train_data = split_dataset(train_dataset, 1, n_train)
-    test_data = split_dataset(test_dataset, 1, n_test)
-    train_baseline = get_baseline(train_dataset, 1, n_train)
-    test_baseline = get_baseline(test_dataset, 1, n_test)
-  end
+  local train_dataset = get_dataset(db, sentences_model_train, args)
+
+  print("Splitting & packing")
+
+  n_train = num.floor(#train_dataset.triplets * args.train_test_ratio)
+  n_test = #train_dataset.triplets - n_train
+  train_data = split_dataset(train_dataset, 1, n_train)
+  test_data = split_dataset(train_dataset, n_train + 1, n_train + n_test)
+  train_baseline = get_baseline(train_dataset, 1, n_train)
+  test_baseline = get_baseline(train_dataset, n_train + 1, n_train + n_test)
 
   print("Input Bits", train_dataset.input_bits)
   print("Encoded Bits", train_dataset.encoded_bits)

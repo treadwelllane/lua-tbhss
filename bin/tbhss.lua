@@ -57,7 +57,7 @@ cmd_create_clusters:option("--filter-words", "snli dataset to filter words by", 
 local cmd_create_encoder = cmd_create:command("encoder", "create an encoder")
 base_flags(cmd_create_encoder)
 cmd_create_encoder:option("--name", "name of created encoder", nil, nil, 1, 1)
-cmd_create_encoder:option("--sentences", "name of sentences model(s) to use", nil, nil, "1-2", 1)
+cmd_create_encoder:option("--sentences", "name of sentences model(s) to use", nil, nil, 1, 1)
 cmd_create_encoder:option("--encoded-bits", "number of bits in encoded bitmaps", nil, tonumber, 1, 1)
 cmd_create_encoder:option("--margin", "margin for triplet loss", nil, tonumber, 1, 1)
 cmd_create_encoder:option("--loss-alpha", "scale for loss function", nil, tonumber, 1, 1)
