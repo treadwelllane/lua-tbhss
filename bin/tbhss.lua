@@ -31,18 +31,26 @@ base_flags(cmd_load_words)
 cmd_load_words:option("--name", "name of loaded words", nil, nil, 1, 1)
 cmd_load_words:option("--file", "path to input words file", nil, nil, 1, 1)
 
-local cmd_load_sentences = cmd_load:command("sentences", "load NLI dataset")
-base_flags(cmd_load_sentences)
-cmd_load_sentences:option("--name", "name of loaded dataset", nil, nil, 1, 1)
-cmd_load_sentences:option("--file", "path to NLI dataset file", nil, nil, 1, 1)
-cmd_load_sentences:option("--clusters", "name of word clusters, num, min-set, max-set, min-similarity, include-raw", nil, nil, 6, "0-1")
-cmd_load_sentences:option("--segments", "number of segments for positions", nil, tonumber, 1, 1)
-cmd_load_sentences:option("--dimensions", "number of dimensions for positions", nil, tonumber, 1, 1)
-cmd_load_sentences:option("--buckets", "number of buckets for positions", nil, tonumber, 1, 1)
-cmd_load_sentences:option("--saturation", "BM25 saturation", 1.2, tonumber, 1, 1)
-cmd_load_sentences:option("--length-normalization", "BM25 length normalization", 0.75, tonumber, 1, 1)
-cmd_load_sentences:option("--max-records", "Max number records to use in training", nil, tonumber, 1, "0-1")
-cmd_load_sentences:option("--jobs", "", nil, tonumber, 1, "0-1")
+local cmd_load_train_sentences = cmd_load:command("train-sentences", "load NLI dataset")
+base_flags(cmd_load_train_sentences)
+cmd_load_train_sentences:option("--name", "name of loaded dataset", nil, nil, 1, 1)
+cmd_load_train_sentences:option("--file", "path to NLI dataset file", nil, nil, 1, 1)
+cmd_load_train_sentences:option("--clusters", "name of word clusters, num, min-set, max-set, min-similarity, include-raw", nil, nil, 6, "0-1")
+cmd_load_train_sentences:option("--segments", "number of segments for positions", nil, tonumber, 1, 1)
+cmd_load_train_sentences:option("--dimensions", "number of dimensions for positions", nil, tonumber, 1, 1)
+cmd_load_train_sentences:option("--buckets", "number of buckets for positions", nil, tonumber, 1, 1)
+cmd_load_train_sentences:option("--saturation", "BM25 saturation", 1.2, tonumber, 1, 1)
+cmd_load_train_sentences:option("--length-normalization", "BM25 length normalization", 0.75, tonumber, 1, 1)
+cmd_load_train_sentences:option("--max-records", "Max number of sentences to load", nil, tonumber, 1, "0-1")
+cmd_load_train_sentences:option("--jobs", "", nil, tonumber, 1, "0-1")
+
+local cmd_load_test_sentences = cmd_load:command("test-sentences", "load NLI dataset")
+base_flags(cmd_load_test_sentences)
+cmd_load_test_sentences:option("--name", "name of loaded dataset", nil, nil, 1, 1)
+cmd_load_test_sentences:option("--file", "path to NLI dataset file", nil, nil, 1, 1)
+cmd_load_test_sentences:option("--clusters", "name of word clusters, num, min-set, max-set, min-similarity, include-raw", nil, nil, 6, "0-1")
+cmd_load_test_sentences:option("--max-records", "Max number of sentences to load", nil, tonumber, 1, "0-1")
+cmd_load_test_sentences:option("--model", "train model to use for fingerprinting", nil, nil, 1, 1)
 
 local cmd_create = parser:command("create")
 cmd_create:command_target("cmd_create")
@@ -57,11 +65,11 @@ cmd_create_clusters:option("--filter-words", "snli dataset to filter words by", 
 local cmd_create_encoder = cmd_create:command("encoder", "create an encoder")
 base_flags(cmd_create_encoder)
 cmd_create_encoder:option("--name", "name of created encoder", nil, nil, 1, 1)
-cmd_create_encoder:option("--sentences", "name of sentences model(s) to use", nil, nil, 1, 1)
+cmd_create_encoder:option("--sentences", "name of sentences model(s) to use", nil, nil, 2, 1)
+cmd_create_encoder:option("--max-records", "Max number of train and test pairs", nil, tonumber, 2, "0-1")
 cmd_create_encoder:option("--encoded-bits", "number of bits in encoded bitmaps", nil, tonumber, 1, 1)
 cmd_create_encoder:option("--margin", "margin for triplet loss", nil, tonumber, 1, 1)
 cmd_create_encoder:option("--loss-alpha", "scale for loss function", nil, tonumber, 1, 1)
-cmd_create_encoder:option("--train-test-ratio", "ratio of train to test examples", nil, tonumber, 1, 1)
 cmd_create_encoder:option("--clauses", "Tsetlin Machine clauses", nil, tonumber, 1, 1)
 cmd_create_encoder:option("--state-bits", "Tsetlin Machine state bits", nil, tonumber, 1, 1)
 cmd_create_encoder:option("--threshold", "Tsetlin Machine threshold", nil, tonumber, 1, 1)
@@ -69,14 +77,14 @@ cmd_create_encoder:option("--specificity", "Tsetlin Machine specificity", nil, t
 cmd_create_encoder:option("--active-clause", "Tsetlin Machine active clause", nil, tonumber, 1, 1)
 cmd_create_encoder:option("--boost-true-positive", "Tsetlin Machine boost true positive", nil, fun.bind(op.eq, "true"), 1, 1):choices({ "true", "false" })
 cmd_create_encoder:option("--evaluate-every", "Evaluation frequency", 5, tonumber, 1, 1)
-cmd_create_encoder:option("--max-records", "Max number records to use in training", nil, tonumber, 1, "0-1")
 cmd_create_encoder:option("--epochs", "Number of epochs", nil, tonumber, 1, 1)
 
 local cmd_search = parser:command("search")
 base_flags(cmd_search)
 
 cmd_search:option("--name", "name of loaded dataset", nil, nil, 1, 1)
-cmd_search:option("--file", "path to NLI dataset file", nil, nil, 1, 1)
+cmd_search:option("--train-file", "path to train NLI dataset file", nil, nil, 1, 1)
+cmd_search:option("--test-file", "path to test NLI dataset file", nil, nil, 1, 1)
 
 cmd_search:option("--clusters-number", "", { 64, 128, 256, 512, 1024, 2048 }, nil, "+", "0-1")
 cmd_search:option("--clusters-min-set", "", { 1 }, nil, "+", "0-1")
@@ -99,12 +107,10 @@ cmd_search:option("--specificity-low", "", { 2, 10, 25, 50, 100, 150 }, nil, "+"
 cmd_search:option("--specificity-high", "", { 200, 150, 50, 25, 10, 2 }, nil, "+", "0-1")
 cmd_search:option("--active-clause", "", { 0.85 }, nil, "+", "0-1")
 cmd_search:option("--boost-true-positive", "", { "true", "false" }, nil, "+", "0-1")
-cmd_search:option("--max-records", "", { 200, 400, 2000, 4000, 8000, 12000 }, nil, "+", "0-1")
 
 cmd_search:option("--search", "", nil, nil, 1, 1):choices({ "grid", "random" })
 cmd_search:option("--max-minutes", "", nil, tonumber, 1, "0-1")
 cmd_search:option("--words", "", nil, nil, 1, 1)
-cmd_search:option("--train-test-ratio", "", nil, nil, 1, 1)
 cmd_search:option("--jobs", "", nil, nil, 1, "0-1")
 cmd_search:option("--epochs", "", nil, nil, 1, 1)
 cmd_search:option("--evaluate-every", "", 5, nil, 1, 1)
@@ -115,7 +121,7 @@ local db = init_db(args.cache)
 
 if args.cmd == "load" and args.cmd_load == "words" then
   words.load_words(db, args)
-elseif args.cmd == "load" and args.cmd_load == "sentences" then
+elseif args.cmd == "load" and args.cmd_load == "train-sentences" then
   if args.clusters then
     args.clusters = {
       words = args.clusters[1],
@@ -126,7 +132,9 @@ elseif args.cmd == "load" and args.cmd_load == "sentences" then
       include_raw = args.clusters[6] == "true",
     }
   end
-  sentences.load_sentences(db, args)
+  sentences.load_train_sentences(db, args)
+elseif args.cmd == "load" and args.cmd_load == "test-sentences" then
+  sentences.load_test_sentences(db, args)
 elseif args.cmd == "create" and args.cmd_create == "clusters" then
   clusters.create_clusters(db, args)
 elseif args.cmd == "create" and args.cmd_create == "encoder" then

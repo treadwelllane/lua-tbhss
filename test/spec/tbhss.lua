@@ -12,7 +12,7 @@ sys.execute({
   "lua", "bin/tbhss.lua", "load", "words",
   "--cache", db_file,
   "--name", "glove",
-  "--file", "test/res/glove.txt",
+  "--file", "test/res/glove_snli_dev.train.txt",
 })
 
 -- sys.execute({
@@ -24,27 +24,33 @@ sys.execute({
 -- })
 
 sys.execute({
-  "lua", "bin/tbhss.lua", "load", "sentences",
+  "lua", "bin/tbhss.lua", "load", "train-sentences",
   "--cache", db_file,
-  "--name", "snli-dev",
-  "--file", "test/res/snli_1.0_dev.txt",
-  "--clusters", "glove", "1024", "1", "3", "0", "false",
+  "--name", "dev-train",
+  "--file", "test/res/snli_1.0_dev.train.txt",
+  "--clusters", "glove", "1024", "1", "32", "0", "false",
   "--segments", "1",
-  "--dimensions", "4",
+  "--dimensions", "64",
   "--buckets", "20",
   "--saturation", "1.2",
   "--length-normalization", "0.75",
-  "--max-records", "2000",
+})
+
+sys.execute({
+  "lua", "bin/tbhss.lua", "load", "test-sentences",
+  "--cache", db_file,
+  "--name", "dev-test",
+  "--file", "test/res/snli_1.0_dev.test.txt",
+  "--model", "dev-train",
 })
 
 sys.execute({
   "lua", "bin/tbhss.lua", "create", "encoder",
   "--cache", db_file,
   "--name", "snli-dev",
-  "--sentences", "snli-dev",
-  "--train-test-ratio", "0.8",
+  "--sentences", "dev-train", "dev-test",
   "--encoded-bits", "128",
-  "--clauses", "2048",
+  "--clauses", "1024",
   "--state-bits", "8",
   "--threshold", "32",
   "--specificity", "2", "200",

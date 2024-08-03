@@ -11,7 +11,7 @@ create table clusters_model (
   id integer primary key,
   id_words_model integer not null references words_model (id) on delete cascade,
   name varchar not null unique,
-  clusters integer not null,
+  args json,
   clustered boolean not null default false
 );
 
@@ -19,15 +19,7 @@ create table sentences_model (
   id integer primary key,
   name varchar not null unique,
   id_clusters_model integer references clusters_model (id) on delete cascade,
-  min_set integer,
-  max_set integer,
-  min_similarity real,
-  include_raw boolean,
-  segments integer not null,
-  dimensions integer not null,
-  buckets integer not null,
-  saturation integer not null,
-  length_normalization integer not null,
+  args json,
   loaded boolean not null default false
 );
 
@@ -94,7 +86,7 @@ create table sentence_words (
 create table encoder_model (
   id integer primary key,
   id_sentences_model integer not null references sentences_model (id) on delete cascade,
-  params json not null,
+  args json not null,
   name varchar not null unique,
   trained boolean not null default false,
   model blob
@@ -103,5 +95,5 @@ create table encoder_model (
 create index sentences_id_sentences_model_sentence
   on sentences (id_sentences_model, sentence);
 
-create index clusters_id_clusters_model_similarity
-  on clusters (id_clusters_model, similarity);
+-- create index clusters_id_clusters_model_similarity
+--   on clusters (id_clusters_model, similarity);

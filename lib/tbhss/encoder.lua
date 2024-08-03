@@ -16,10 +16,9 @@ local function prep_fingerprint (fingerprint, bits)
   return fingerprint
 end
 
-local function get_baseline (dataset, s, e)
+local function get_baseline (dataset)
   local correct = 0
-  s, e = s or 1, e or #dataset.triplets
-  for i = s, e do
+  for i = 1, #dataset.triplets do
     local t = dataset.triplets[i]
     local dn = bm.hamming(t.anchor_fingerprint, t.negative_fingerprint)
     local dp = bm.hamming(t.anchor_fingerprint, t.positive_fingerprint)
@@ -30,12 +29,12 @@ local function get_baseline (dataset, s, e)
   return correct / #dataset.triplets
 end
 
-local function get_dataset (db, sentences_model, args)
+local function get_dataset (db, sentences_model, args, max)
 
   print("Loading sentence triplets")
-  local triplets = db.get_sentence_triplets(sentences_model.id, args.max_records)
+  local triplets = db.get_sentence_triplets(sentences_model.id, max)
 
-  local fingerprint_bits = hash.segment_bits * sentences_model.segments * sentences_model.dimensions
+  local fingerprint_bits = hash.segment_bits * args.segments * args.dimensions
 
   for i = 1, #triplets do
     local s = triplets[i]
@@ -53,14 +52,13 @@ local function get_dataset (db, sentences_model, args)
     triplets = triplets,
     fingerprint_bits = fingerprint_bits,
     input_bits = fingerprint_bits * 2,
-    encoded_bits = args.encoded_bits,
   }
 
 end
 
-local function split_dataset (dataset, s, e)
+local function pack_dataset (dataset)
   local gs = {}
-  for i = s, e do
+  for i = 1, #dataset.triplets do
     local s = dataset.triplets[i]
     arr.push(gs, s.group)
   end
@@ -72,9 +70,16 @@ local function create_encoder (db, args)
   print("Creating encoder")
 
   local sentences_model_train = db.get_sentences_model_by_name(args.sentences[1])
-
   if not sentences_model_train or sentences_model_train.loaded ~= 1 then
-    err.error("Sentences model not loaded", args.sentences)
+    err.error("Train sentences model not loaded", args.sentences[1])
+  end
+
+  local sentences_model_test = db.get_sentences_model_by_name(args.sentences[2])
+  if not sentences_model_test or sentences_model_test.loaded ~= 1 then
+    err.error("Test sentences model not loaded", args.sentences[2])
+  end
+  if sentences_model_test.args.id_parent_model ~= sentences_model_train.id then
+    err.error("Test sentences model it not related to train model", sentences_model_train.name, sentences_model_test.name)
   end
 
   local encoder_model = db.get_encoder_model_by_name(args.name)
@@ -89,24 +94,29 @@ local function create_encoder (db, args)
     err.error("Encoder already created")
   end
 
-  local n_train, train_data, train_dataset, train_baseline
-  local n_test, test_data, test_dataset, test_baseline
+  print("Loading datasets")
 
-  local train_dataset = get_dataset(db, sentences_model_train, args)
+  -- local dataset = get_dataset(db, sentences_model_train, sentences_model_train.args, args.max_records and args.max_records[1] or nil)
+  -- local train_dataset = { triplets = arr.copy({}, dataset.triplets, 1, 1, math.floor(#dataset.triplets * 0.8)), input_bits = dataset.input_bits, fingerprint_bits = dataset.fingerprint_bits }
+  -- local test_dataset = { triplets = arr.copy({}, dataset.triplets, 1, math.floor(#dataset.triplets * 0.8) + 1, #dataset.triplets), input_bits = dataset.input_bits, fingerprint_bits = dataset.fingerprint_bits }
 
-  print("Splitting & packing")
+  local train_dataset = get_dataset(db, sentences_model_train, sentences_model_train.args, args.max_records and args.max_records[1] or nil)
+  local test_dataset = get_dataset(db, sentences_model_test, sentences_model_train.args, args.max_records and args.max_records[2] or nil)
 
-  n_train = num.floor(#train_dataset.triplets * args.train_test_ratio)
-  n_test = #train_dataset.triplets - n_train
-  train_data = split_dataset(train_dataset, 1, n_train)
-  test_data = split_dataset(train_dataset, n_train + 1, n_train + n_test)
-  train_baseline = get_baseline(train_dataset, 1, n_train)
-  test_baseline = get_baseline(train_dataset, n_train + 1, n_train + n_test)
+  print("Calculating baselines")
+
+  local train_baseline = get_baseline(train_dataset)
+  local test_baseline = get_baseline(test_dataset)
+
+  print("Packing datasets")
+
+  local train_data = pack_dataset(train_dataset)
+  local test_data = pack_dataset(test_dataset)
 
   print("Input Bits", train_dataset.input_bits)
-  print("Encoded Bits", train_dataset.encoded_bits)
-  print("Total Train", n_train)
-  print("Total Test", n_test)
+  print("Encoded Bits", args.encoded_bits)
+  print("Total Train", #train_dataset.triplets)
+  print("Total Test", #test_dataset.triplets)
 
   local t = tm.encoder(
     args.encoded_bits, train_dataset.input_bits / 2, args.clauses,
@@ -121,13 +131,13 @@ local function create_encoder (db, args)
   for epoch = 1, args.epochs do
 
     local start = os.time()
-    tm.train(t, n_train, train_data, args.active_clause,
+    tm.train(t, #train_dataset.triplets, train_data, args.active_clause,
       args.margin, args.loss_alpha)
     local duration = os.time() - start
 
     if epoch == args.epochs or epoch % args.evaluate_every == 0 then
-      local train_score = tm.evaluate(t, n_train, train_data, args.margin)
-      local test_score = tm.evaluate(t, n_test, test_data, args.margin)
+      local train_score = tm.evaluate(t, #train_dataset.triplets, train_data, args.margin)
+      local test_score = tm.evaluate(t, #test_dataset.triplets, test_data, args.margin)
       str.printf("Epoch %-4d  Time %-4d  Test %4.2f  Train %4.2f\n",
         epoch, duration, test_score, train_score)
     else
