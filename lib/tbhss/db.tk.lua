@@ -14,6 +14,7 @@ local sql = require("santoku.sqlite")
 local migrate = require("santoku.sqlite.migrate")
 local tm = require("santoku.tsetlin")
 local fs = require("santoku.fs")
+local varg = require("santoku.varg")
 local cjson = require("cjson")
 local sqlite = require("lsqlite3")
 local open = sqlite.open
@@ -40,34 +41,23 @@ return function (db_file, skip_init)
 
   local M = { db = db, file = db_file }
 
-  M.add_words_model = db.inserter([[
-    insert into words_model (name, total, dimensions, embeddings)
-    values (?, ?, ?, ?)
-  ]])
-
-  M.add_sentences_model = db.inserter([[
-    insert into sentences_model
-    (name, segments, dimensions, buckets, saturation, length_normalization)
-    values
-    (:name, :segments, :dimensions, :buckets, :saturation, :length_normalization)
-  ]])
-
-  M.add_clusters_model = db.inserter([[
-    insert into clusters_model (name, id_words_model, clusters)
-    values (?, ?, ?)
-  ]])
-
-  local encode_encoder_model = function (inserter)
-    return function (n, e, p)
-      return inserter(n, e, cjson.encode(p))
+  local encode_tables = function (inserter)
+    return function (...)
+      return inserter(varg.map(function (t)
+        if type(t) == "table" then
+          return cjson.encode(t)
+        else
+          return t
+        end
+      end, ...))
     end
   end
 
-  local decode_encoder_model = function (getter)
+  local decode_args = function (getter)
     return function (...)
       local model = getter(...)
-      if model and model.params then
-        model.params = cjson.decode(model.params)
+      if model and model.args then
+        model.args = cjson.decode(model.args)
         return model
       end
     end
@@ -85,8 +75,22 @@ return function (db_file, skip_init)
     end
   end
 
-  M.add_encoder_model = encode_encoder_model(db.inserter([[
-    insert into encoder_model (name, id_sentences_model, params)
+  M.add_words_model = db.inserter([[
+    insert into words_model (name, total, dimensions, embeddings)
+    values (?1, ?2, ?3, ?4)
+  ]])
+
+  M.add_sentences_model = encode_tables(db.inserter([[
+    insert into sentences_model (name, args) values (?1, ?2)
+  ]]))
+
+  M.add_clusters_model = encode_tables(db.inserter([[
+    insert into clusters_model (name, id_words_model, args)
+    values (?1, ?2, ?3)
+  ]]))
+
+  M.add_encoder_model = encode_tables(db.inserter([[
+    insert into encoder_model (name, id_sentences_model, args)
     values (?, ?, ?)
   ]]))
 
@@ -102,15 +106,11 @@ return function (db_file, skip_init)
     where id = ?
   ]])
 
-  M.set_sentences_clusters = db.runner([[
+  M.set_sentences_args = encode_tables(db.runner([[
     update sentences_model
-    set id_clusters_model = :id_clusters_model,
-        min_set = :min_set,
-        max_set = :max_set,
-        min_similarity = :min_similarity,
-        include_raw = :include_raw
-    where id = :id_sentences_model
-  ]])
+    set args = ?2
+    where id = ?1
+  ]]))
 
   M.set_encoder_trained = db.runner([[
     update encoder_model
@@ -134,11 +134,11 @@ return function (db_file, skip_init)
     where name = ?
   ]])
 
-  M.get_sentences_model_by_name = db.getter([[
+  M.get_sentences_model_by_name = decode_args(db.getter([[
     select *
     from sentences_model
     where name = ?
-  ]])
+  ]]))
 
   M.get_word_embeddings = db.getter([[
     select embeddings
@@ -146,13 +146,13 @@ return function (db_file, skip_init)
     where id = ?1
   ]], "embeddings")
 
-  M.get_clusters_model_by_name = db.getter([[
+  M.get_clusters_model_by_name = decode_args(db.getter([[
     select *
     from clusters_model
     where name = ?
-  ]])
+  ]]))
 
-  M.get_encoder_model_by_name = decode_encoder_model(db.getter([[
+  M.get_encoder_model_by_name = decode_args(db.getter([[
     select *
     from encoder_model
     where name = ?
@@ -170,19 +170,19 @@ return function (db_file, skip_init)
     where id = ?
   ]], "total")
 
-  M.get_sentences_model_by_id = db.getter([[
+  M.get_sentences_model_by_id = decode_args(db.getter([[
     select *
     from sentences_model
     where id = ?
-  ]])
+  ]]))
 
-  M.get_clusters_model_by_id = db.getter([[
+  M.get_clusters_model_by_id = decode_args(db.getter([[
     select *
     from clusters_model
     where id = ?
-  ]])
+  ]]))
 
-  M.get_encoder_model_by_id = decode_encoder_model(db.getter([[
+  M.get_encoder_model_by_id = decode_args(db.getter([[
     select *
     from encoder_model
     where id = ?
@@ -236,7 +236,7 @@ return function (db_file, skip_init)
     values (?, ?, ?, ?) on conflict (id_sentences_model, id_a, id_b) do nothing
   ]])
 
-  local get_sentence_word_id = db.getter([[
+  M.get_sentence_word_id = db.getter([[
     select id
     from sentence_words
     where id_sentences_model = ?1
@@ -255,7 +255,7 @@ return function (db_file, skip_init)
   ]], "max")
 
   M.add_sentence_word = function (id_model, word)
-    local id = get_sentence_word_id(id_model, word)
+    local id = M.get_sentence_word_id(id_model, word)
     if id then
       return id
     else
@@ -308,6 +308,11 @@ return function (db_file, skip_init)
     end
     return ss
   end
+
+  M.get_total_docs = db.getter([[
+    select count(*) as total
+    from sentences where id_sentences_model = ?1
+  ]], "total")
 
   M.get_average_doc_length = db.getter([[
     select avg(length) as avgdl
@@ -374,11 +379,9 @@ return function (db_file, skip_init)
           partition by c.id_words order by c.similarity desc
         ) as rank
       from
-        clusters c,
-        sentences_model sm
+        clusters c
       where
-        sm.id = ?1 and
-        c.id_clusters_model = sm.id_clusters_model
+        c.id_clusters_model = ?1
     )
     select token, cluster, similarity
     from ranked_clusters
@@ -474,7 +477,6 @@ return function (db_file, skip_init)
       and anchor_sent.fingerprint is not null
       and positive_sent.fingerprint is not null
       and negative_sent.fingerprint is not null
-    order by random()
     limit coalesce(?2, -1)
   ]])
 

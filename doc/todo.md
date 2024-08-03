@@ -2,10 +2,6 @@
 
 - CLI command to evaluate SBERT against a dataset
 
-- Split test/train at load sentences. Load train first normally, then use train
-  modeler to model test sentences (this way test is totally unseen)
-- Allow passing multiple files to load sentences (merge them)
-
 - Hyperparameter search
 
 # Later
