@@ -20,7 +20,10 @@ sys.execute({
 --   "--cache", db_file,
 --   "--name", "glove",
 --   "--words", "glove",
---   "--clusters", "64"
+--   "--clusters", "1024",
+--   "--min", "1",
+--   "--max", "3",
+--   "--cutoff", "0",
 -- })
 
 sys.execute({
@@ -28,12 +31,13 @@ sys.execute({
   "--cache", db_file,
   "--name", "dev-train",
   "--file", "test/res/snli_1.0_dev.train.txt",
-  "--clusters", "glove", "1024", "1", "32", "0", "false",
+  "--clusters", "glove", "1024", "1", "3", "0", "false",
   "--segments", "1",
-  "--dimensions", "64",
-  "--buckets", "20",
+  "--dimensions", "4",
+  "--buckets", "10",
   "--saturation", "1.2",
   "--length-normalization", "0.75",
+  "--max-records", "3000",
 })
 
 sys.execute({
@@ -42,6 +46,7 @@ sys.execute({
   "--name", "dev-test",
   "--file", "test/res/snli_1.0_dev.test.txt",
   "--model", "dev-train",
+  "--max-records", "200",
 })
 
 sys.execute({
@@ -50,7 +55,7 @@ sys.execute({
   "--name", "snli-dev",
   "--sentences", "dev-train", "dev-test",
   "--encoded-bits", "128",
-  "--clauses", "1024",
+  "--clauses", "2048",
   "--state-bits", "8",
   "--threshold", "32",
   "--specificity", "2", "200",

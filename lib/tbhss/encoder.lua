@@ -4,7 +4,6 @@ local fs = require("santoku.fs")
 local str = require("santoku.string")
 local bm = require("santoku.bitmap")
 local arr = require("santoku.array")
-local num = require("santoku.num")
 local err = require("santoku.error")
 
 local hash = require("tbhss.hash")
@@ -79,7 +78,8 @@ local function create_encoder (db, args)
     err.error("Test sentences model not loaded", args.sentences[2])
   end
   if sentences_model_test.args.id_parent_model ~= sentences_model_train.id then
-    err.error("Test sentences model it not related to train model", sentences_model_train.name, sentences_model_test.name)
+    err.error("Test sentences model it not related to train model",
+      sentences_model_train.name, sentences_model_test.name)
   end
 
   local encoder_model = db.get_encoder_model_by_name(args.name)
@@ -96,12 +96,11 @@ local function create_encoder (db, args)
 
   print("Loading datasets")
 
-  -- local dataset = get_dataset(db, sentences_model_train, sentences_model_train.args, args.max_records and args.max_records[1] or nil)
-  -- local train_dataset = { triplets = arr.copy({}, dataset.triplets, 1, 1, math.floor(#dataset.triplets * 0.8)), input_bits = dataset.input_bits, fingerprint_bits = dataset.fingerprint_bits }
-  -- local test_dataset = { triplets = arr.copy({}, dataset.triplets, 1, math.floor(#dataset.triplets * 0.8) + 1, #dataset.triplets), input_bits = dataset.input_bits, fingerprint_bits = dataset.fingerprint_bits }
+  local train_dataset = get_dataset(db, sentences_model_train,
+    sentences_model_train.args, args.max_records and args.max_records[1] or nil)
 
-  local train_dataset = get_dataset(db, sentences_model_train, sentences_model_train.args, args.max_records and args.max_records[1] or nil)
-  local test_dataset = get_dataset(db, sentences_model_test, sentences_model_train.args, args.max_records and args.max_records[2] or nil)
+  local test_dataset = get_dataset(db, sentences_model_test,
+    sentences_model_train.args, args.max_records and args.max_records[2] or nil)
 
   print("Calculating baselines")
 

@@ -81,6 +81,9 @@ local function create_clusters (db, args)
     words = args.clusters.words,
     filter_words = args.name,
     clusters = args.clusters.clusters,
+    min = args.clusters.min_set,
+    max = args.clusters.max_set,
+    cutoff = args.clusters.min_similarity
   })
   args.clusters.name = clusters_model.name
   args.id_clusters_model = clusters_model.id
@@ -131,10 +134,7 @@ local function expand_tokens (db, id_model, args)
   local jobs = args.jobs or sys.get_num_cores()
   local sentences = db.get_sentences(id_model)
   local model = db.get_sentences_model_by_id(args.id_parent_model or id_model)
-  local nearest = model.args.clusters and db.get_nearest_clusters(model.args.id_clusters_model,
-    model.args.clusters.min_set,
-    model.args.clusters.max_set,
-    model.args.clusters.min_similarity)
+  local nearest = model.args.clusters and db.get_nearest_clusters(model.args.id_clusters_model)
   local chunk_size = math.floor(#sentences / jobs)
   for _ in sys.sh({
     jobs = jobs, fn = function (job)
@@ -268,7 +268,7 @@ local function load_sentences_from_file (db, model, args, is_train)
 
     local parent_model = db.get_sentences_model_by_name(args.model)
 
-    if not parent_model or not parent_model.loaded == 1 then
+    if not (parent_model and parent_model.loaded == 1) then
       err.error("Parent sentences model not loaded")
     end
 

@@ -95,5 +95,5 @@ create table encoder_model (
 create index sentences_id_sentences_model_sentence
   on sentences (id_sentences_model, sentence);
 
--- create index clusters_id_clusters_model_similarity
---   on clusters (id_clusters_model, similarity);
+create index clusters_id_clusters_model_similarity
+  on clusters (id_clusters_model, similarity);

@@ -117,12 +117,14 @@ static inline void populate_hash (
   unsigned int dimensions,
   unsigned int buckets
 ) {
-  lua_Number counts_0[segments * dimensions * BITS];
   lua_Number counts_1[segments * dimensions * BITS];
+  lua_Number counts_0[segments * dimensions * BITS];
+  for (size_t i = 0; i < segments * dimensions * BITS; i ++)
+    counts_0[i] = counts_1[i] = 0;
+
   uint32_t hash[segments];
   lua_Integer data[2];
-  memset(counts_0, 0, segments * dimensions * BITS * sizeof(lua_Number));
-  memset(counts_1, 0, segments * dimensions * BITS * sizeof(lua_Number));
+
   for (size_t i = 0; i < n; i ++) {
 
     lua_pushinteger(L, i + 1); // n
@@ -145,23 +147,26 @@ static inline void populate_hash (
     lua_pop(L, 4);
 
     data[0] = token;
-
     for (unsigned int dimension = 0; dimension < dimensions; dimension ++) {
       data[1] = encode_pos(position, dimension, dimensions, buckets);
       murmur(data, sizeof(lua_Integer) * 2, 0, hash, segments);
-      for (unsigned int bit = 0; bit < segments * BITS; bit ++) {
-        unsigned int chunk = bit / BITS;
-        unsigned int pos = bit % BITS;
-        if (hash[chunk] & (1 << pos))
-          counts_1[dimension * segments * BITS + bit] += weight * similarity;
+      for (unsigned int i = 0; i < segments * BITS; i ++) {
+        unsigned int segment = i / BITS;
+        unsigned int bit = i % BITS;
+        if (hash[segment] & (1 << bit))
+          counts_1[(dimension * segments * BITS) + (segment * BITS) + bit]
+            += weight * similarity;
         else
-          counts_0[dimension * segments * BITS + bit] += weight * similarity;
+          counts_1[(dimension * segments * BITS) + (segment * BITS) + bit]
+            -= weight * similarity;
       }
     }
 
   }
 
-  memset(result, 0, BYTES * segments * dimensions);
+  for (unsigned int i = 0; i < segments * dimensions; i ++)
+    result[i] = 0;
+
   for (unsigned int i = 0; i < segments * dimensions * BITS; i ++) {
     unsigned int chunk = i / BITS;
     unsigned int bit = i % BITS;
