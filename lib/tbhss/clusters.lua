@@ -174,9 +174,13 @@ local function cluster_words (db, clusters_model, args)
     and clusters_model.id
     or db.add_clusters_model(args.name, words_model.id, args.clusters)
 
-  for i = 1, mrows(distance_matrix) do
-    for j = 1, mcolumns(distance_matrix) do
-      db.set_word_cluster_similarity(id_model, word_idmap[i], j, mget(distance_matrix, i, j))
+  local order = mtx.rorder(distance_matrix, args.min, args.max, args.cutoff)
+
+  for i = 1, #order do
+    local o = order[i]
+    for j = 1, #o do
+      local t = o[j]
+      db.set_word_cluster_similarity(id_model, word_idmap[i], t, mget(distance_matrix, i, t))
     end
   end
 

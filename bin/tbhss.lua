@@ -60,6 +60,9 @@ base_flags(cmd_create_clusters)
 cmd_create_clusters:option("--name", "name of created clusters", nil, nil, 1, 1)
 cmd_create_clusters:option("--words", "name of words to cluster", nil, nil, 1, 1)
 cmd_create_clusters:option("--clusters", "number of clusters", nil, tonumber, 1, 1)
+cmd_create_clusters:option("--min", "min number of clusters per word", nil, tonumber, 1, 1)
+cmd_create_clusters:option("--max", "max number of clusters per word", nil, tonumber, 1, 1)
+cmd_create_clusters:option("--cutoff", "similarity cutoff", nil, tonumber, 1, 1)
 cmd_create_clusters:option("--filter-words", "snli dataset to filter words by", nil, nil, 1, "0-1")
 
 local cmd_create_encoder = cmd_create:command("encoder", "create an encoder")
@@ -93,7 +96,6 @@ cmd_search:option("--clusters-min-similarity", "", { 0, 0.25, 0.5, 0.75 }, nil, 
 cmd_search:option("--clusters-include-raw", "", { "true", "false" }, nil, "+", "0-1")
 cmd_search:option("--segments", "", { 2, 4, 8 }, nil, "+", "0-1")
 cmd_search:option("--dimensions", "", { 2, 4, 8, 16, 32, 64 }, nil, "+", "0-1")
-cmd_search:option("--buckets", "", { 8, 16, 32, 64, 128, 256, 512 }, nil, "+", "0-1")
 cmd_search:option("--saturation", "", { 1.2 }, nil, "+", "0-1")
 cmd_search:option("--length-normalization", "", { 0.75 }, nil, "+", "0-1")
 

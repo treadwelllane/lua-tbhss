@@ -369,28 +369,17 @@ return function (db_file, skip_init)
   ]])
 
   local get_nearest_clusters = db.all([[
-
-    with ranked_clusters as (
-      select
-        c.id_words as token,
-        c.id as cluster,
-        c.similarity,
-        row_number() over (
-          partition by c.id_words order by c.similarity desc
-        ) as rank
-      from
-        clusters c
-      where
-        c.id_clusters_model = ?1
-    )
-    select token, cluster, similarity
-    from ranked_clusters
-    where rank <= ?2
-    union all
-    select token, cluster, similarity
-    from ranked_clusters
-    where rank > ?2 and rank <= ?3 and similarity >= ?4
-
+    select
+      c.id_words as token,
+      c.id as cluster,
+      c.similarity
+    from
+      clusters c
+    where
+      c.id_clusters_model = ?1
+    order by
+      id_words,
+      c.similarity desc
   ]])
 
   M.get_nearest_clusters = function (...)
