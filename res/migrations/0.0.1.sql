@@ -18,7 +18,6 @@ create table clusters_model (
 create table sentences_model (
   id integer primary key,
   name varchar not null unique,
-  id_clusters_model integer references clusters_model (id) on delete cascade,
   args json,
   loaded boolean not null default false
 );
