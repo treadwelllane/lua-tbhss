@@ -1,249 +1,101 @@
-# Dev 2000
+# Dev
 
-    Epoch 97    Time 2     Test 0.91  Train 0.98
-
-    sys.execute({
-      "lua", "bin/tbhss.lua", "load", "sentences",
-      "--cache", db_file,
-      "--name", "snli-dev",
-      "--file", "test/res/snli_1.0_dev.txt",
-      "--clusters", "glove", "1024", "1", "3", "0", "false",
-      "--segments", "1",
-      "--dimensions", "4",
-      "--buckets", "20",
-      "--saturation", "1.2",
-      "--length-normalization", "0.75",
-      "--max-records", "2000",
-    })
+    Epoch 50    Time 17    Test 0.86  Train 1.00
 
     sys.execute({
-      "lua", "bin/tbhss.lua", "create", "encoder",
-      "--cache", db_file,
-      "--name", "snli-dev",
-      "--sentences", "snli-dev",
-      "--train-test-ratio", "0.8",
-      "--encoded-bits", "128",
-      "--clauses", "2048",
-      "--state-bits", "8",
-      "--threshold", "32",
-      "--specificity", "2", "200",
-      "--margin", "0.5",
-      "--loss-alpha", "0.25",
-      "--active-clause", "0.85",
-      "--boost-true-positive", "true",
-      "--evaluate-every", "1",
-      "--epochs", "100"
+      "lua", "bin/tbhss.lua", "process", "snli",
+      "--inputs", "test/res/snli_1.0_dev.txt",
+      "--train-test-ratio", "0.9",
+      "--output-train", ".train.triplets.txt",
+      "--output-test", ".test.triplets.txt",
     })
-
-    Epoch 100   Time 3     Test 0.91  Train 0.97
-
-    sys.execute({
-      "lua", "bin/tbhss.lua", "load", "sentences",
-      "--cache", db_file,
-      "--name", "snli-dev",
-      "--file", "test/res/snli_1.0_dev.txt",
-      "--clusters", "glove", "1024", "1", "3", "0", "false",
-      "--segments", "1",
-      "--dimensions", "4",
-      "--buckets", "10",
-      "--saturation", "1.2",
-      "--length-normalization", "0.75",
-      "--max-records", "2000",
-    })
-
-    sys.execute({
-      "lua", "bin/tbhss.lua", "create", "encoder",
-      "--cache", db_file,
-      "--name", "snli-dev",
-      "--sentences", "snli-dev",
-      "--train-test-ratio", "0.8",
-      "--encoded-bits", "128",
-      "--clauses", "1024",
-      "--state-bits", "8",
-      "--threshold", "32",
-      "--specificity", "2", "200",
-      "--margin", "0.5",
-      "--loss-alpha", "0.25",
-      "--active-clause", "0.85",
-      "--boost-true-positive", "true",
-      "--evaluate-every", "1",
-      "--epochs", "100"
-    })
-
-    Epoch 50    Time 6     Test 0.90  Train 0.98
-
-    sys.execute({
-      "lua", "bin/tbhss.lua", "load", "sentences",
-      "--cache", db_file,
-      "--name", "snli-dev",
-      "--file", os.getenv("SNLI") or "test/res/snli_1.0_dev.txt",
-      "--clusters", "glove", "1024", "1", "3", "0.9", "false",
-      "--segments", "1",
-      "--dimensions", "4",
-      "--buckets", "20",
-      "--saturation", "1.2",
-      "--length-normalization", "0.75",
-      "--max-records", "2000",
-    })
-
-    sys.execute({
-      "lua", "bin/tbhss.lua", "create", "encoder",
-      "--cache", db_file,
-      "--name", "snli-dev",
-      "--sentences", "snli-dev",
-      "--train-test-ratio", "0.8",
-      "--encoded-bits", "128",
-      "--clauses", "1024",
-      "--state-bits", "8",
-      "--threshold", "32",
-      "--specificity", "2", "200",
-      "--margin", "0.5",
-      "--loss-alpha", "0.25",
-      "--active-clause", "0.85",
-      "--boost-true-positive", "true",
-      "--evaluate-every", "1",
-      "--epochs", "50"
-    })
-
-    Epoch 50    Time 4     Test 0.86  Train 0.98
-
-    sys.execute({
-      "lua", "bin/tbhss.lua", "load", "sentences",
-      "--cache", db_file,
-      "--name", "snli-dev",
-      "--file", os.getenv("SNLI") or "test/res/snli_1.0_dev.txt",
-      "--clusters", "glove", "1024", "1", "3", "0.9", "false",
-      "--segments", "1",
-      "--dimensions", "4",
-      "--buckets", "20",
-      "--saturation", "1.2",
-      "--length-normalization", "0.75",
-      "--max-records", "2000",
-    })
-
-    sys.execute({
-      "lua", "bin/tbhss.lua", "create", "encoder",
-      "--cache", db_file,
-      "--name", "snli-dev",
-      "--sentences", "snli-dev",
-      "--train-test-ratio", "0.8",
-      "--encoded-bits", "128",
-      "--clauses", "1024",
-      "--state-bits", "8",
-      "--threshold", "32",
-      "--specificity", "2", "200",
-      "--margin", "0.4",
-      "--loss-alpha", "0.25",
-      "--active-clause", "0.85",
-      "--boost-true-positive", "true",
-      "--evaluate-every", "1",
-      "--epochs", "50"
-    })
-
-    Epoch 50    Time 2     Test 0.85  Train 0.98
 
     sys.execute({
       "lua", "bin/tbhss.lua", "load", "words",
       "--cache", db_file,
       "--name", "glove",
-      "--file", os.getenv("GLOVE") or "test/res/glove.txt",
+      "--file", "test/res/glove_snli_dev.train.txt",
     })
 
     sys.execute({
-      "lua", "bin/tbhss.lua", "load", "sentences",
+      "lua", "bin/tbhss.lua", "load", "train-triplets",
       "--cache", db_file,
-      "--name", "snli-dev",
-      "--file", os.getenv("SNLI") or "test/res/snli_1.0_dev.txt",
-      "--clusters", "glove", "1024", "1", "3", "0.9", "false",
+      "--name", "dev-train",
+      "--file", ".train.triplets.txt",
+      "--clusters", "glove", "1024", "1", "3", "0", "false",
       "--segments", "1",
       "--dimensions", "4",
       "--buckets", "20",
       "--saturation", "1.2",
       "--length-normalization", "0.75",
-      "--max-records", "2000",
+    })
+
+    sys.execute({
+      "lua", "bin/tbhss.lua", "load", "test-triplets",
+      "--cache", db_file,
+      "--name", "dev-test",
+      "--file", ".test.triplets.txt",
+      "--model", "dev-train",
     })
 
     sys.execute({
       "lua", "bin/tbhss.lua", "create", "encoder",
       "--cache", db_file,
       "--name", "snli-dev",
-      "--sentences", "snli-dev",
-      "--train-test-ratio", "0.8",
+      "--triplets", "dev-train", "dev-test",
       "--encoded-bits", "128",
-      "--clauses", "1024",
+      "--clauses", "2048",
       "--state-bits", "8",
       "--threshold", "32",
       "--specificity", "2", "200",
-      "--margin", "0.3",
+      "--margin", "0.1",
       "--loss-alpha", "0.25",
       "--active-clause", "0.85",
       "--boost-true-positive", "true",
       "--evaluate-every", "1",
-      "--epochs", "50"
+      "--epochs", "100"
     })
 
-    Epoch 50    Time 6     Test 0.84  Train 0.98
+# Dev + Test
 
-    sys.execute({
-      "lua", "bin/tbhss.lua", "load", "sentences",
-      "--cache", db_file,
-      "--name", "snli-dev",
-      "--file", os.getenv("SNLI") or "test/res/snli_1.0_dev.txt",
-      "--clusters", "glove", "1024", "1", "3", "0.9", "false",
-      "--segments", "1",
-      "--dimensions", "4",
-      "--buckets", "20",
-      "--saturation", "1.2",
-      "--length-normalization", "0.75",
-      "--max-records", "2000",
-    })
+    Epoch 100   Time 46    Test 0.86  Train 1.00
 
-    sys.execute({
-      "lua", "bin/tbhss.lua", "create", "encoder",
-      "--cache", db_file,
-      "--name", "snli-dev",
-      "--sentences", "snli-dev",
-      "--train-test-ratio", "0.8",
-      "--encoded-bits", "128",
-      "--clauses", "1024",
-      "--state-bits", "8",
-      "--threshold", "32",
-      "--specificity", "2", "200",
-      "--margin", "0.6",
-      "--loss-alpha", "0.25",
-      "--active-clause", "0.85",
-      "--boost-true-positive", "true",
-      "--evaluate-every", "1",
-      "--epochs", "50"
-    })
+    nohup stdbuf -oL tbhss process snli \
+      --inputs snli_1.0/snli_1.0_test.txt snli_1.0/snli_1.0_dev.txt \
+      --train-test-ratio 0.9 \
+      --output-train snli-small.train.txt \
+      --output-test snli-small.test.txt \
+        2>&1 > log.txt & tail -f log.txt
 
-# Test
-
-    Epoch 100   Time 31    Test 0.89  Train 0.98
-
-    nohup stdbuf -oL tbhss load sentences \
+    nohup stdbuf -oL tbhss load train-triplets \
       --cache tbhss.db \
-      --name snli5.test \
-      --file snli_1.0/snli_1.0_test.txt \
+      --name snli-small.train \
+      --file snli-small.train.txt \
       --clusters glove 1024 1 3 0 false \
       --segments 1 \
-      --dimensions 16 \
+      --dimensions 32 \
       --buckets 20 \
       --saturation 1.2 \
       --length-normalization 0.75 \
         2>&1 > log.txt & tail -f log.txt
 
+    nohup stdbuf -oL tbhss load test-triplets \
+      --cache tbhss.db \
+      --name snli-small.test \
+      --file snli-small.test.txt \
+      --model snli-small.train \
+        2>&1 > log.txt & tail -f log.txt
+
     nohup stdbuf -oL tbhss create encoder \
       --cache tbhss.db \
-      --name snli5.test  \
-      --sentences snli5.test \
-      --train-test-ratio 0.8 \
+      --name snli-small  \
+      --triplets snli-small.train snli-small.test \
       --encoded-bits 256 \
       --clauses 4096 \
       --state-bits 8 \
       --threshold 32 \
       --specificity 2 200 \
-      --margin 0.5 \
+      --margin 0.1 \
       --loss-alpha 0.25 \
       --active-clause 0.85 \
       --boost-true-positive true \
@@ -251,108 +103,6 @@
       --epochs 100 \
         2>&1 > log.txt & tail -f log.txt
 
-    Epoch 100   Time 24    Test 0.88  Train 0.99
-
-    nohup stdbuf -oL tbhss load sentences \
-      --cache tbhss.db \
-      --name snli3.test \
-      --file snli_1.0/snli_1.0_test.txt \
-      --clusters glove 4096 1 3 0 false \
-      --segments 1 \
-      --dimensions 16 \
-      --buckets 10 \
-      --saturation 1.2 \
-      --length-normalization 0.75 \
-        2>&1 > log.txt & tail -f log.txt
-
-    nohup stdbuf -oL tbhss create encoder \
-      --cache tbhss.db \
-      --name snli3.test  \
-      --sentences snli3.test \
-      --train-test-ratio 0.8 \
-      --encoded-bits 256 \
-      --clauses 4096 \
-      --state-bits 8 \
-      --threshold 32 \
-      --specificity 2 200 \
-      --margin 0.5 \
-      --loss-alpha 0.25 \
-      --active-clause 0.85 \
-      --boost-true-positive true \
-      --evaluate-every 1 \
-      --epochs 100 \
-        2>&1 > log.txt & tail -f log.txt
-
-    Epoch 100   Time 24    Test 0.88  Train 0.99
-
-    nohup stdbuf -oL tbhss load sentences \
-      --cache tbhss.db \
-      --name snli2.test \
-      --file snli_1.0/snli_1.0_test.txt \
-      --clusters glove 4096 1 3 0 false \
-      --segments 1 \
-      --dimensions 16 \
-      --buckets 20 \
-      --saturation 1.2 \
-      --length-normalization 0.75 \
-        2>&1 > log.txt & tail -f log.txt
-
-    nohup stdbuf -oL tbhss create encoder \
-      --cache tbhss.db \
-      --name snli2.test  \
-      --sentences snli2.test \
-      --train-test-ratio 0.8 \
-      --encoded-bits 256 \
-      --clauses 4096 \
-      --state-bits 8 \
-      --threshold 32 \
-      --specificity 2 200 \
-      --margin 0.5 \
-      --loss-alpha 0.25 \
-      --active-clause 0.85 \
-      --boost-true-positive true \
-      --evaluate-every 1 \
-      --epochs 100 \
-        2>&1 > log.txt & tail -f log.txt
-
-    Epoch 100   Time 13    Test 0.81  Train 0.98
-
-    nohup stdbuf -oL tbhss load words \
-      --cache tbhss.db \
-      --name glove \
-      --file glove.6B.300d.txt \
-        2>&1 > log.txt & tail -f log.txt
-
-    nohup stdbuf -oL tbhss load sentences \
-      --cache tbhss.db \
-      --name snli45.test \
-      --file snli_1.0/snli_1.0_test.txt \
-      --clusters glove 4096 1 3 0.9 false \
-      --segments 1 \
-      --dimensions 8 \
-      --buckets 20 \
-      --saturation 1.2 \
-      --length-normalization 0.75 \
-        2>&1 > log.txt & tail -f log.txt
-
-    nohup stdbuf -oL tbhss create encoder \
-      --cache tbhss.db \
-      --name snli45.test  \
-      --sentences snli45.test \
-      --train-test-ratio 0.8 \
-      --encoded-bits 256 \
-      --clauses 2048 \
-      --state-bits 8 \
-      --threshold 32 \
-      --specificity 2 200 \
-      --margin 0.3 \
-      --loss-alpha 0.25 \
-      --active-clause 0.85 \
-      --boost-true-positive true \
-      --evaluate-every 1 \
-      --epochs 100 \
-        2>&1 > log.txt & tail -f log.txt
-
-# Train
+# Dev + Test + Train
 
     TODO
