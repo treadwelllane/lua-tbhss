@@ -37,7 +37,6 @@ sys.execute({
   "--buckets", "10",
   "--saturation", "1.2",
   "--length-normalization", "0.75",
-  "--max-records", "3000",
 })
 
 sys.execute({
@@ -46,7 +45,6 @@ sys.execute({
   "--name", "dev-test",
   "--file", "test/res/snli_1.0_dev.test.txt",
   "--model", "dev-train",
-  "--max-records", "200",
 })
 
 sys.execute({

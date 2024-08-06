@@ -370,15 +370,22 @@ return function (db_file, skip_init)
 
   local get_nearest_clusters = db.all([[
     select
-      c.id_words as token,
+      sw.id as token,
       c.id as cluster,
       c.similarity
     from
-      clusters c
+      sentences_model sm,
+      sentence_words sw,
+      clusters c,
+      words w
     where
-      c.id_clusters_model = ?1
+      sm.id = ?1 and
+      sw.id_sentences_model = sm.id and
+      c.id_clusters_model = json_extract(sm.args, '$.id_clusters_model') and
+      w.id = c.id_words and
+      sw.word = w.word
     order by
-      id_words,
+      sw.id,
       c.similarity desc
   ]])
 
@@ -466,6 +473,7 @@ return function (db_file, skip_init)
       and anchor_sent.fingerprint is not null
       and positive_sent.fingerprint is not null
       and negative_sent.fingerprint is not null
+    order by random()
     limit coalesce(?2, -1)
   ]])
 

@@ -134,8 +134,14 @@ local function expand_tokens (db, id_model, args)
   local jobs = args.jobs or sys.get_num_cores()
   local sentences = db.get_sentences(id_model)
   local model = db.get_sentences_model_by_id(args.id_parent_model or id_model)
-  local nearest = model.args.clusters and db.get_nearest_clusters(model.args.id_clusters_model)
-  local chunk_size = math.floor(#sentences / jobs)
+  local nearest = model.args.clusters and db.get_nearest_clusters(model.id)
+  local chunk_size
+  if jobs > #sentences then
+    jobs = #sentences
+    chunk_size = 1
+  else
+    chunk_size = math.floor(#sentences / jobs)
+  end
   for _ in sys.sh({
     jobs = jobs, fn = function (job)
       db = init_db(db.file, true)
