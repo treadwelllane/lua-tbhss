@@ -1,25 +1,37 @@
 # Now
 
-- CLI command to evaluate SBERT against a dataset
+- Command to evaluate encoder on pre-loaded triplets dataset
+    - Ex. evaluate on Multi NLI having only been trained on SNLI, the opposite,
+      or to evaluate on the 500k training dataset after only training on
+      dev/test, etc.
 
-- Hyperparameter search
+- Library interace: encoder and FAISS
+- Pre-trained models for full SNLI dataset & 840B glove model
 
-# Later
-
-- Pre-trained encoders: SNLI & MutiNLI datasets with various settings shared as
-  sqlite.db files with training data pruned
-
-- FAISS
+# Next
 
 - Update README
 
-- Move various inner loops to C (see cluster.lua TODOs)
-- Fuzzy c-means clustering
-- Fuzzy c-medoids clustering
+- Improve performance:
+    - Find initial centroids
+    - Load embeddings
+    - Pack datasets
+
+- Option to encode for hamming vs jaccard (which would be useful when using the
+  output as a semantic representation for a downstream classifier)
 
 # Eventually
 
-- Finetuning helpers
-- Classifier using pairwise xor predicting entailment, contradiction, or neutral
+- Try different hashing mechanisms
+
+- Hyperparameter search
+- CLI command to evaluate SBERT against a dataset
+- Three-way classifier predicting entailment, contradiction, or neutral
+
+# Consider
+
+- Fuzzy c-means clustering
+- Fuzzy c-medoids clustering
+
 - Use GloVe or FastText directly on sentence datasets first
-- Improve performance of loading glove embeddings. Write in C? Parallelize?
+- Finetuning helpers

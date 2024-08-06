@@ -2,7 +2,7 @@ local fs = require("santoku.fs")
 local tm = require("santoku.tsetlin")
 local err = require("santoku.error")
 
-local sentences = require("tbhss.sentences")
+local modeler = require("tbhss.modeler")
 local util = require("tbhss.util")
 
 local function encoder (db_file, model_name)
@@ -16,7 +16,7 @@ local function encoder (db_file, model_name)
     err.error("encoder not trained", model_name)
   end
 
-  local modeler = sentences.modeler(db, encoder_model.id_sentences_model)
+  local modeler = modeler.modeler(db, encoder_model.id_triplets_model)
 
   -- TODO: read directly from sqlite without temporary file
   local fp = fs.tmpname()
@@ -40,5 +40,5 @@ end
 
 return {
   encoder = encoder,
-  modeler = sentences.modeler,
+  modeler = modeler.modeler,
 }

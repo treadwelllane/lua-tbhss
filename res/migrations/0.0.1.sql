@@ -15,7 +15,7 @@ create table clusters_model (
   clustered boolean not null default false
 );
 
-create table sentences_model (
+create table triplets_model (
   id integer primary key,
   name varchar not null unique,
   args json,
@@ -41,58 +41,61 @@ create table clusters (
 
 create table sentences (
   id integer not null, -- 1-N for each sentence (not a primary key)
-  id_sentences_model integer not null references sentences_model (id) on delete cascade,
+  id_triplets_model integer not null references triplets_model (id) on delete cascade,
   sentence varchar not null,
   tokens json,
   length integer,
   positions json,
   similarities json,
   fingerprint blob,
-  primary key (id_sentences_model, id)
+  primary key (id_triplets_model, id)
 );
 
 create table sentences_tf (
-  id_sentences_model integer not null references sentences_model (id) on delete cascade,
+  id_triplets_model integer not null references triplets_model (id) on delete cascade,
   id_sentence integer not null,
   token integer not null,
   freq integer not null,
-  unique (id_sentences_model, id_sentence, token)
+  unique (id_triplets_model, id_sentence, token)
 );
 
 create table sentences_df (
-  id_sentences_model integer not null references sentences_model (id) on delete cascade,
+  id_triplets_model integer not null references triplets_model (id) on delete cascade,
   token integer not null,
   freq integer not null,
-  unique (id_sentences_model, token)
+  unique (id_triplets_model, token)
 );
 
-create table sentence_pairs (
-  id_sentences_model integer not null references sentences_model (id) on delete cascade,
-  label varchar,
-  id_a integer,
-  id_b integer,
-  unique (id_sentences_model, id_a, id_b)
+create table sentence_triplets (
+  id_triplets_model integer not null references triplets_model (id) on delete cascade,
+  id_anchor integer,
+  id_positive integer,
+  id_negative integer,
+  unique (id_triplets_model, id_anchor, id_positive, id_negative)
 );
 
 create table sentence_words (
   id integer not null, -- 1-N for each word (not a primary key)
-  id_sentences_model integer not null references sentences_model (id) on delete cascade,
+  id_triplets_model integer not null references triplets_model (id) on delete cascade,
   word varchar not null,
-  primary key (id_sentences_model, id),
-  unique (id_sentences_model, word)
+  primary key (id_triplets_model, id),
+  unique (id_triplets_model, word)
 );
 
 create table encoder_model (
   id integer primary key,
-  id_sentences_model integer not null references sentences_model (id) on delete cascade,
+  id_triplets_model integer not null references triplets_model (id) on delete cascade,
   args json not null,
   name varchar not null unique,
   trained boolean not null default false,
   model blob
 );
 
-create index sentences_id_sentences_model_sentence
-  on sentences (id_sentences_model, sentence);
+create index words_word
+  on words (word);
+
+create index sentences_id_triplets_model_sentence
+  on sentences (id_triplets_model, sentence);
 
 create index clusters_id_clusters_model_similarity
   on clusters (id_clusters_model, similarity);

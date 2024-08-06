@@ -28,10 +28,10 @@ local function get_baseline (dataset)
   return correct / #dataset.triplets
 end
 
-local function get_dataset (db, sentences_model, args, max)
+local function get_dataset (db, triplets_model, args, max)
 
   print("Loading sentence triplets")
-  local triplets = db.get_sentence_triplets(sentences_model.id, max)
+  local triplets = db.get_sentence_triplets(triplets_model.id, max)
 
   local fingerprint_bits = hash.segment_bits * args.segments * args.dimensions
 
@@ -68,24 +68,24 @@ local function create_encoder (db, args)
 
   print("Creating encoder")
 
-  local sentences_model_train = db.get_sentences_model_by_name(args.sentences[1])
-  if not sentences_model_train or sentences_model_train.loaded ~= 1 then
-    err.error("Train sentences model not loaded", args.sentences[1])
+  local triplets_model_train = db.get_triplets_model_by_name(args.triplets[1])
+  if not triplets_model_train or triplets_model_train.loaded ~= 1 then
+    err.error("Train triplets model not loaded", args.triplets[1])
   end
 
-  local sentences_model_test = db.get_sentences_model_by_name(args.sentences[2])
-  if not sentences_model_test or sentences_model_test.loaded ~= 1 then
-    err.error("Test sentences model not loaded", args.sentences[2])
+  local triplets_model_test = db.get_triplets_model_by_name(args.triplets[2])
+  if not triplets_model_test or triplets_model_test.loaded ~= 1 then
+    err.error("Test triplets model not loaded", args.triplets[2])
   end
-  if sentences_model_test.args.id_parent_model ~= sentences_model_train.id then
-    err.error("Test sentences model it not related to train model",
-      sentences_model_train.name, sentences_model_test.name)
+  if triplets_model_test.args.id_parent_model ~= triplets_model_train.id then
+    err.error("Test triplets model it not related to train model",
+      triplets_model_train.name, triplets_model_test.name)
   end
 
   local encoder_model = db.get_encoder_model_by_name(args.name)
 
   if not encoder_model then
-    local id = db.add_encoder_model(args.name, sentences_model_train.id, args)
+    local id = db.add_encoder_model(args.name, triplets_model_train.id, args)
     encoder_model = db.get_encoder_model_by_id(id)
     assert(encoder_model, "this is a bug! encoder model not created")
   end
@@ -96,11 +96,11 @@ local function create_encoder (db, args)
 
   print("Loading datasets")
 
-  local train_dataset = get_dataset(db, sentences_model_train,
-    sentences_model_train.args, args.max_records and args.max_records[1] or nil)
+  local train_dataset = get_dataset(db, triplets_model_train,
+    triplets_model_train.args, args.max_records and args.max_records[1] or nil)
 
-  local test_dataset = get_dataset(db, sentences_model_test,
-    sentences_model_train.args, args.max_records and args.max_records[2] or nil)
+  local test_dataset = get_dataset(db, triplets_model_test,
+    triplets_model_train.args, args.max_records and args.max_records[2] or nil)
 
   print("Calculating baselines")
 

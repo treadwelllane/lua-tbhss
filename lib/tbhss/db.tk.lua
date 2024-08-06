@@ -80,8 +80,8 @@ return function (db_file, skip_init)
     values (?1, ?2, ?3, ?4)
   ]])
 
-  M.add_sentences_model = encode_tables(db.inserter([[
-    insert into sentences_model (name, args) values (?1, ?2)
+  M.add_triplets_model = encode_tables(db.inserter([[
+    insert into triplets_model (name, args) values (?1, ?2)
   ]]))
 
   M.add_clusters_model = encode_tables(db.inserter([[
@@ -90,7 +90,7 @@ return function (db_file, skip_init)
   ]]))
 
   M.add_encoder_model = encode_tables(db.inserter([[
-    insert into encoder_model (name, id_sentences_model, args)
+    insert into encoder_model (name, id_triplets_model, args)
     values (?, ?, ?)
   ]]))
 
@@ -100,14 +100,14 @@ return function (db_file, skip_init)
     where id = ?
   ]])
 
-  M.set_sentences_loaded = db.runner([[
-    update sentences_model
+  M.set_triplets_loaded = db.runner([[
+    update triplets_model
     set loaded = true
     where id = ?
   ]])
 
-  M.set_sentences_args = encode_tables(db.runner([[
-    update sentences_model
+  M.set_triplets_args = encode_tables(db.runner([[
+    update triplets_model
     set args = ?2
     where id = ?1
   ]]))
@@ -134,9 +134,9 @@ return function (db_file, skip_init)
     where name = ?
   ]])
 
-  M.get_sentences_model_by_name = decode_args(db.getter([[
+  M.get_triplets_model_by_name = decode_args(db.getter([[
     select *
-    from sentences_model
+    from triplets_model
     where name = ?
   ]]))
 
@@ -170,9 +170,9 @@ return function (db_file, skip_init)
     where id = ?
   ]], "total")
 
-  M.get_sentences_model_by_id = decode_args(db.getter([[
+  M.get_triplets_model_by_id = decode_args(db.getter([[
     select *
-    from sentences_model
+    from triplets_model
     where id = ?
   ]]))
 
@@ -195,63 +195,63 @@ return function (db_file, skip_init)
   ]])
 
   M.add_sentence = db.inserter([[
-    insert into sentences (id, id_sentences_model, sentence)
+    insert into sentences (id, id_triplets_model, sentence)
     values (?, ?, ?)
   ]])
 
   M.add_sentence_fingerprint = db.runner([[
     update sentences
     set fingerprint = ?3
-    where id_sentences_model = ?1
+    where id_triplets_model = ?1
     and id = ?2
   ]])
 
   M.set_sentence_tf = db.runner([[
-    insert into sentences_tf (id_sentences_model, id_sentence, token, freq)
-    select s.id_sentences_model, s.id as id_sentence, j.value as token, count(*) as freq
+    insert into sentences_tf (id_triplets_model, id_sentence, token, freq)
+    select s.id_triplets_model, s.id as id_sentence, j.value as token, count(*) as freq
     from sentences s
     join json_each(s.tokens) j on 1 = 1
-    where s.id_sentences_model = ?1
+    where s.id_triplets_model = ?1
     group by s.id, j.value
   ]])
 
   M.set_sentence_df = db.runner([[
-    insert into sentences_df (id_sentences_model, token, freq)
-    select s.id_sentences_model, j.value as token, count(distinct s.id) as freq
+    insert into sentences_df (id_triplets_model, token, freq)
+    select s.id_triplets_model, j.value as token, count(distinct s.id) as freq
     from sentences s
     join json_each(s.tokens) j on 1 = 1
-    where s.id_sentences_model = ?1
+    where s.id_triplets_model = ?1
     group by j.value
   ]]);
 
   M.get_sentence_id = db.getter([[
     select id
     from sentences
-    where id_sentences_model = ?1
+    where id_triplets_model = ?1
     and sentence = ?2
   ]], "id")
 
-  M.add_sentence_pair = db.inserter([[
-    insert into sentence_pairs (id_sentences_model, id_a, id_b, label)
-    values (?, ?, ?, ?) on conflict (id_sentences_model, id_a, id_b) do nothing
+  M.add_sentence_triplet = db.inserter([[
+    insert into sentence_triplets (id_triplets_model, id_anchor, id_positive, id_negative)
+    values (?, ?, ?, ?) on conflict (id_triplets_model, id_anchor, id_positive, id_negative) do nothing
   ]])
 
   M.get_sentence_word_id = db.getter([[
     select id
     from sentence_words
-    where id_sentences_model = ?1
+    where id_triplets_model = ?1
     and word = ?2
   ]], "id")
 
   local add_sentence_word = db.inserter([[
-    insert into sentence_words (id_sentences_model, id, word)
+    insert into sentence_words (id_triplets_model, id, word)
     values (?, ?, ?)
   ]])
 
   M.get_sentence_word_max = db.getter([[
     select max(id) as max
     from sentence_words
-    where id_sentences_model = ?1
+    where id_triplets_model = ?1
   ]], "max")
 
   M.add_sentence_word = function (id_model, word)
@@ -269,14 +269,14 @@ return function (db_file, skip_init)
   local set_sentence_tokens = db.runner([[
     update sentences
     set tokens = ?3, positions = ?4, similarities = ?5, length = ?6
-    where id_sentences_model = ?1
+    where id_triplets_model = ?1
     and id = ?2
   ]])
 
   local has_sentence_tokens = db.getter([[
     select 1 as ok
     from sentences
-    where id_sentences_model = ?1
+    where id_triplets_model = ?1
     and id = ?2
     and tokens is not null
   ]], "ok")
@@ -294,7 +294,7 @@ return function (db_file, skip_init)
   local get_sentences = db.all([[
     select * from
     sentences
-    where id_sentences_model = ?1
+    where id_triplets_model = ?1
     order by id asc
   ]])
 
@@ -311,12 +311,12 @@ return function (db_file, skip_init)
 
   M.get_total_docs = db.getter([[
     select count(*) as total
-    from sentences where id_sentences_model = ?1
+    from sentences where id_triplets_model = ?1
   ]], "total")
 
   M.get_average_doc_length = db.getter([[
     select avg(length) as avgdl
-    from sentences where id_sentences_model = ?1
+    from sentences where id_triplets_model = ?1
   ]], "avgdl")
 
   M.set_word_cluster_similarity = db.inserter([[
@@ -352,13 +352,13 @@ return function (db_file, skip_init)
     from
       words_model wm,
       words w,
-      sentences_model sm,
+      triplets_model sm,
       sentence_words sw
     where
       wm.id = ?1 and
       sm.name = ?2 and
       wm.id = w.id_words_model and
-      sm.id = sw.id_sentences_model and
+      sm.id = sw.id_triplets_model and
       sw.word = w.word
     order by
       w.id asc
@@ -374,19 +374,16 @@ return function (db_file, skip_init)
       c.id as cluster,
       c.similarity
     from
-      sentences_model sm,
+      triplets_model sm,
       sentence_words sw,
       clusters c,
       words w
     where
       sm.id = ?1 and
-      sw.id_sentences_model = sm.id and
+      sw.id_triplets_model = sm.id and
       c.id_clusters_model = json_extract(sm.args, '$.id_clusters_model') and
       w.id = c.id_words and
       sw.word = w.word
-    order by
-      sw.id,
-      c.similarity desc
   ]])
 
   M.get_nearest_clusters = function (...)
@@ -404,7 +401,7 @@ return function (db_file, skip_init)
   local get_dfs = db.all([[
     select token, freq
     from sentences_df
-    where id_sentences_model = ?1
+    where id_triplets_model = ?1
   ]])
 
   M.get_dfs = function (...)
@@ -420,7 +417,7 @@ return function (db_file, skip_init)
   local get_tfs = db.all([[
     select id_sentence as sentence, token, freq
     from sentences_tf
-    where id_sentences_model = ?1
+    where id_triplets_model = ?1
   ]])
 
   M.get_tfs = function (...)
@@ -437,42 +434,31 @@ return function (db_file, skip_init)
 
   M.get_sentence_triplets = db.all([[
     select distinct
-      anchor_sent.sentence as anchor,
-      anchor_sent.fingerprint as anchor_fingerprint,
-      positive_sent.sentence as positive,
-      positive_sent.fingerprint as positive_fingerprint,
-      negative_sent.sentence as negative,
-      negative_sent.fingerprint as negative_fingerprint
+      anchors.sentence as anchor,
+      anchors.fingerprint as anchor_fingerprint,
+      positives.sentence as positive,
+      positives.fingerprint as positive_fingerprint,
+      negatives.sentence as negative,
+      negatives.fingerprint as negative_fingerprint
     from
-      sentence_pairs as anchor
+      sentence_triplets triplets
     join
-      sentence_pairs as positive
-      on anchor.id_a = positive.id_a
-      and positive.id_sentences_model = anchor.id_sentences_model
-      and positive.label = 'entailment'
+      sentences anchors on
+        triplets.id_anchor = anchors.id and
+        triplets.id_triplets_model = anchors.id_triplets_model and
+        anchors.fingerprint is not null
     join
-      sentence_pairs as negative
-      on anchor.id_a = negative.id_a
-      and negative.id_sentences_model = anchor.id_sentences_model
-      and (negative.label = 'neutral' or negative.label = 'contradiction')
-    join sentences anchor_sent
-      on anchor.id_a = anchor_sent.id
-      and anchor_sent.id_sentences_model = anchor.id_sentences_model
-    join sentences positive_sent
-      on positive.id_b = positive_sent.id
-      and positive_sent.id_sentences_model = positive.id_sentences_model
-    join sentences negative_sent
-      on negative.id_b = negative_sent.id
-      and negative_sent.id_sentences_model = negative.id_sentences_model
+      sentences positives on
+        triplets.id_positive = positives.id and
+        triplets.id_triplets_model = positives.id_triplets_model and
+        positives.fingerprint is not null
+    join
+      sentences negatives on
+        triplets.id_negative = negatives.id and
+        triplets.id_triplets_model = negatives.id_triplets_model and
+        negatives.fingerprint is not null
     where
-      anchor.label in ('entailment', 'neutral', 'contradiction')
-      and anchor.id_sentences_model = ?1
-      and anchor.id_b != positive.id_b
-      and anchor.id_b != negative.id_b
-      and positive.id_b != negative.id_b
-      and anchor_sent.fingerprint is not null
-      and positive_sent.fingerprint is not null
-      and negative_sent.fingerprint is not null
+      triplets.id_triplets_model = ?1
     order by random()
     limit coalesce(?2, -1)
   ]])
