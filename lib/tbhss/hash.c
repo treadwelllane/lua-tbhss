@@ -157,8 +157,8 @@ static inline void populate_hash (
           counts_1[(dimension * segments * BITS) + (segment * BITS) + bit]
             += weight * similarity;
         else
-          counts_1[(dimension * segments * BITS) + (segment * BITS) + bit]
-            -= weight * similarity;
+          counts_0[(dimension * segments * BITS) + (segment * BITS) + bit]
+            += weight * similarity;
       }
     }
 
