@@ -225,7 +225,6 @@ local function create_fingerprints (db, id_model, args)
           sentence.positions,
           sentence.similarities,
           scores,
-          model.args.segments,
           model.args.dimensions,
           model.args.buckets)
         db.add_sentence_fingerprint(id_model, sentence.id, sentence.fingerprint)

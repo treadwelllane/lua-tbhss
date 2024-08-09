@@ -49,7 +49,6 @@ test("simhash", function ()
   }
 
   local bits
-  local pos_segments = 4
   local pos_dimensions = 16
   local pos_buckets = 4
 
@@ -58,7 +57,6 @@ test("simhash", function ()
     raw, bits = hash.simhash(
       sentences[i].tokens,
       scores,
-      pos_segments,
       pos_dimensions,
       pos_buckets)
     sentences[i].fingerprint = bm.from_raw(raw)

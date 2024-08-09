@@ -16,7 +16,6 @@ nohup stdbuf -oL tbhss load train-triplets \
   --name snli-small.train10 \
   --file snli-small.train.txt \
   --clusters glove 1024 1 3 0 false \
-  --segments 1 \
   --dimensions 32 \
   --buckets 40 \
   --saturation 1.2 \
