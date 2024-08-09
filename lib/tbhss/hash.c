@@ -87,17 +87,6 @@ static inline uint32_t murmur32 (const void *key, int len, uint32_t seed)
   return h1;
 }
 
-static inline void murmur (
-  const void *key,
-  const int len,
-  uint32_t seed,
-  uint32_t *out,
-  unsigned int segments
-) {
-  for (unsigned int i = 0; i < segments; i ++)
-    out[i] = murmur32(key, len, i == 0 ? 0 : out[i - 1]);
-}
-
 static inline unsigned int encode_pos (
   size_t pos,
   unsigned int dim,
@@ -113,16 +102,13 @@ static inline void populate_hash (
   lua_State *L,
   uint32_t *result,
   size_t n,
-  unsigned int segments,
   unsigned int dimensions,
   unsigned int buckets
 ) {
-  lua_Number counts_1[segments * dimensions * BITS];
-  lua_Number counts_0[segments * dimensions * BITS];
-  for (size_t i = 0; i < segments * dimensions * BITS; i ++)
-    counts_0[i] = counts_1[i] = 0;
+  lua_Number counts[dimensions * BITS];
+  for (size_t i = 0; i < dimensions * BITS; i ++)
+    counts[i] = 0;
 
-  uint32_t hash[segments];
   lua_Integer data[2];
 
   for (size_t i = 0; i < n; i ++) {
@@ -149,28 +135,24 @@ static inline void populate_hash (
     data[0] = token;
     for (unsigned int dimension = 0; dimension < dimensions; dimension ++) {
       data[1] = encode_pos(position, dimension, dimensions, buckets);
-      murmur(data, sizeof(lua_Integer) * 2, 0, hash, segments);
-      for (unsigned int i = 0; i < segments * BITS; i ++) {
-        unsigned int segment = i / BITS;
-        unsigned int bit = i % BITS;
-        if (hash[segment] & (1 << bit))
-          counts_1[(dimension * segments * BITS) + (segment * BITS) + bit]
-            += weight * similarity;
+      uint32_t hash = murmur32(data, sizeof(lua_Integer) * 2, 0);
+      for (unsigned int bit = 0; bit < BITS; bit ++) {
+        if (hash & (1 << bit))
+          counts[(dimension * BITS) + bit] += weight * similarity;
         else
-          counts_0[(dimension * segments * BITS) + (segment * BITS) + bit]
-            += weight * similarity;
+          counts[(dimension * BITS) + bit] -= weight * similarity;
       }
     }
 
   }
 
-  for (unsigned int i = 0; i < segments * dimensions; i ++)
+  for (unsigned int i = 0; i < dimensions; i ++)
     result[i] = 0;
 
-  for (unsigned int i = 0; i < segments * dimensions * BITS; i ++) {
+  for (unsigned int i = 0; i < dimensions * BITS; i ++) {
     unsigned int chunk = i / BITS;
     unsigned int bit = i % BITS;
-    if (counts_1[i] > counts_0[i])
+    if (counts[i] > 0)
       result[chunk] |= (1 << bit);
   }
 
@@ -183,17 +165,16 @@ static inline int tb_simhash (lua_State *L)
   luaL_checktype(L, 3, LUA_TTABLE);
   luaL_checktype(L, 4, LUA_TTABLE);
   size_t n = lua_objlen(L, 1);
-  unsigned int segments = tk_lua_checkunsigned(L, 5);
-  unsigned int dimensions = tk_lua_checkunsigned(L, 6);
-  unsigned int buckets = tk_lua_checkunsigned(L, 7);
-  if (!segments)
-    luaL_argerror(L, 5, "segments must be greater than 0");
+  unsigned int dimensions = tk_lua_checkunsigned(L, 5);
+  unsigned int buckets = tk_lua_checkunsigned(L, 6);
   if (!dimensions)
-    luaL_argerror(L, 6, "dimensions must be greater than 0");
-  uint32_t result[segments * dimensions];
-  populate_hash(L, result, n, segments, dimensions, buckets);
-  lua_pushlstring(L, (char *) result, segments * dimensions * BYTES);
-  lua_pushinteger(L, segments * dimensions * BITS);
+    luaL_argerror(L, 5, "dimensions must be greater than 0");
+  if (!buckets)
+    luaL_argerror(L, 5, "buckets must be greater than 0");
+  uint32_t result[dimensions];
+  populate_hash(L, result, n, dimensions, buckets);
+  lua_pushlstring(L, (char *) result, dimensions * BYTES);
+  lua_pushinteger(L, dimensions * BITS);
   return 2;
 }
 

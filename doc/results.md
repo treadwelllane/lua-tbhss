@@ -23,7 +23,6 @@
       "--name", "dev-train",
       "--file", ".train.triplets.txt",
       "--clusters", "glove", "1024", "1", "3", "0", "false",
-      "--segments", "1",
       "--dimensions", "4",
       "--buckets", "20",
       "--saturation", "1.2",
@@ -72,7 +71,6 @@
       --name snli-small.train7 \
       --file snli-small.train.txt \
       --clusters glove 1024 1 3 0 false \
-      --segments 1 \
       --dimensions 32 \
       --buckets 40 \
       --saturation 1.2 \
@@ -117,7 +115,6 @@
       --name snli-small.train \
       --file snli-small.train.txt \
       --clusters glove 1024 1 3 0 false \
-      --segments 1 \
       --dimensions 32 \
       --buckets 20 \
       --saturation 1.2 \
@@ -162,7 +159,6 @@
       --name snli-small.train \
       --file snli-small.train.txt \
       --clusters glove 1024 1 3 0 false \
-      --segments 1 \
       --dimensions 32 \
       --buckets 20 \
       --saturation 1.2 \
