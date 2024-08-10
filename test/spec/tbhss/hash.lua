@@ -25,6 +25,7 @@ test("simhash", function ()
   for i = 1, #sentences do
     sentences[i].split = util.split(sentences[i].original)
     sentences[i].tokens = {}
+    sentences[i].positions = {}
     for j = 1, #sentences[i].split do
       local word = sentences[i].split[j]
       local id = ids[word]
@@ -34,8 +35,20 @@ test("simhash", function ()
         next_id = next_id + 1
       end
       arr.push(sentences[i].tokens, id)
+      arr.push(sentences[i].positions, #sentences[i].tokens)
     end
   end
+
+  local similarities = {
+    [ids.the] = 1,
+    [ids.a] = 1,
+    [ids.quick] = 1,
+    [ids.speedy] = 1,
+    [ids.brown] = 1,
+    [ids.green] = 1,
+    [ids.fox] = 1,
+    [ids.cat] = 1,
+  }
 
   local scores = {
     [ids.the] = 1,
@@ -49,16 +62,18 @@ test("simhash", function ()
   }
 
   local bits
-  local pos_dimensions = 16
-  local pos_buckets = 4
+  local dimensions = 16
+  local buckets = 4
 
   for i = 1, #sentences do
     local raw
     raw, bits = hash.simhash(
       sentences[i].tokens,
+      sentences[i].positions,
+      similarities,
       scores,
-      pos_dimensions,
-      pos_buckets)
+      dimensions,
+      buckets)
     sentences[i].fingerprint = bm.from_raw(raw)
   end
 
