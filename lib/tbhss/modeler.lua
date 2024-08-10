@@ -73,11 +73,13 @@ local function create_clusters (db, args)
   if not args.clusters then
     return
   end
+  local unique_words = db.get_total_unique_words(args.id_triplets_model)
+  local num_clusters = math.floor(unique_words * args.clusters.clusters)
   local clusters_model = clusters.create_clusters(db, {
     name = args.name .. ".clusters",
     words = args.clusters.words,
     filter_words = args.name,
-    clusters = args.clusters.clusters,
+    clusters = num_clusters,
     min = args.clusters.min_set,
     max = args.clusters.max_set,
     cutoff = args.clusters.min_similarity

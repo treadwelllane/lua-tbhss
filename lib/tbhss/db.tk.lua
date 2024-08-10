@@ -164,6 +164,12 @@ return function (db_file, skip_init)
     where id = ?
   ]])
 
+  M.get_total_unique_words = db.getter([[
+    select count(*) as count
+    from sentence_words
+    where id_triplets_model = ?1
+  ]], "count")
+
   M.get_total_words = db.getter([[
     select total
     from words_model
