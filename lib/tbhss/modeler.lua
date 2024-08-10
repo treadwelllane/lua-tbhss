@@ -1,5 +1,4 @@
 local err = require("santoku.error")
-local it = require("santoku.iter")
 local str = require("santoku.string")
 local arr = require("santoku.array")
 local fs = require("santoku.fs")
