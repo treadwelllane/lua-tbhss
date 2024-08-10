@@ -45,7 +45,7 @@ local cmd_load_train_triplets = cmd_load:command("train-triplets", "load NLI dat
 base_flags(cmd_load_train_triplets)
 cmd_load_train_triplets:option("--name", "name of loaded dataset", nil, nil, 1, 1)
 cmd_load_train_triplets:option("--file", "path to NLI dataset file", nil, nil, 1, 1)
-cmd_load_train_triplets:option("--clusters", "name of word clusters, num, min-set, max-set, min-similarity, include-raw", nil, nil, 6, "0-1")
+cmd_load_train_triplets:option("--clusters", "name of word clusters, ratio of clusters to words, min-set, max-set, min-similarity, include-raw", nil, nil, 6, "0-1")
 cmd_load_train_triplets:option("--dimensions", "number of dimensions for positions", nil, tonumber, 1, 1)
 cmd_load_train_triplets:option("--buckets", "number of buckets for positions", nil, tonumber, 1, 1)
 cmd_load_train_triplets:option("--saturation", "BM25 saturation", 1.2, tonumber, 1, 1)
