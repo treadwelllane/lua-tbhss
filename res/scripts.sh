@@ -20,11 +20,11 @@ nohup stdbuf -oL tbhss process snli \
 
 nohup stdbuf -oL tbhss load train-triplets \
   --cache tbhss.db \
-  --name snli5-train \
+  --name snli14-train \
   --file snli-triplets.train.txt \
   --max-records 20000 \
-  --clusters glove 1024 1 3 0 false \
-  --dimensions 32 \
+  --clusters glove 0.125 1 3 0 false \
+  --dimensions 16 \
   --buckets 40 \
   --saturation 1.2 \
   --length-normalization 0.75 \
@@ -32,9 +32,9 @@ nohup stdbuf -oL tbhss load train-triplets \
 
 nohup stdbuf -oL tbhss load train-triplets \
   --cache tbhss.db \
-  --name snli5-train \
+  --name snli13-train \
   --file snli-small.train.txt \
-  --clusters glove 1024 1 3 0 false \
+  --clusters glove 0.125 1 3 0 false \
   --dimensions 32 \
   --buckets 40 \
   --saturation 1.2 \
@@ -43,28 +43,28 @@ nohup stdbuf -oL tbhss load train-triplets \
 
 nohup stdbuf -oL tbhss load test-triplets \
   --cache tbhss.db \
-  --name snli5-test \
+  --name snli14-test \
   --file snli-triplets.test.txt \
   --max-records 2000 \
-  --model snli5-train \
+  --model snli14-train \
     2>&1 > log.txt & tail -f log.txt
 
 nohup stdbuf -oL tbhss load test-triplets \
   --cache tbhss.db \
-  --name snli5-test \
+  --name snli13-test \
   --file snli-small.test.txt \
-  --model snli5-train \
+  --model snli13-train \
     2>&1 > log.txt & tail -f log.txt
 
 nohup stdbuf -oL tbhss create encoder \
   --cache tbhss.db \
-  --name snli5  \
-  --triplets snli5-train snli5-test \
+  --name snli16  \
+  --triplets snli13-train snli13-test \
   --encoded-bits 256 \
   --clauses 8192 \
   --state-bits 8 \
-  --threshold 32 \
-  --specificity 2 200 \
+  --threshold 36 \
+  --specificity 4 12 \
   --margin 0.1 \
   --loss-alpha 0.25 \
   --active-clause 0.85 \
