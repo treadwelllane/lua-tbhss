@@ -1,20 +1,5 @@
 local serialize = require("santoku.serialize") -- luacheck: ignore
-
 local mtx = require("santoku.matrix")
-local mcreate = mtx.create
-local mreshape = mtx.reshape
-local mcopy = mtx.copy
-local mcolumns = mtx.columns
-local maverage = mtx.average
-local mget = mtx.get
-local mmultiply = mtx.multiply
-local mrmax = mtx.rmax
-local msum = mtx.sum
-local mextend = mtx.extend
-local mset = mtx.set
-local mrows = mtx.rows
-local mnormalize = mtx.normalize
-
 local err = require("santoku.error")
 local rand = require("santoku.random")
 
@@ -22,8 +7,8 @@ local rand = require("santoku.random")
 local function weighted_random_choice (probabilities, ids)
   local r = rand.num()
   local sum = 0
-  for i = 1, mcolumns(probabilities) do
-    sum = sum + mget(probabilities, 1, i)
+  for i = 1, mtx.columns(probabilities) do
+    sum = sum + mtx.get(probabilities, 1, i)
     if r <= sum then
       return ids[i]
     end
@@ -32,48 +17,47 @@ end
 
 local function select_initial_clusters (word_matrix, n_clusters)
 
-  local first = rand.num(1, mrows(word_matrix))
+  local first = rand.num(1, mtx.rows(word_matrix))
 
   local ignores = { [first] = true }
-  local cluster_matrix = mcreate(word_matrix, first, first)
-  local distance_matrix = mcreate(mrows(word_matrix), mrows(cluster_matrix))
-  local distances = mcreate(1, 0)
+  local cluster_matrix = mtx.create(word_matrix, first, first)
+  local similarity_matrix = mtx.create(mtx.rows(word_matrix), mtx.rows(cluster_matrix))
+  local similarities = mtx.create(1, 0)
   local ids = {}
   local n_ids
 
-  print("Find Initial Centroids", mrows(cluster_matrix), first)
+  print("Find Initial Centroids", mtx.rows(cluster_matrix), first)
 
   for _ = 1, n_clusters - 1 do
 
     n_ids = 0
-    mmultiply(word_matrix, cluster_matrix, distance_matrix, false, true)
+    mtx.multiply(word_matrix, cluster_matrix, similarity_matrix, false, true)
 
     -- TODO: Move to C
-    for i = 1, mrows(distance_matrix) do
+    for i = 1, mtx.rows(similarity_matrix) do
       if not ignores[i] then
         n_ids = n_ids + 1
         ids[n_ids] = i
-        local maxval = mrmax(distance_matrix, i)
-        mreshape(distances, 1, n_ids)
-        mset(distances, 1, n_ids, 1 - maxval)
+        local maxval = mtx.rmax(similarity_matrix, i)
+        mtx.reshape(similarities, 1, n_ids)
+        mtx.set(similarities, 1, n_ids, 1 - maxval)
       end
     end
 
-    local sum = msum(distances)
-    mmultiply(distances, 1 / sum)
+    local sum = mtx.sum(similarities)
+    mtx.multiply(similarities, 1 / sum)
 
-    -- TODO: Move to C
-    local i = weighted_random_choice(distances, ids)
+    local i = weighted_random_choice(similarities, ids)
 
     ignores[i] = true
-    mextend(cluster_matrix, word_matrix, i, i)
-    mreshape(distance_matrix, mrows(word_matrix), mrows(cluster_matrix))
+    mtx.extend(cluster_matrix, word_matrix, i, i)
+    mtx.reshape(similarity_matrix, mtx.rows(word_matrix), mtx.rows(cluster_matrix))
 
-    print("Find Initial Centroids", mrows(cluster_matrix), i)
+    print("Find Initial Centroids", mtx.rows(cluster_matrix), i)
 
   end
 
-  return cluster_matrix, distance_matrix
+  return cluster_matrix, similarity_matrix
 
 end
 
@@ -95,7 +79,34 @@ local function filter_words (db, words_model, word_matrix, snli_name, word_idmap
   return m0
 end
 
-local function cluster_words (db, clusters_model, args)
+
+local function find_furthest (similarity_matrix)
+  local best_medoid, best_val
+  for i = 1, mtx.rows(similarity_matrix) do
+    local minval, mincol = mtx.rmin(similarity_matrix, i)
+    if not best_medoid or minval < best_val then
+      best_medoid, best_val = mincol, minval
+    end
+  end
+  return best_medoid
+end
+
+local function total_similarity (
+  word_matrix, cluster_words,
+  medoid_matrix, medoid_idx,
+  word_vector, cluster_vector, tmp_vector
+)
+  mtx.copy(cluster_vector, medoid_matrix, medoid_idx, medoid_idx, 1)
+  local total = 0
+  for i = 1, #cluster_words do
+    local w = cluster_words[i]
+    mtx.copy(word_vector, word_matrix, w, w, 1)
+    total = total + mtx.dot(word_vector, cluster_vector, tmp_vector)
+  end
+  return total
+end
+
+local function perform_clustering (db, clusters_model, args)
 
   print("Clustering")
 
@@ -110,23 +121,21 @@ local function cluster_words (db, clusters_model, args)
 
   if args.filter_words then
     word_matrix = filter_words(db, words_model, word_matrix, args.filter_words, word_idmap)
-    print("Filtered words", mrows(word_matrix))
+    print("Filtered words", mtx.rows(word_matrix))
   else
-    for i = 1, mrows(word_matrix) do
+    for i = 1, mtx.rows(word_matrix) do
       word_idmap[i] = i
     end
   end
 
-  if mrows(word_matrix) < args.clusters then
-    args.clusters = mrows(word_matrix)
+  if mtx.rows(word_matrix) < args.clusters then
+    args.clusters = mtx.rows(word_matrix)
   end
 
-  mnormalize(word_matrix)
+  mtx.normalize(word_matrix)
 
-  local cluster_matrix, distance_matrix = select_initial_clusters(word_matrix, args.clusters)
-  local cluster_average_matrix = mcreate(0, 0)
+  local cluster_matrix, similarity_matrix = select_initial_clusters(word_matrix, args.clusters)
   local word_clusters = {}
-
   local num_iterations = 1
 
   while true do
@@ -134,11 +143,10 @@ local function cluster_words (db, clusters_model, args)
     local words_changed = 0
     local cluster_words = {}
 
-    mmultiply(word_matrix, cluster_matrix, distance_matrix, false, true)
+    mtx.multiply(word_matrix, cluster_matrix, similarity_matrix, false, true)
 
-    -- TODO: Move to C
-    for i = 1, mrows(distance_matrix) do
-      local _, maxcol = mrmax(distance_matrix, i)
+    for i = 1, mtx.rows(similarity_matrix) do
+      local _, maxcol = mtx.rmax(similarity_matrix, i)
       if word_clusters[i] ~= maxcol then
         words_changed = words_changed + 1
         word_clusters[i] = maxcol
@@ -152,35 +160,47 @@ local function cluster_words (db, clusters_model, args)
       break
     end
 
-    for i = 1, mrows(cluster_matrix) do
-      mreshape(cluster_average_matrix, #cluster_words[i], mcolumns(word_matrix))
-      for j = 1, #cluster_words[i] do
-        mcopy(cluster_average_matrix, word_matrix, cluster_words[i][j], cluster_words[i][j], j)
+    local word_vector = mtx.create(1, mtx.columns(word_matrix))
+    local cluster_vector = mtx.create(1, mtx.columns(word_matrix))
+    local tmp_vector = mtx.create(1, 1)
+
+    for i = 1, mtx.rows(cluster_matrix) do
+      if not cluster_words[i] then
+        local furthest_medoid = find_furthest(similarity_matrix)
+        mtx.copy(cluster_matrix, word_matrix, furthest_medoid, furthest_medoid, i)
+      else
+        local best_medoid, best_similarity
+        for j = 1, #cluster_words[i] do
+          local new_word = cluster_words[i][j]
+          local new_similarity = total_similarity(
+            word_matrix, cluster_words[i], word_matrix, new_word, word_vector, cluster_vector, tmp_vector)
+          if not best_medoid or new_similarity > best_similarity then
+            best_medoid = new_word
+            best_similarity = new_similarity
+          end
+        end
+        mtx.copy(cluster_matrix, word_matrix, best_medoid, best_medoid, i)
       end
-      maverage(cluster_average_matrix, cluster_matrix, i)
     end
 
-    mnormalize(cluster_matrix)
-
     print("Iteration", num_iterations, "Words Changed", words_changed)
-
     num_iterations = num_iterations + 1
 
   end
 
-  print("Persisting cluster distances")
+  print("Persisting cluster similarities")
 
   local id_model = clusters_model
     and clusters_model.id
     or db.add_clusters_model(args.name, words_model.id, args.clusters)
 
-  local order = mtx.rorder(distance_matrix, args.min, args.max, args.cutoff)
+  local order = mtx.rorder(similarity_matrix, args.min, args.max, args.cutoff)
 
   for i = 1, #order do
     local o = order[i]
     for j = 1, #o do
       local t = o[j]
-      db.set_word_cluster_similarity(id_model, word_idmap[i], t, mget(distance_matrix, i, t))
+      db.set_word_cluster_similarity(id_model, word_idmap[i], t, mtx.get(similarity_matrix, i, t))
     end
   end
 
@@ -194,7 +214,7 @@ local function create_clusters (db, args)
   return db.db.transaction(function ()
     local clusters_model = db.get_clusters_model_by_name(args.name)
     if not clusters_model or clusters_model.clustered ~= 1 then
-      return cluster_words(db, clusters_model, args)
+      return perform_clustering(db, clusters_model, args)
     else
       err.error("Words already clustered")
     end

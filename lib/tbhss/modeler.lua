@@ -74,7 +74,9 @@ local function create_clusters (db, args)
     return
   end
   local unique_words = db.get_total_unique_words(args.id_triplets_model)
-  local num_clusters = math.floor(unique_words * args.clusters.clusters)
+  local num_clusters = args.clusters.clusters <= 1
+    and math.floor(unique_words * args.clusters.clusters)
+    or args.clusters.clusters
   local clusters_model = clusters.create_clusters(db, {
     name = args.name .. ".clusters",
     words = args.clusters.words,

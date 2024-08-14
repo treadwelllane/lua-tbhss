@@ -170,7 +170,7 @@ static inline int tb_simhash (lua_State *L)
   if (!dimensions)
     luaL_argerror(L, 5, "dimensions must be greater than 0");
   if (!buckets)
-    luaL_argerror(L, 5, "buckets must be greater than 0");
+    luaL_argerror(L, 6, "buckets must be greater than 0");
   uint32_t result[dimensions];
   populate_hash(L, result, n, dimensions, buckets);
   lua_pushlstring(L, (char *) result, dimensions * BYTES);

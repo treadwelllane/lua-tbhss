@@ -2,46 +2,74 @@ nohup stdbuf -oL sh -c '
 
   set -e
 
-  thld=32
-  thld_step=2
-  thld_stop=40
+  id=24
 
-  while [ $thld -le $thld_stop ]; do
+  clusters=1
+  clusters_step=1
+  clusters_stop=32
 
-    spec=8
-    spec_range=4
-    spec_step=1
-    spec_stop=8
+  while [ $(echo "$clusters < $clusters_stop" | bc) -eq 1 ]; do
 
-    while [ $spec -le $spec_stop ]; do
+    thld=36
+    thld_step=2
+    thld_stop=36
 
-      specl=$(( spec - spec_range ))
-      spech=$(( spec + spec_range ))
+    tbhss load train-triplets \
+      --cache tbhss.db \
+      --name snli-$id-explore-train-$clusters \
+      --file snli-small.train.txt \
+      --clusters glove 0.125 1 $clusters 0 false \
+      --segments 16 \
+      --dimensions 32 \
+      --buckets 40 \
+      --saturation 1.2 \
+      --length-normalization 0.75
 
-      [ $specl -lt 2 ] && specl=2
+    tbhss load test-triplets \
+      --cache tbhss.db \
+      --name snli-$id-explore-test-$clusters \
+      --file snli-small.test.txt \
+      --model snli-$id-explore-train-$clusters
 
-      echo Specificity $specl $spech
-      echo Threshold $thld
+    while [ $thld -le $thld_stop ]; do
 
-      tbhss create encoder \
-        --cache tbhss.db \
-        --name snli20-explore-$spec-$thld  \
-        --triplets snli13-train snli13-test \
-        --encoded-bits 128 \
-        --clauses 1024 \
-        --state-bits 8 \
-        --threshold $thld \
-        --specificity $specl $spech \
-        --margin 0.1 \
-        --loss-alpha 0.25 \
-        --active-clause 0.85 \
-        --boost-true-positive true \
-        --evaluate-every 1 \
-        --epochs 5
+      spec=8
+      spec_range=4
+      spec_step=1
+      spec_stop=8
 
-      spec=$(( spec + spec_step ))
+      while [ $spec -le $spec_stop ]; do
+
+        specl=$(( spec - spec_range ))
+        spech=$(( spec + spec_range ))
+
+        [ $specl -lt 2 ] && specl=2
+
+        echo Specificity $specl $spech
+        echo Threshold $thld
+        echo Clusters $clusters
+
+        tbhss create encoder \
+          --cache tbhss.db \
+          --name snli-$id-explore-$clusters-$thld-$spec-$spec_range  \
+          --triplets snli-$id-explore-train-$clusters snli-$id-explore-test-$clusters \
+          --encoded-bits 256 \
+          --clauses 8192 \
+          --state-bits 8 \
+          --threshold $thld \
+          --specificity $specl $spech \
+          --margin 0.1 \
+          --loss-alpha 0.25 \
+          --active-clause 0.85 \
+          --boost-true-positive true \
+          --evaluate-every 1 \
+          --epochs 5
+
+        spec=$(( spec + spec_step ))
+      done
+      thld=$(( thld + thld_step ))
     done
-    thld=$(( thld + thld_step ))
+    clusters=$(echo "$clusters + $clusters_step" | bc)
   done
 
 ' 2>&1 >> explore.txt & tail -f explore.txt
