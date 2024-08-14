@@ -8,7 +8,6 @@ local words = require("tbhss.words")
 local modeler = require("tbhss.modeler")
 local clusters = require("tbhss.clusters")
 local encoder = require("tbhss.encoder")
-local search = require("tbhss.search")
 local preprocess = require("tbhss.preprocess")
 
 local fun = require("santoku.functional")
@@ -91,41 +90,6 @@ cmd_create_encoder:option("--boost-true-positive", "Tsetlin Machine boost true p
 cmd_create_encoder:option("--evaluate-every", "Evaluation frequency", 5, tonumber, 1, 1)
 cmd_create_encoder:option("--epochs", "Number of epochs", nil, tonumber, 1, 1)
 
-local cmd_search = parser:command("search")
-base_flags(cmd_search)
-
-cmd_search:option("--name", "name of loaded dataset", nil, nil, 1, 1)
-cmd_search:option("--train-file", "path to train NLI dataset file", nil, nil, 1, 1)
-cmd_search:option("--test-file", "path to test NLI dataset file", nil, nil, 1, 1)
-
-cmd_search:option("--clusters-number", "", { 64, 128, 256, 512, 1024, 2048 }, nil, "+", "0-1")
-cmd_search:option("--clusters-min-set", "", { 1 }, nil, "+", "0-1")
-cmd_search:option("--clusters-max-set", "", { 1, 2, 4, 8 }, nil, "+", "0-1")
-cmd_search:option("--clusters-min-similarity", "", { 0, 0.25, 0.5, 0.75 }, nil, "+", "0-1")
-cmd_search:option("--clusters-include-raw", "", { "true", "false" }, nil, "+", "0-1")
-cmd_search:option("--dimensions", "", { 2, 4, 8, 16, 32, 64 }, nil, "+", "0-1")
-cmd_search:option("--buckets", "", { 10, 20, 40, 80, 160 }, nil, "+", "0-1")
-cmd_search:option("--saturation", "", { 1.2 }, nil, "+", "0-1")
-cmd_search:option("--length-normalization", "", { 0.75 }, nil, "+", "0-1")
-
-cmd_search:option("--encoded-bits", "", { 128, 256, 512, 1024, 2048, 4096, 8192 }, nil, 1, "0-1")
-cmd_search:option("--margin", "", { 0.05, 0.1, 0.15, 0.2 }, nil, "+", "0-1")
-cmd_search:option("--loss-alpha", "", { 0.25 }, nil, "+", "0-1")
-cmd_search:option("--clauses", "", { 256, 512, 1024, 2048, 4096, 8192 }, nil, "+", "0-1")
-cmd_search:option("--state-bits", "", { 8 }, nil, "+", "0-1")
-cmd_search:option("--threshold", "", { 16, 32, 256, 512, 1024, 2048, 4096 }, nil, "+", "0-1")
-cmd_search:option("--specificity-low", "", { 2, 10, 25, 50, 100, 150 }, nil, "+", "0-1")
-cmd_search:option("--specificity-high", "", { 200, 150, 50, 25, 10, 2 }, nil, "+", "0-1")
-cmd_search:option("--active-clause", "", { 0.85 }, nil, "+", "0-1")
-cmd_search:option("--boost-true-positive", "", { "true", "false" }, nil, "+", "0-1")
-
-cmd_search:option("--search", "", nil, nil, 1, 1):choices({ "grid", "random" })
-cmd_search:option("--max-minutes", "", nil, tonumber, 1, "0-1")
-cmd_search:option("--words", "", nil, nil, 1, 1)
-cmd_search:option("--jobs", "", nil, nil, 1, "0-1")
-cmd_search:option("--epochs", "", nil, nil, 1, 1)
-cmd_search:option("--evaluate-every", "", 5, nil, 1, 1)
-
 local args = parser:parse()
 
 if args.cmd == "process" and args.cmd_process == "snli" then
@@ -155,8 +119,6 @@ elseif args.cmd == "create" and args.cmd_create == "clusters" then
   clusters.create_clusters(db, args)
 elseif args.cmd == "create" and args.cmd_create == "encoder" then
   encoder.create_encoder(db, args)
-elseif args.cmd == "search" then
-  search.search_hyperparams(db, args)
 else
   print(parser:get_usage())
   os.exit(1)

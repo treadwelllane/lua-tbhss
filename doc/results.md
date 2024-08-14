@@ -1,4 +1,4 @@
-# Dev + Test
+# Small
 
     Epoch 50    Time 100   Test 0.93  Train 1.00
 
@@ -13,7 +13,7 @@
       --cache tbhss.db \
       --name snli12-train \
       --file snli-small.train.txt \
-      --clusters glove 0.125 1 3 0 false \
+      --clusters glove 1024 1 3 0 false \
       --dimensions 32 \
       --buckets 40 \
       --saturation 1.2 \

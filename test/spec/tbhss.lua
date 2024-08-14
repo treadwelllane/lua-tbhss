@@ -63,14 +63,3 @@ sys.execute({
   "--epochs", "50"
 })
 
--- sys.execute({
---   "lua", "bin/tbhss.lua", "create", "clusters",
---   "--cache", db_file,
---   "--name", "glove",
---   "--words", "glove",
---   "--clusters", "1024",
---   "--min", "1",
---   "--max", "3",
---   "--cutoff", "0",
--- })
-
