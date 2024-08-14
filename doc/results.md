@@ -1,5 +1,49 @@
 # Small
 
+    Epoch 100   Time 89    Test 0.93  Train 1.00
+
+    nohup stdbuf -oL tbhss process snli \
+      --inputs snli_1.0/snli_1.0_test.txt snli_1.0/snli_1.0_dev.txt \
+      --train-test-ratio 0.9 \
+      --output-train snli-small.train.txt \
+      --output-test snli-small.test.txt \
+        2>&1 > log.txt & tail -f log.txt
+
+    nohup stdbuf -oL tbhss load train-triplets \
+      --cache tbhss.db \
+      --name snli51-train \
+      --file snli-small.train.txt \
+      --clusters glove 1024 1 3 0 false \
+      --dimensions 32 \
+      --buckets 40 \
+      --saturation 1.2 \
+      --length-normalization 0.75 \
+        2>&1 > log.txt & tail -f log.txt
+
+    nohup stdbuf -oL tbhss load test-triplets \
+      --cache tbhss.db \
+      --name snli51-test \
+      --file snli-small.test.txt \
+      --model snli51-train \
+        2>&1 > log.txt & tail -f log.txt
+
+    nohup stdbuf -oL tbhss create encoder \
+      --cache tbhss.db \
+      --name snli51  \
+      --triplets snli51-train snli51-test \
+      --encoded-bits 256 \
+      --clauses 8192 \
+      --state-bits 8 \
+      --threshold 36 \
+      --specificity 4 12 \
+      --margin 0.1 \
+      --loss-alpha 0.25 \
+      --active-clause 0.85 \
+      --boost-true-positive true \
+      --evaluate-every 1 \
+      --epochs 100 \
+        2>&1 > log.txt & tail -f log.txt
+
     Epoch 50    Time 100   Test 0.93  Train 1.00
 
     nohup stdbuf -oL tbhss process snli \
