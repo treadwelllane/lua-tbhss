@@ -50,8 +50,6 @@ cmd_load_train_triplets:option("--clusters", "name of word clusters, algorithm, 
   return str.match(v, "^%-?%d*%.?%d+$") and tonumber(v) or v
 end, "+", "0-1")
 cmd_load_train_triplets:option("--dimensions", "number of dimensions for positions", nil, tonumber, 1, 1)
-cmd_load_train_triplets:option("--buckets", "number of buckets for positions", nil, tonumber, 1, 1)
-cmd_load_train_triplets:option("--wavelength", "wavelength for positional encoding", nil, tonumber, 1, 1)
 cmd_load_train_triplets:option("--saturation", "BM25 saturation", 1.2, tonumber, 1, 1)
 cmd_load_train_triplets:option("--length-normalization", "BM25 length normalization", 0.75, tonumber, 1, 1)
 cmd_load_train_triplets:option("--max-records", "Max number of triplets to load", nil, tonumber, 1, "0-1")

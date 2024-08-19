@@ -32,8 +32,6 @@ sys.execute({
   "--file", ".train.triplets.txt",
   "--clusters", "glove", "k-medoids", "128", "3",
   "--dimensions", "4",
-  "--buckets", "4",
-  "--wavelength", "4096",
   "--saturation", "1.2",
   "--length-normalization", "0.75",
 })
