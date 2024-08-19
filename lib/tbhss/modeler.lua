@@ -73,18 +73,11 @@ local function create_clusters (db, args)
   if not args.clusters then
     return
   end
-  local unique_words = db.get_total_unique_words(args.id_triplets_model)
-  local num_clusters = args.clusters.clusters <= 1
-    and math.floor(unique_words * args.clusters.clusters)
-    or args.clusters.clusters
   local clusters_model = clusters.create_clusters(db, {
     name = args.name .. ".clusters",
     words = args.clusters.words,
     filter_words = args.name,
-    clusters = num_clusters,
-    min = args.clusters.min_set,
-    max = args.clusters.max_set,
-    cutoff = args.clusters.min_similarity
+    algorithm = args.clusters.algorithm,
   })
   args.clusters.name = clusters_model.name
   args.id_clusters_model = clusters_model.id
@@ -107,18 +100,17 @@ local function get_expanded_tokens (model, tokens0, nearest)
   local p = 1
   for i = 1, #tokens0 do
     local t = tokens0[i]
-    if not model.args.clusters or model.args.clusters.include_raw then
+    if not model.args.clusters then
       arr.push(tokens, t)
       arr.push(positions, p)
       arr.push(similarities, 1)
       p = p + 1
-    end
-    if model.args.clusters then
+    elseif model.args.clusters then
       local ns = nearest[t]
       if ns then
         for j = 1, #ns do
           local n = ns[j]
-          arr.push(tokens, -n.cluster)
+          arr.push(tokens, n.cluster)
           arr.push(positions, p)
           arr.push(similarities, n.similarity)
         end
@@ -154,7 +146,7 @@ local function expand_tokens (db, id_model, args)
         local s = sentences[s_id]
         local tokens, positions, similarities, length = get_expanded_tokens(model, s.tokens, nearest)
         db.set_sentence_tokens(id_model, s.id, tokens, positions, similarities, length)
-        print()
+        print(s.id)
       end
     end
   }) do
@@ -201,11 +193,17 @@ local function create_fingerprints (db, id_model, args)
   local jobs = args.jobs or sys.get_num_cores()
   local sentences = db.get_sentences(id_model)
   local model = db.get_triplets_model_by_id(args.id_parent_model or id_model)
-  local chunk_size = math.floor(#sentences / jobs)
   local average_doc_length = db.get_average_doc_length(model.id)
   local total_docs = db.get_total_docs(model.id)
   local dfs = db.get_dfs(model.id)
   local tfs = db.get_tfs(id_model)
+  local chunk_size
+  if jobs > #sentences then
+    jobs = #sentences
+    chunk_size = 1
+  else
+    chunk_size = math.floor(#sentences / jobs)
+  end
   for _ in sys.sh({
     jobs = jobs, fn = function (job)
       db = init_db(db.file, true)
@@ -229,7 +227,8 @@ local function create_fingerprints (db, id_model, args)
           sentence.similarities,
           scores,
           model.args.dimensions,
-          model.args.buckets)
+          model.args.buckets,
+          model.args.wavelength)
         db.add_sentence_fingerprint(id_model, sentence.id, sentence.fingerprint)
         print(sentence.id)
       end
