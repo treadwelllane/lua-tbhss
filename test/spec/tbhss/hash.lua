@@ -62,8 +62,9 @@ test("simhash", function ()
   }
 
   local bits
-  local dimensions = 16
-  local buckets = 4
+  local dimensions = 4
+  local buckets = 20
+  local wavelength = 10000
 
   for i = 1, #sentences do
     local raw
@@ -73,7 +74,8 @@ test("simhash", function ()
       similarities,
       scores,
       dimensions,
-      buckets)
+      buckets,
+      wavelength)
     sentences[i].fingerprint = bm.from_raw(raw)
   end
 
@@ -88,4 +90,20 @@ test("simhash", function ()
     )
   end
 
+end)
+
+test("position", function ()
+  print()
+  local str = require("santoku.string")
+  local positions = 80
+  local dimensions = 32
+  local buckets = 10
+  local wavelength = 100
+  for position = 1, positions do
+    str.printf("%2d: ", position)
+    for dimension = 1, dimensions do
+      str.printf("%2d ", hash.position(position, dimension, dimensions, buckets, wavelength))
+    end
+    str.printf("\n")
+  end
 end)

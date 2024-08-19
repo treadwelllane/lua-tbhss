@@ -18,15 +18,28 @@ test("cluster", function ()
     "--file", "test/res/glove_snli_dev.train.txt",
   })
 
+  -- sys.execute({
+  --   "lua", "bin/tbhss.lua", "create", "clusters",
+  --   "--cache", db_file,
+  --   "--name", "glove-k-medoids",
+  --   "--words", "glove",
+  --   "--algorithm", "k-medoids", "64", "3",
+  -- })
+
+  -- sys.execute({
+  --   "lua", "bin/tbhss.lua", "create", "clusters",
+  --   "--cache", db_file,
+  --   "--name", "glove-k-means",
+  --   "--words", "glove",
+  --   "--algorithm", "k-means", "64", "3",
+  -- })
+
   sys.execute({
     "lua", "bin/tbhss.lua", "create", "clusters",
     "--cache", db_file,
-    "--name", "glove",
+    "--name", "glove-dbscan",
     "--words", "glove",
-    "--clusters", "1024",
-    "--min", "1",
-    "--max", "1",
-    "--cutoff", "0",
+    "--algorithm", "dbscan", "2", "0.6", "3"
   })
 
 end)

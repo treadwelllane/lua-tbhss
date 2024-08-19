@@ -2,6 +2,8 @@
 
 local argparse = require("argparse")
 local serialize = require("santoku.serialize") -- luacheck: ignore
+local str = require("santoku.string")
+local arr = require("santoku.array")
 
 local init_db = require("tbhss.db")
 local words = require("tbhss.words")
@@ -44,9 +46,12 @@ local cmd_load_train_triplets = cmd_load:command("train-triplets", "load NLI dat
 base_flags(cmd_load_train_triplets)
 cmd_load_train_triplets:option("--name", "name of loaded dataset", nil, nil, 1, 1)
 cmd_load_train_triplets:option("--file", "path to NLI dataset file", nil, nil, 1, 1)
-cmd_load_train_triplets:option("--clusters", "name of word clusters, ratio of clusters to words, min-set, max-set, min-similarity, include-raw", nil, nil, 6, "0-1")
+cmd_load_train_triplets:option("--clusters", "name of word clusters, algorithm, algorithm args...", nil, function (v)
+  return str.match(v, "^%-?%d*%.?%d+$") and tonumber(v) or v
+end, "+", "0-1")
 cmd_load_train_triplets:option("--dimensions", "number of dimensions for positions", nil, tonumber, 1, 1)
 cmd_load_train_triplets:option("--buckets", "number of buckets for positions", nil, tonumber, 1, 1)
+cmd_load_train_triplets:option("--wavelength", "wavelength for positional encoding", nil, tonumber, 1, 1)
 cmd_load_train_triplets:option("--saturation", "BM25 saturation", 1.2, tonumber, 1, 1)
 cmd_load_train_triplets:option("--length-normalization", "BM25 length normalization", 0.75, tonumber, 1, 1)
 cmd_load_train_triplets:option("--max-records", "Max number of triplets to load", nil, tonumber, 1, "0-1")
@@ -67,11 +72,10 @@ local cmd_create_clusters = cmd_create:command("clusters", "create clusters")
 base_flags(cmd_create_clusters)
 cmd_create_clusters:option("--name", "name of created clusters", nil, nil, 1, 1)
 cmd_create_clusters:option("--words", "name of words to cluster", nil, nil, 1, 1)
-cmd_create_clusters:option("--clusters", "number of clusters", nil, tonumber, 1, 1)
-cmd_create_clusters:option("--min", "min number of clusters per word", nil, tonumber, 1, 1)
-cmd_create_clusters:option("--max", "max number of clusters per word", nil, tonumber, 1, 1)
-cmd_create_clusters:option("--cutoff", "similarity cutoff", nil, tonumber, 1, 1)
 cmd_create_clusters:option("--filter-words", "snli dataset to filter words by", nil, nil, 1, "0-1")
+cmd_create_clusters:option("--algorithm", "clustering algorithm", nil, function (v)
+  return str.match(v, "^%-?%d*%.?%d+$") and tonumber(v) or v
+end, "+", 1)
 
 local cmd_create_encoder = cmd_create:command("encoder", "create an encoder")
 base_flags(cmd_create_encoder)
@@ -105,11 +109,7 @@ elseif args.cmd == "load" and args.cmd_load == "train-triplets" then
   if args.clusters then
     args.clusters = {
       words = args.clusters[1],
-      clusters = tonumber(args.clusters[2]),
-      min_set = tonumber(args.clusters[3]),
-      max_set = tonumber(args.clusters[4]),
-      min_similarity = tonumber(args.clusters[5]),
-      include_raw = args.clusters[6] == "true",
+      algorithm = { arr.spread(args.clusters, 2) },
     }
   end
   modeler.load_train_triplets(db, args)

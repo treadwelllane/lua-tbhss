@@ -9,38 +9,41 @@ nohup stdbuf -oL tbhss load words \
 nohup stdbuf -oL tbhss process snli \
   --inputs snli_1.0/snli_1.0_test.txt snli_1.0/snli_1.0_dev.txt \
   --train-test-ratio 0.9 \
-  --output-train snli-small.train.txt \
-  --output-test snli-small.test.txt \
+  --output-train snli-triplets.train.txt \
+  --output-test snli-triplets.test.txt \
     2>&1 > log.txt & tail -f log.txt
 
 nohup stdbuf -oL tbhss load train-triplets \
   --cache tbhss.db \
-  --name snli51-train \
-  --file snli-small.train.txt \
-  --clusters glove 1024 1 3 0 false \
-  --dimensions 32 \
-  --buckets 40 \
+  --name snli97-train \
+  --file snli-triplets.train.txt \
+  --max-records 20000 \
+  --clusters glove dbscan 2 0.645 3 \
+  --dimensions 4 \
+  --buckets 4 \
+  --wavelength 4096 \
   --saturation 1.2 \
   --length-normalization 0.75 \
     2>&1 > log.txt & tail -f log.txt
 
 nohup stdbuf -oL tbhss load test-triplets \
   --cache tbhss.db \
-  --name snli51-test \
-  --file snli-small.test.txt \
-  --model snli51-train \
+  --name snli97-test \
+  --file snli-triplets.test.txt \
+  --max-records 2000 \
+  --model snli97-train \
     2>&1 > log.txt & tail -f log.txt
 
 nohup stdbuf -oL tbhss create encoder \
   --cache tbhss.db \
-  --name snli51  \
-  --triplets snli51-train snli51-test \
-  --encoded-bits 256 \
-  --clauses 8192 \
+  --name snli97  \
+  --triplets snli97-train snli97-test \
+  --encoded-bits 128 \
+  --clauses 2048 \
   --state-bits 8 \
   --threshold 36 \
   --specificity 4 12 \
-  --margin 0.1 \
+  --margin 0.15 \
   --loss-alpha 0.25 \
   --active-clause 0.85 \
   --boost-true-positive true \
@@ -59,10 +62,10 @@ nohup stdbuf -oL tbhss process snli \
 
 nohup stdbuf -oL tbhss load train-triplets \
   --cache tbhss.db \
-  --name snli52-train \
+  --name snli65-train \
   --file snli-triplets.train.txt \
   --max-records 20000 \
-  --clusters glove 1024 1 3 0 false \
+  --clusters glove dbscan 2 0.645 5 \
   --dimensions 32 \
   --buckets 40 \
   --saturation 1.2 \
@@ -71,16 +74,16 @@ nohup stdbuf -oL tbhss load train-triplets \
 
 nohup stdbuf -oL tbhss load test-triplets \
   --cache tbhss.db \
-  --name snli52-test \
+  --name snli65-test \
   --file snli-triplets.test.txt \
   --max-records 2000 \
-  --model snli52-train \
+  --model snli65-train \
     2>&1 > log.txt & tail -f log.txt
 
 nohup stdbuf -oL tbhss create encoder \
   --cache tbhss.db \
-  --name snli52  \
-  --triplets snli52-train snli52-test \
+  --name snli65  \
+  --triplets snli65-train snli65-test \
   --encoded-bits 256 \
   --clauses 8192 \
   --state-bits 8 \

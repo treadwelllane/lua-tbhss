@@ -9,6 +9,30 @@
 #define BYTES (sizeof(uint32_t))
 #define BITS (BYTES * CHAR_BIT)
 
+static inline double tk_lua_optposdouble (lua_State *L, int i, double def)
+{
+  if (lua_type(L, i) < 1)
+    return def;
+  lua_Number l = luaL_checknumber(L, i);
+  if (l < 0)
+    luaL_error(L, "value can't be negative");
+  return (double) l;
+}
+
+static inline double tk_lua_checkposdouble (lua_State *L, int i)
+{
+  lua_Number l = luaL_checknumber(L, i);
+  if (l < 0)
+    luaL_error(L, "value can't be negative");
+  return (double) l;
+}
+
+static inline unsigned int tk_lua_len (lua_State *L, int i)
+{
+  size_t l = lua_objlen(L, i);
+  return l < 0 ? 0 : (unsigned int) l;
+}
+
 static inline unsigned int tk_lua_checkunsigned (lua_State *L, int i)
 {
   lua_Integer l = luaL_checkinteger(L, i);
@@ -91,27 +115,29 @@ static inline unsigned int encode_pos (
   size_t pos,
   unsigned int dim,
   unsigned int n_dims,
-  unsigned int buckets
+  unsigned int buckets,
+  unsigned int wavelength
 ) {
-  double angle = (double) pos / pow(10000.0, (2.0 * ((double) dim / 2)) / (double) n_dims);
+  double angle = (double) pos / pow(wavelength * 1.0, (2.0 * ((double) (n_dims - dim) / 2)) / (double) n_dims);
   double val = (dim % 2 == 0) ? sin(angle) : cos(angle);
-  return (unsigned int) ((val + 1.0) / 2.0 * (buckets - 1));
+  return (unsigned int) round((val + 1.0) / 2.0 * (buckets - 1));
 }
 
 static inline void populate_hash (
   lua_State *L,
   uint32_t *result,
-  size_t n,
+  unsigned int n,
   unsigned int dimensions,
-  unsigned int buckets
+  unsigned int buckets,
+  unsigned int wavelength
 ) {
-  lua_Number counts[dimensions * BITS];
-  for (size_t i = 0; i < dimensions * BITS; i ++)
+  double counts[dimensions * BITS];
+  for (unsigned int i = 0; i < dimensions * BITS; i ++)
     counts[i] = 0;
 
-  lua_Integer data[2];
+  unsigned int data[2];
 
-  for (size_t i = 0; i < n; i ++) {
+  for (unsigned int i = 0; i < n; i ++) {
 
     lua_pushinteger(L, i + 1); // n
     lua_gettable(L, 1); // token
@@ -125,17 +151,17 @@ static inline void populate_hash (
     lua_pushvalue(L, -3); // token position similarity token
     lua_gettable(L, 4); // token position similarity weight
 
-    lua_Integer token = luaL_checkinteger(L, -4);
-    lua_Integer position = luaL_checkinteger(L, -3);
-    lua_Number similarity = luaL_checknumber(L, -2);
-    lua_Number weight = luaL_optnumber(L, -1, 0);
+    unsigned int token = tk_lua_checkunsigned(L, -4);
+    unsigned int position = tk_lua_checkunsigned(L, -3);
+    double similarity = tk_lua_checkposdouble(L, -2);
+    double weight = tk_lua_optposdouble(L, -1, 0);
 
     lua_pop(L, 4);
 
     data[0] = token;
     for (unsigned int dimension = 0; dimension < dimensions; dimension ++) {
-      data[1] = encode_pos(position, dimension, dimensions, buckets);
-      uint32_t hash = murmur32(data, sizeof(lua_Integer) * 2, 0);
+      data[1] = encode_pos(position, dimension, dimensions, buckets, wavelength);
+      uint32_t hash = murmur32(data, sizeof(unsigned int) * 2, 0);
       for (unsigned int bit = 0; bit < BITS; bit ++) {
         if (hash & (1 << bit))
           counts[(dimension * BITS) + bit] += weight * similarity;
@@ -164,23 +190,38 @@ static inline int tb_simhash (lua_State *L)
   luaL_checktype(L, 2, LUA_TTABLE);
   luaL_checktype(L, 3, LUA_TTABLE);
   luaL_checktype(L, 4, LUA_TTABLE);
-  size_t n = lua_objlen(L, 1);
+  unsigned int n = tk_lua_len(L, 1);
   unsigned int dimensions = tk_lua_checkunsigned(L, 5);
   unsigned int buckets = tk_lua_checkunsigned(L, 6);
+  unsigned int wavelength = tk_lua_checkunsigned(L, 7);
   if (!dimensions)
     luaL_argerror(L, 5, "dimensions must be greater than 0");
   if (!buckets)
     luaL_argerror(L, 6, "buckets must be greater than 0");
+  if (!wavelength)
+    luaL_argerror(L, 7, "wavelength must be greater than 0");
   uint32_t result[dimensions];
-  populate_hash(L, result, n, dimensions, buckets);
+  populate_hash(L, result, n, dimensions, buckets, wavelength);
   lua_pushlstring(L, (char *) result, dimensions * BYTES);
   lua_pushinteger(L, dimensions * BITS);
   return 2;
 }
 
+static inline int tb_position (lua_State *L)
+{
+  unsigned int position = tk_lua_checkunsigned(L, 1);
+  unsigned int dimension = tk_lua_checkunsigned(L, 2);
+  unsigned int dimensions = tk_lua_checkunsigned(L, 3);
+  unsigned int buckets = tk_lua_checkunsigned(L, 4);
+  unsigned int wavelength = tk_lua_checkunsigned(L, 5);
+  lua_pushinteger(L, encode_pos(position, dimension, dimensions, buckets, wavelength));
+  return 1;
+}
+
 static luaL_Reg tb_fns[] =
 {
   { "simhash", tb_simhash },
+  { "position", tb_position },
   { NULL, NULL }
 };
 
