@@ -111,16 +111,16 @@ static inline uint32_t murmur32 (const void *key, int len, uint32_t seed)
   return h1;
 }
 
-static inline unsigned int encode_pos (
-  size_t pos,
-  unsigned int dim,
-  unsigned int n_dims,
+static inline unsigned int encode_position (
+  unsigned int position,
+  unsigned int dimension,
+  unsigned int dimensions,
   unsigned int buckets,
   unsigned int wavelength
 ) {
-  double angle = (double) pos / pow(wavelength * 1.0, (2.0 * ((double) (n_dims - dim) / 2)) / (double) n_dims);
-  double val = (dim % 2 == 0) ? sin(angle) : cos(angle);
-  return (unsigned int) round((val + 1.0) / 2.0 * (buckets - 1));
+  double angle = (double) position / pow((double) wavelength, (double) dimension / dimensions);
+  double val = (dimension % 2 == 0) ? sin(angle) : cos(angle);
+  return (unsigned int) ((val + 1.0) / 2.0 * (buckets - 1));
 }
 
 static inline void populate_hash (
@@ -160,7 +160,7 @@ static inline void populate_hash (
 
     data[0] = token;
     for (unsigned int dimension = 0; dimension < dimensions; dimension ++) {
-      data[1] = encode_pos(position, dimension, dimensions, buckets, wavelength);
+      data[1] = encode_position(position, dimension + 1, dimensions, buckets, wavelength);
       uint32_t hash = murmur32(data, sizeof(unsigned int) * 2, 0);
       for (unsigned int bit = 0; bit < BITS; bit ++) {
         if (hash & (1 << bit))
@@ -190,7 +190,6 @@ static inline int tb_simhash (lua_State *L)
   luaL_checktype(L, 2, LUA_TTABLE);
   luaL_checktype(L, 3, LUA_TTABLE);
   luaL_checktype(L, 4, LUA_TTABLE);
-  unsigned int n = tk_lua_len(L, 1);
   unsigned int dimensions = tk_lua_checkunsigned(L, 5);
   unsigned int buckets = tk_lua_checkunsigned(L, 6);
   unsigned int wavelength = tk_lua_checkunsigned(L, 7);
@@ -200,6 +199,7 @@ static inline int tb_simhash (lua_State *L)
     luaL_argerror(L, 6, "buckets must be greater than 0");
   if (!wavelength)
     luaL_argerror(L, 7, "wavelength must be greater than 0");
+  unsigned int n = tk_lua_len(L, 1);
   uint32_t result[dimensions];
   populate_hash(L, result, n, dimensions, buckets, wavelength);
   lua_pushlstring(L, (char *) result, dimensions * BYTES);
@@ -214,7 +214,17 @@ static inline int tb_position (lua_State *L)
   unsigned int dimensions = tk_lua_checkunsigned(L, 3);
   unsigned int buckets = tk_lua_checkunsigned(L, 4);
   unsigned int wavelength = tk_lua_checkunsigned(L, 5);
-  lua_pushinteger(L, encode_pos(position, dimension, dimensions, buckets, wavelength));
+  if (!position)
+    luaL_argerror(L, 1, "position must be greater than 0");
+  if (!dimension)
+    luaL_argerror(L, 2, "dimension must be greater than 0");
+  if (!dimensions)
+    luaL_argerror(L, 3, "dimensions must be greater than or equal to dimension");
+  if (!buckets)
+    luaL_argerror(L, 4, "buckets must be greater than 0");
+  if (!wavelength)
+    luaL_argerror(L, 5, "wavelength must be greater than 0");
+  lua_pushinteger(L, encode_position(position, dimension, dimensions, buckets, wavelength));
   return 1;
 }
 
