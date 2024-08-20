@@ -15,7 +15,7 @@ nohup stdbuf -oL tbhss process snli \
 
 nohup stdbuf -oL tbhss load train-triplets \
   --cache tbhss.db \
-  --name snli101-train \
+  --name snli102-train \
   --file snli-small.train.txt \
   --clusters glove dbscan 2 0.645 5 \
   --dimensions 32 \
@@ -25,21 +25,21 @@ nohup stdbuf -oL tbhss load train-triplets \
 
 nohup stdbuf -oL tbhss load test-triplets \
   --cache tbhss.db \
-  --name snli101-test \
+  --name snli102-test \
   --file snli-small.test.txt \
-  --model snli101-train \
+  --model snli102-train \
     2>&1 > log.txt & tail -f log.txt
 
 nohup stdbuf -oL tbhss create encoder \
   --cache tbhss.db \
-  --name snli101  \
-  --triplets snli101-train snli101-test \
+  --name snli102  \
+  --triplets snli102-train snli102-test \
   --encoded-bits 256 \
   --clauses 8192 \
   --state-bits 8 \
   --threshold 36 \
-  --specificity 4 12 \
-  --margin 0.1 \
+  --specificity 2 200 \
+  --margin 0.15 \
   --loss-alpha 0.25 \
   --active-clause 0.85 \
   --boost-true-positive true \

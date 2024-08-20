@@ -30,8 +30,10 @@ sys.execute({
   "--cache", db_file,
   "--name", "dev-train",
   "--file", ".train.triplets.txt",
-  "--clusters", "glove", "k-medoids", "128", "3",
+  "--clusters", "glove", "dbscan", "2", "0.645", "5",
   "--dimensions", "4",
+  "--precision", "9",
+  "--buckets", "400",
   "--saturation", "1.2",
   "--length-normalization", "0.75",
 })

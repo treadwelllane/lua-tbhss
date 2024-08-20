@@ -113,24 +113,32 @@ static inline uint32_t murmur32 (const void *key, int len, uint32_t seed)
 
 static inline unsigned int encode_position (
   unsigned int position,
-  unsigned int dimension
+  unsigned int dimension,
+  unsigned int buckets,
+  double precision
 ) {
-  if (position <= 1 || dimension <= 1)
+  if (dimension <= 1 || buckets <= 1)
     return 1;
 
-  position = position - 1;
+  precision = precision < 0 ? 0 : precision;
+  position = position ? position - 1 : 0;
   dimension = dimension - 1;
+  dimension = dimension % buckets + 1;
   unsigned int mod = position % (dimension * 2);
-  unsigned int down = mod >= dimension;
+  unsigned int down = (dimension % 2 == 0) ? (mod >= dimension) : (mod < dimension);
   mod = mod % dimension;
-  return (down ? dimension - mod : mod) + 1;
+  double proximity = pow(1.0 * mod / dimension, precision);
+  mod = floor(buckets * proximity + 0.5);
+  return (down ? buckets - mod : mod) + 1;
 }
 
 static inline void populate_hash (
   lua_State *L,
   uint32_t *result,
   unsigned int n,
-  unsigned int dimensions
+  unsigned int dimensions,
+  unsigned int buckets,
+  double precision
 ) {
   double counts[dimensions * BITS];
   for (unsigned int i = 0; i < dimensions * BITS; i ++)
@@ -144,7 +152,6 @@ static inline void populate_hash (
     lua_gettable(L, 1); // token
 
     lua_pushinteger(L, i + 1); // token n
-    lua_gettable(L, 2); // token position
 
     lua_pushinteger(L, i + 1); // token position n
     lua_gettable(L, 3); // token position similarity
@@ -154,14 +161,14 @@ static inline void populate_hash (
 
     unsigned int token = tk_lua_checkunsigned(L, -4);
     unsigned int position = tk_lua_checkunsigned(L, -3);
-    double similarity = tk_lua_checkposdouble(L, -2);
-    double weight = tk_lua_optposdouble(L, -1, 0);
+    double similarity = 1; //tk_lua_checkposdouble(L, -2);
+    double weight = 1; //tk_lua_optposdouble(L, -1, 0);
 
     lua_pop(L, 4);
 
     data[0] = token;
     for (unsigned int dimension = 0; dimension < dimensions; dimension ++) {
-      data[1] = encode_position(position, dimension + 1);
+      data[1] = encode_position(position, dimension + 1, buckets, precision);
       uint32_t hash = murmur32(data, sizeof(unsigned int) * 2, 0);
       for (unsigned int bit = 0; bit < BITS; bit ++) {
         if (hash & (1 << bit))
@@ -192,11 +199,11 @@ static inline int tb_simhash (lua_State *L)
   luaL_checktype(L, 3, LUA_TTABLE);
   luaL_checktype(L, 4, LUA_TTABLE);
   unsigned int dimensions = tk_lua_checkunsigned(L, 5);
-  if (!dimensions)
-    luaL_argerror(L, 5, "dimensions must be greater than 0");
+  unsigned int buckets = tk_lua_checkunsigned(L, 6);
+  double precision = tk_lua_checkposdouble(L, 7);
   unsigned int n = tk_lua_len(L, 1);
   uint32_t result[dimensions];
-  populate_hash(L, result, n, dimensions);
+  populate_hash(L, result, n, dimensions, buckets, precision);
   lua_pushlstring(L, (char *) result, dimensions * BYTES);
   lua_pushinteger(L, dimensions * BITS);
   return 2;
@@ -206,11 +213,9 @@ static inline int tb_position (lua_State *L)
 {
   unsigned int position = tk_lua_checkunsigned(L, 1);
   unsigned int dimension = tk_lua_checkunsigned(L, 2);
-  if (!position)
-    luaL_argerror(L, 1, "position must be greater than 0");
-  if (!dimension)
-    luaL_argerror(L, 2, "dimension must be greater than 0");
-  lua_pushinteger(L, encode_position(position, dimension));
+  unsigned int buckets = tk_lua_checkunsigned(L, 3);
+  double precision = tk_lua_checkposdouble(L, 4);
+  lua_pushinteger(L, encode_position(position, dimension, buckets, precision));
   return 1;
 }
 
