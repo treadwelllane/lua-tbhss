@@ -9,7 +9,7 @@ local env = {
     "lua == 5.1",
     "lua-cjson >= 2.1.0.10-1",
     "argparse >= 0.7.1-1",
-    "santoku == 0.0.204-1",
+    "santoku == 0.0.206-1",
     "santoku-fs == 0.0.32-1",
     "santoku-system == 0.0.26-1",
     "santoku-tsetlin == 0.0.49-1",

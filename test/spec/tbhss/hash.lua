@@ -51,20 +51,20 @@ test("simhash", function ()
   }
 
   local scores = {
-    [ids.the] = 1,
-    [ids.a] = 1,
-    [ids.quick] = 3,
-    [ids.speedy] = 3,
-    [ids.brown] = 4,
-    [ids.green] = 5,
-    [ids.fox] = 7,
-    [ids.cat] = 7,
+    [ids.the] = 5,
+    [ids.a] = 5,
+    [ids.quick] = 6,
+    [ids.speedy] = 6,
+    [ids.brown] = 7,
+    [ids.green] = 7,
+    [ids.fox] = 8,
+    [ids.cat] = 8,
   }
 
   local bits
-  local dimensions = 10
-  local buckets = 10
-  local precision = 5
+  local dimensions = 32
+  local buckets = 400
+  local wavelength = 4096
 
   for i = 1, #sentences do
     local raw
@@ -75,34 +75,32 @@ test("simhash", function ()
       scores,
       dimensions,
       buckets,
-      precision)
+      wavelength)
     sentences[i].fingerprint = bm.from_raw(raw)
   end
 
   print()
   print(sentences[1].original)
-  print()
-
   for i = 2, #sentences do
     local dist = bm.hamming(sentences[1].fingerprint, sentences[i].fingerprint) / bits
-    print(string.format("%s\t%f\n%s\n", sentences[i].original, dist,
-      bm.tostring(sentences[i].fingerprint)))
+    print(string.format("%s\t%f\t%s", sentences[i].original, dist,
+      "" or bm.tostring(sentences[i].fingerprint)))
   end
 
 end)
 
-test("position", function ()
-  print()
-  local str = require("santoku.string")
-  local positions = 40
-  local dimensions = 4
-  local buckets = 400
-  local precision = 9
-  for position = 1, positions do
-    str.printf("%2d: ", position)
-    for dimension = 1, dimensions do
-      str.printf("%4d ", hash.position(position, dimension, buckets, precision))
-    end
-    str.printf("\n")
-  end
-end)
+-- test("position", function ()
+--   print()
+--   local str = require("santoku.string")
+--   local positions = 40
+--   local dimensions = 8
+--   local buckets = 100
+--   local precision = 5
+--   for position = 1, positions do
+--     str.printf("%2d: ", position)
+--     for dimension = 1, dimensions do
+--       str.printf("%4d ", hash.position(position, dimension, buckets, precision))
+--     end
+--     str.printf("\n")
+--   end
+-- end)

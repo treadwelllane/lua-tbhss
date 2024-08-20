@@ -39,7 +39,7 @@ test("cluster", function ()
     "--cache", db_file,
     "--name", "glove-dbscan",
     "--words", "glove",
-    "--algorithm", "dbscan", "2", "0.6", "3"
+    "--algorithm", "dbscan", "3", "0.645", "3"
   })
 
 end)

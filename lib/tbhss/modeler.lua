@@ -228,7 +228,7 @@ local function create_fingerprints (db, id_model, args)
           scores,
           model.args.dimensions,
           model.args.buckets,
-          model.args.precision)
+          model.args.wavelength)
         db.add_sentence_fingerprint(id_model, sentence.id, sentence.fingerprint)
         print(sentence.id)
       end

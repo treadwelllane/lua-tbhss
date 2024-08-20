@@ -2,9 +2,9 @@ nohup stdbuf -oL sh -c '
 
   set -e
 
-  id=45
+  id=54
 
-  epochs=10
+  epochs=5
 
   wave=10000
   wave_step=*10
@@ -12,9 +12,9 @@ nohup stdbuf -oL sh -c '
 
   while [ $(echo "$wave <= $wave_stop" | bc) -eq 1 ]; do
 
-    buckets=10
-    buckets_step=+4
-    buckets_stop=10
+    buckets=8
+    buckets_step=8
+    buckets_stop=32
 
     while [ $(echo "$buckets <= $buckets_stop" | bc) -eq 1 ]; do
 
@@ -49,16 +49,16 @@ nohup stdbuf -oL sh -c '
 
         while [ $(echo "$margin <= $margin_stop" | bc) -eq 1 ]; do
 
-          bits=512
+          bits=128
           bits_step=*2
-          bits_stop=2048
+          bits_stop=128
 
           while [ $(echo "$bits <= $bits_stop" | bc) -eq 1 ]; do
 
-            spec=8
-            spec_range=4
+            spec=100
+            spec_range=100
             spec_step=+1
-            spec_stop=8
+            spec_stop=100
 
             while [ $(echo "$spec <= $spec_stop" | bc) -eq 1 ]; do
 
