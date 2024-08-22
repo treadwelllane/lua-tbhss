@@ -1,6 +1,5 @@
 # Small
 
-
     Epoch 10    Time 2002  Test 0.95  Train 1.00
 
     nohup stdbuf -oL tbhss load train-triplets \

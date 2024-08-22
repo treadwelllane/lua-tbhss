@@ -22,7 +22,7 @@ nohup stdbuf -oL tbhss process snli \
 
 nohup stdbuf -oL tbhss load train-triplets \
   --cache tbhss.db \
-  --name snl300-train \
+  --name snl302-train \
   --file snli-small.train.txt \
   --clusters glove dbscan 2 0.645 5 \
   --dimensions 32 \
@@ -34,14 +34,14 @@ nohup stdbuf -oL tbhss load train-triplets \
 
 nohup stdbuf -oL tbhss load test-triplets \
   --cache tbhss.db \
-  --name snl300-test \
+  --name snl302-test \
   --file snli-small.test.txt \
-  --model snl300-train \
+  --model snl302-train \
     2>&1 >> log.txt & tail -f log.txt
 
 nohup stdbuf -oL tbhss create encoder \
   --cache tbhss.db \
-  --name snl300  \
+  --name snl302  \
   --triplets snl300-train snl300-test \
   --encoded-bits 256 \
   --clauses 8192 \
@@ -60,7 +60,7 @@ nohup stdbuf -oL tbhss create encoder \
 
 nohup stdbuf -oL tbhss load train-triplets \
   --cache tbhss.db \
-  --name snl65-train \
+  --name snl301-train \
   --file snli-triplets.train.txt \
   --max-records 20000 \
   --clusters glove dbscan 2 0.645 5 \
@@ -73,23 +73,23 @@ nohup stdbuf -oL tbhss load train-triplets \
 
 nohup stdbuf -oL tbhss load test-triplets \
   --cache tbhss.db \
-  --name snl65-test \
-  --file snl-triplets.test.txt \
+  --name snl301-test \
+  --file snli-triplets.test.txt \
   --max-records 2000 \
-  --model snl65-train \
+  --model snl301-train \
     2>&1 >> log.txt & tail -f log.txt
 
 nohup stdbuf -oL tbhss create encoder \
   --cache tbhss.db \
-  --name snl65  \
-  --triplets snl65-train snl65-test \
+  --name snl301  \
+  --triplets snl301-train snl301-test \
   --encoded-bits 256 \
   --clauses 8192 \
   --state-bits 8 \
   --threshold 36 \
   --specificity 4 12 \
   --margin 0.15 \
-  --loss-alpha 0.25 \
+  --loss-alpha 0 \
   --active-clause 0.85 \
   --boost-true-positive true \
   --evaluate-every 1 \
