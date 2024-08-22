@@ -49,7 +49,7 @@ nohup stdbuf -oL tbhss create encoder \
   --threshold 36 \
   --specificity 4 12 \
   --margin 0.15 \
-  --loss-alpha 0.25 \
+  --loss-alpha 0 \
   --active-clause 0.85 \
   --boost-true-positive true \
   --evaluate-every 1 \

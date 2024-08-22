@@ -63,8 +63,8 @@ test("simhash", function ()
 
   local bits
   local dimensions = 32
-  local buckets = 400
-  local wavelength = 4096
+  local buckets = 8
+  local wavelength = 512
 
   for i = 1, #sentences do
     local raw
@@ -89,18 +89,18 @@ test("simhash", function ()
 
 end)
 
--- test("position", function ()
---   print()
---   local str = require("santoku.string")
---   local positions = 40
---   local dimensions = 8
---   local buckets = 100
---   local precision = 5
---   for position = 1, positions do
---     str.printf("%2d: ", position)
---     for dimension = 1, dimensions do
---       str.printf("%4d ", hash.position(position, dimension, buckets, precision))
---     end
---     str.printf("\n")
---   end
--- end)
+test("position", function ()
+  print()
+  local str = require("santoku.string")
+  local positions = 40
+  local dimensions = 32
+  local buckets = 8
+  local wavelength = 200
+  for position = 1, positions do
+    str.printf("%2d: ", position)
+    for dimension = 1, dimensions do
+      str.printf("%2d ", hash.position(position, dimension, dimensions, buckets, wavelength))
+    end
+    str.printf("\n")
+  end
+end)

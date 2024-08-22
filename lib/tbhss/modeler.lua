@@ -151,7 +151,7 @@ local function expand_tokens (db, id_model, args)
     end
   }) do
     n = n + 1
-    if n % 50 == 0 then
+    if n % 5000 == 0 then
       print("Expanded", n)
     end
   end
@@ -235,7 +235,7 @@ local function create_fingerprints (db, id_model, args)
     end
   }) do
     n = n + 1
-    if n % 50 == 0 then
+    if n % 5000 == 0 then
       print("Created", n)
     end
   end
