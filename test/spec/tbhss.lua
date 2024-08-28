@@ -30,37 +30,37 @@ sys.execute({
   "--cache", db_file,
   "--name", "dev-train",
   "--file", ".train.triplets.txt",
-  "--clusters", "glove", "dbscan", "3", "0.645", "5",
+  "--clusters", "glove", "dbscan", "2", "0.645", "5",
+  "--merge", "true",
   "--dimensions", "4",
-  "--buckets", "20",
-  "--wavelength", "512",
+  "--buckets", "8",
+  "--wavelength", "200",
   "--saturation", "1.2",
   "--length-normalization", "0.75",
 })
 
-sys.execute({
-  "lua", "bin/tbhss.lua", "load", "test-triplets",
-  "--cache", db_file,
-  "--name", "dev-test",
-  "--file", ".test.triplets.txt",
-  "--model", "dev-train",
-})
+-- sys.execute({
+--   "lua", "bin/tbhss.lua", "load", "test-triplets",
+--   "--cache", db_file,
+--   "--name", "dev-test",
+--   "--file", ".test.triplets.txt",
+--   "--model", "dev-train",
+-- })
 
-sys.execute({
-  "lua", "bin/tbhss.lua", "create", "encoder",
-  "--cache", db_file,
-  "--name", "snli-dev",
-  "--triplets", "dev-train", "dev-test",
-  "--encoded-bits", "128",
-  "--clauses", "512",
-  "--state-bits", "8",
-  "--threshold", "36",
-  "--specificity", "4", "12",
-  "--margin", "0.15",
-  "--loss-alpha", "0.25",
-  "--active-clause", "0.85",
-  "--boost-true-positive", "true",
-  "--evaluate-every", "1",
-  "--epochs", "50"
-})
-
+-- sys.execute({
+--   "lua", "bin/tbhss.lua", "create", "encoder",
+--   "--cache", db_file,
+--   "--name", "snli-dev",
+--   "--triplets", "dev-train", "dev-test",
+--   "--encoded-bits", "64",
+--   "--clauses", "512",
+--   "--state-bits", "8",
+--   "--threshold", "36",
+--   "--specificity", "4", "12",
+--   "--margin", "0.15",
+--   "--loss-alpha", "0",
+--   "--active-clause", "0.85",
+--   "--boost-true-positive", "true",
+--   "--evaluate-every", "1",
+--   "--epochs", "50"
+-- })

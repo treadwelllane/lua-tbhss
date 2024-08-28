@@ -1,5 +1,43 @@
 # Small
 
+    Epoch 11    Time 1870  Test 0.96  Train 1.00
+
+    nohup stdbuf -oL tbhss load train-triplets \
+      --cache tbhss.db \
+      --name snl311-train \
+      --file snli-small2.train.txt \
+      --clusters glove dbscan 2 0.645 5 \
+      --dimensions 32 \
+      --buckets 8 \
+      --wavelength 200 \
+      --saturation 1.2 \
+      --length-normalization 0.75 \
+        2>&1 >> log.txt & tail -f log.txt
+
+    nohup stdbuf -oL tbhss load test-triplets \
+      --cache tbhss.db \
+      --name snl311-test \
+      --file snli-small2.test.txt \
+      --model snl311-train \
+        2>&1 >> log.txt & tail -f log.txt
+
+    nohup stdbuf -oL tbhss create encoder \
+      --cache tbhss.db \
+      --name snl311  \
+      --triplets snl311-train snl311-test \
+      --encoded-bits 256 \
+      --clauses 8192 \
+      --state-bits 8 \
+      --threshold 36 \
+      --specificity 4 12 \
+      --margin 0.15 \
+      --loss-alpha 0 \
+      --active-clause 0.85 \
+      --boost-true-positive true \
+      --evaluate-every 1 \
+      --epochs 100 \
+        2>&1 >> log.txt & tail -f log.txt
+
     Epoch 10    Time 2002  Test 0.95  Train 1.00
 
     nohup stdbuf -oL tbhss load train-triplets \
@@ -391,7 +429,7 @@
       --epochs 100 \
         2>&1 > log.txt & tail -f log.txt
 
-# Dev + Test + Train
+# Medium
 
     TODO
 

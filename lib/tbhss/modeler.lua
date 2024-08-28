@@ -93,32 +93,65 @@ local function create_model (db, model, args)
   return id_model
 end
 
-local function get_expanded_tokens (model, tokens0, nearest)
+local function get_expanded_tokens (tokens0, nearest, merge)
   local tokens = {}
   local positions = {}
   local similarities = {}
+  local pos_tokens = {}
   local p = 1
   for i = 1, #tokens0 do
     local t = tokens0[i]
-    if not model.args.clusters then
-      arr.push(tokens, t)
-      arr.push(positions, p)
-      arr.push(similarities, 1)
+    if not nearest then
+      pos_tokens[p] = pos_tokens[p] or {}
+      pos_tokens[p][t] = 1
       p = p + 1
-    elseif model.args.clusters then
+    elseif nearest then
       local ns = nearest[t]
       if ns then
+        pos_tokens[p] = pos_tokens[p] or {}
         for j = 1, #ns do
           local n = ns[j]
-          arr.push(tokens, n.cluster)
-          arr.push(positions, p)
-          arr.push(similarities, n.similarity)
+          pos_tokens[p][n.cluster] = n.similarity
         end
         p = p + 1
       end
     end
   end
-  return tokens, positions, similarities, p - 1
+  if merge then
+    for i = 1, p do
+      local t0 = pos_tokens[i]
+      if t0 then
+        for j = i + 1, p do
+          local t1 = pos_tokens[j] or {}
+          local k = next(t1)
+          while k ~= nil do
+            if t0[k] then
+              t1[k] = nil
+              k = nil
+            end
+            k = next(t1, k)
+          end
+          if next(t1) == nil then
+            pos_tokens[j] = nil
+          else
+            break
+          end
+        end
+      end
+    end
+  end
+  local length = 0
+  for i = 1, p do
+    if pos_tokens[i] and next(pos_tokens[i]) then
+      length = length + 1
+      for t, s in pairs(pos_tokens[i]) do
+        arr.push(tokens, t)
+        arr.push(positions, i)
+        arr.push(similarities, s)
+      end
+    end
+  end
+  return tokens, positions, similarities, length
 end
 
 local function expand_tokens (db, id_model, args)
@@ -144,7 +177,7 @@ local function expand_tokens (db, id_model, args)
         or (first_id + chunk_size - 1)
       for s_id = first_id, last_id do
         local s = sentences[s_id]
-        local tokens, positions, similarities, length = get_expanded_tokens(model, s.tokens, nearest)
+        local tokens, positions, similarities, length = get_expanded_tokens(s.tokens, nearest, args.merge)
         db.set_sentence_tokens(id_model, s.id, tokens, positions, similarities, length)
         print(s.id)
       end
@@ -321,7 +354,12 @@ local function modeler ()
 end
 
 return {
+
   load_train_triplets = load_train_triplets,
   load_test_triplets = load_test_triplets,
-  modeler = modeler
+  modeler = modeler,
+
+  -- Exported for testing
+  get_expanded_tokens = get_expanded_tokens
+
 }

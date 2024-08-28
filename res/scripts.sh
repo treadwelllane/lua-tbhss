@@ -22,27 +22,28 @@ nohup stdbuf -oL tbhss process snli \
 
 nohup stdbuf -oL tbhss load train-triplets \
   --cache tbhss.db \
-  --name snl302-train \
-  --file snli-small.train.txt \
+  --name snl400-train \
+  --file snli-small2.train.txt \
   --clusters glove dbscan 2 0.645 5 \
+  --merge true \
   --dimensions 32 \
   --buckets 8 \
-  --wavelength 512 \
+  --wavelength 200 \
   --saturation 1.2 \
   --length-normalization 0.75 \
     2>&1 >> log.txt & tail -f log.txt
 
 nohup stdbuf -oL tbhss load test-triplets \
   --cache tbhss.db \
-  --name snl302-test \
-  --file snli-small.test.txt \
-  --model snl302-train \
+  --name snl400-test \
+  --file snli-small2.test.txt \
+  --model snl400-train \
     2>&1 >> log.txt & tail -f log.txt
 
 nohup stdbuf -oL tbhss create encoder \
   --cache tbhss.db \
-  --name snl302  \
-  --triplets snl300-train snl300-test \
+  --name snl400  \
+  --triplets snl400-train snl400-test \
   --encoded-bits 256 \
   --clauses 8192 \
   --state-bits 8 \
@@ -60,29 +61,29 @@ nohup stdbuf -oL tbhss create encoder \
 
 nohup stdbuf -oL tbhss load train-triplets \
   --cache tbhss.db \
-  --name snl301-train \
+  --name snl505-train \
   --file snli-triplets.train.txt \
-  --max-records 20000 \
+  --max-records 10000 \
   --clusters glove dbscan 2 0.645 5 \
   --dimensions 32 \
   --buckets 8 \
-  --wavelength 512 \
+  --wavelength 200 \
   --saturation 1.2 \
   --length-normalization 0.75 \
     2>&1 >> log.txt & tail -f log.txt
 
 nohup stdbuf -oL tbhss load test-triplets \
   --cache tbhss.db \
-  --name snl301-test \
+  --name snl505-test \
   --file snli-triplets.test.txt \
-  --max-records 2000 \
-  --model snl301-train \
+  --max-records 1000 \
+  --model snl505-train \
     2>&1 >> log.txt & tail -f log.txt
 
 nohup stdbuf -oL tbhss create encoder \
   --cache tbhss.db \
-  --name snl301  \
-  --triplets snl301-train snl301-test \
+  --name snl505  \
+  --triplets snl505-train snl505-test \
   --encoded-bits 256 \
   --clauses 8192 \
   --state-bits 8 \
