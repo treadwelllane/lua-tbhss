@@ -5,27 +5,37 @@ nohup stdbuf -oL tbhss load words \
     2>&1 > log.txt & tail -f log.txt
 
 nohup stdbuf -oL tbhss process snli \
-  --inputs snli_1.0/snli_1.0_test.txt snli_1.0/snli_1.0_dev.txt \
-  --train-test-ratio 0.9 \
-  --output-train snli-small.train.txt \
-  --output-test snli-small.test.txt \
+  --input snli_1.0/snli_1.0_dev.txt \
+  --output snli.triplets.1.1.dev.txt \
+  --quality 1 1 \
     2>&1 > log.txt & tail -f log.txt
 
 nohup stdbuf -oL tbhss process snli \
-  --inputs snli_1.0/snli_1.0_train.txt snli_1.0/snli_1.0_test.txt snli_1.0/snli_1.0_dev.txt \
-  --train-test-ratio 0.9 \
-  --output-train snli-triplets.train.txt \
-  --output-test snli-triplets.test.txt \
-    2>&1 >> log.txt & tail -f log.txt
+  --input snli_1.0/snli_1.0_test.txt \
+  --output snli.triplets.1.1.test.txt \
+  --quality 1 1 \
+    2>&1 > log.txt & tail -f log.txt
+
+nohup stdbuf -oL tbhss process snli \
+  --input snli_1.0/snli_1.0_train.txt \
+  --output snli.triplets.1.1.train.txt \
+  --quality 1 1 \
+    2>&1 > log.txt & tail -f log.txt
+
+nohup stdbuf -oL tbhss process snli \
+  --input snli_1.0/snli_1.0_dev.txt snli_1.0/snli_1.0_test.txt snli_1.0/snli_1.0_train.txt \
+  --output snli.triplets.3.2.all.txt \
+  --quality 1 2 \
+    2>&1 > log.txt & tail -f log.txt
 
 # Small
 
 nohup stdbuf -oL tbhss load train-triplets \
   --cache tbhss.db \
-  --name snl400-train \
-  --file snli-small2.train.txt \
+  --name snl405-train \
+  --file snli.triplets.1.2.all.train.txt \
   --clusters glove dbscan 2 0.645 5 \
-  --merge true \
+  --merge false \
   --dimensions 32 \
   --buckets 8 \
   --wavelength 200 \
@@ -35,15 +45,15 @@ nohup stdbuf -oL tbhss load train-triplets \
 
 nohup stdbuf -oL tbhss load test-triplets \
   --cache tbhss.db \
-  --name snl400-test \
-  --file snli-small2.test.txt \
-  --model snl400-train \
+  --name snl405-test \
+  --file snli.triplets.1.2.all.dev.txt \
+  --model snl405-train \
     2>&1 >> log.txt & tail -f log.txt
 
 nohup stdbuf -oL tbhss create encoder \
   --cache tbhss.db \
-  --name snl400  \
-  --triplets snl400-train snl400-test \
+  --name snli405  \
+  --triplets snl405-train snl405-test \
   --encoded-bits 256 \
   --clauses 8192 \
   --state-bits 8 \
@@ -62,9 +72,9 @@ nohup stdbuf -oL tbhss create encoder \
 nohup stdbuf -oL tbhss load train-triplets \
   --cache tbhss.db \
   --name snl505-train \
-  --file snli-triplets.train.txt \
-  --max-records 10000 \
+  --file snli.triplets.1.1.train.txt \
   --clusters glove dbscan 2 0.645 5 \
+  --merge false \
   --dimensions 32 \
   --buckets 8 \
   --wavelength 200 \
@@ -75,15 +85,14 @@ nohup stdbuf -oL tbhss load train-triplets \
 nohup stdbuf -oL tbhss load test-triplets \
   --cache tbhss.db \
   --name snl505-test \
-  --file snli-triplets.test.txt \
-  --max-records 1000 \
+  --file snli.triplets.1.1.dev.txt \
   --model snl505-train \
     2>&1 >> log.txt & tail -f log.txt
 
 nohup stdbuf -oL tbhss create encoder \
   --cache tbhss.db \
-  --name snl505  \
-  --triplets snl505-train snl505-test \
+  --name snli505  \
+  --triplets snli505-train snli505-test \
   --encoded-bits 256 \
   --clauses 8192 \
   --state-bits 8 \

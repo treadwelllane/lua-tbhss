@@ -1,6 +1,7 @@
 local fs = require("santoku.fs")
 local tm = require("santoku.tsetlin")
 local err = require("santoku.error")
+local bm = require("santoku.bitmap")
 
 local modeler = require("tbhss.modeler")
 local util = require("tbhss.util")
@@ -21,18 +22,21 @@ local function encoder (db_file, model_name)
   -- TODO: read directly from sqlite without temporary file
   local fp = fs.tmpname()
   fs.writefile(fp, encoder_model.model)
-  local t = tm.load(fp)
+  local t = tm.load(fp, true)
   fs.rm(fp)
 
   return {
     modeler = modeler,
     encode = function (s)
-      return db.db.transaction(function ()
-        local fingerprint = modeler.model(s)
-        if fingerprint then
-          return tm.predict(t, fingerprint)
-        end
-      end)
+      local raw, bits = modeler.model(s)
+      if raw then
+        local fingerprint = bm.from_raw(raw, bits)
+        local flipped = bm.copy(fingerprint)
+        bm.flip(flipped, 1, bits)
+        bm.extend(fingerprint, flipped, bits + 1)
+        return tm.predict(t, bm.raw(fingerprint, bits * 2)),
+          encoder_model.args.encoded_bits
+      end
     end,
   }
 

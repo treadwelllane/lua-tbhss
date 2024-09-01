@@ -1,34 +1,21 @@
 # Now
 
 - Library interace: encoder and FAISS
-- Pre-trained models for full SNLI dataset & 840B glove model
+- Hyperparameter search
+- Allow models to be pruned such that only data needed for inference is
+  preserved (for shipping pre-trained models)
+- Pre-trained models
 - MTEB
 
 # Next
 
 - Update README
 
-- Improve performance:
-    - Find initial centroids
-    - Load embeddings
-    - Pack datasets
-
-- Hyperparameter search
-
 # Eventually
 
-- Multi-granular DBSCAN
-    - Compute fuzzy membership after initial dbscan
-        - For each point, p, for each nearest point, n, belonging to a differnet
-          cluster, consider p as belonging to n's cluster with a membership %
-          equal to the similarity of p and n
-    - Run DBSCAN with varying eps/min_pts values and (like in k-means/medoids)
-      represent each token with multiple (in this case equally-weighted) cluster
-      ids.
-
-- Support selecting different hashing algorithms
-    - Each dimension is a hash segment
-    - All dimensions merged into single "segments" long hash
+- Train on full SNLI and MNLI datasets (not just fully validated pairs)
+- Allow repeat training of encoder (e.g. first pass on unvalidated data, second
+  pass on validated data)
 
 # Consider
 
@@ -45,3 +32,16 @@
 
 - Option to encode for hamming vs jaccard (which might be useful when using the
   output as a semantic representation for a downstream classifier)
+
+- Multi-granular DBSCAN
+    - Compute fuzzy membership after initial dbscan
+        - For each point, p, for each nearest point, n, belonging to a differnet
+          cluster, consider p as belonging to n's cluster with a membership %
+          equal to the similarity of p and n
+    - Run DBSCAN with varying eps/min_pts values and (like in k-means/medoids)
+      represent each token with multiple (in this case equally-weighted) cluster
+      ids.
+
+- Support selecting different hashing algorithms
+    - Each dimension is a hash segment
+    - All dimensions merged into single "segments" long hash

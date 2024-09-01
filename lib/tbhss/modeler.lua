@@ -98,6 +98,7 @@ local function get_expanded_tokens (tokens0, nearest, merge)
   local positions = {}
   local similarities = {}
   local pos_tokens = {}
+  local tfs = {}
   local p = 1
   for i = 1, #tokens0 do
     local t = tokens0[i]
@@ -145,13 +146,14 @@ local function get_expanded_tokens (tokens0, nearest, merge)
     if pos_tokens[i] and next(pos_tokens[i]) then
       length = length + 1
       for t, s in pairs(pos_tokens[i]) do
+        tfs[t] = (tfs[t] or 0) + 1
         arr.push(tokens, t)
         arr.push(positions, i)
         arr.push(similarities, s)
       end
     end
   end
-  return tokens, positions, similarities, length
+  return tokens, positions, similarities, length, tfs
 end
 
 local function expand_tokens (db, id_model, args)
@@ -349,8 +351,35 @@ local function load_test_triplets (db, args)
   return load_triplets(db, args, false)
 end
 
-local function modeler ()
-  err.error("unimplemented: modeler")
+local function modeler (db, id_triplets_model)
+  local model = db.get_triplets_model_by_id(id_triplets_model)
+  local nearest = model.args.clusters and db.get_nearest_clusters(model.id)
+  local average_doc_length = db.get_average_doc_length(model.id)
+  local total_docs = db.get_total_docs(model.id)
+  local dfs = db.get_dfs(model.id)
+  return {
+    model = function (s)
+      local words = tokenize_words(db, model.id, model.args, util.split(s))
+      local tokens, positions, similarities, _, tfs =
+        get_expanded_tokens(words, nearest, model.args.merge)
+      local scores = score_tokens(
+        tokens,
+        tfs,
+        dfs,
+        model.args.saturation,
+        model.args.length_normalization,
+        average_doc_length,
+        total_docs)
+      return hash.simhash(
+        tokens,
+        positions,
+        similarities,
+        scores,
+        model.args.dimensions,
+        model.args.buckets,
+        model.args.wavelength)
+    end
+  }
 end
 
 return {
