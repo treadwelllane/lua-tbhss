@@ -1,9 +1,12 @@
 # Now
 
+- Don't store word embeddings as gigantic matrix in DB. Store as separate rows.
+- Utility to prune a DB for downstream use (delete embeddings, sentences, unused
+  words etc.)
+    - Clusters currently still requires words to be loaded
+
 - Library interace: encoder and FAISS
 - Hyperparameter search
-- Allow models to be pruned such that only data needed for inference is
-  preserved (for shipping pre-trained models)
 - Pre-trained models
 - MTEB
 

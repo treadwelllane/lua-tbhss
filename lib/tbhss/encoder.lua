@@ -1,6 +1,5 @@
 local serialize = require("santoku.serialize") -- luacheck: ignore
 local tm = require("santoku.tsetlin")
-local fs = require("santoku.fs")
 local str = require("santoku.string")
 local bm = require("santoku.bitmap")
 local arr = require("santoku.array")
@@ -146,11 +145,8 @@ local function create_encoder (db, args)
 
   end
 
-  -- TODO: write directly to sqlite without temporary file
-  local fp = fs.tmpname()
-  tm.persist(t, fp)
-  db.set_encoder_trained(encoder_model.id, fs.readfile(fp))
-  fs.rm(fp)
+  tm.persist(t, args.persist_file, args.persist_state)
+  db.set_encoder_trained(encoder_model.id)
 
 end
 

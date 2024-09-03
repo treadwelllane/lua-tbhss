@@ -6,7 +6,7 @@ local bm = require("santoku.bitmap")
 local modeler = require("tbhss.modeler")
 local util = require("tbhss.util")
 
-local function encoder (db_file, model_name)
+local function encoder (db_file, model_name, model_file)
 
   local db = util.get_db(db_file)
   local encoder_model = db.get_encoder_model_by_name(model_name)
@@ -19,11 +19,7 @@ local function encoder (db_file, model_name)
 
   local modeler = modeler.modeler(db, encoder_model.id_triplets_model)
 
-  -- TODO: read directly from sqlite without temporary file
-  local fp = fs.tmpname()
-  fs.writefile(fp, encoder_model.model)
-  local t = tm.load(fp, true)
-  fs.rm(fp)
+  local t = tm.load(model_file)
 
   return {
     modeler = modeler,
@@ -34,8 +30,7 @@ local function encoder (db_file, model_name)
         local flipped = bm.copy(fingerprint)
         bm.flip(flipped, 1, bits)
         bm.extend(fingerprint, flipped, bits + 1)
-        return tm.predict(t, bm.raw(fingerprint, bits * 2)),
-          encoder_model.args.encoded_bits
+        return tm.predict(t, bm.raw(fingerprint, bits * 2))
       end
     end,
   }

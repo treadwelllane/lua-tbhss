@@ -63,18 +63,7 @@ return function (db_file, skip_init)
     end
   end
 
-  local decode_encoder = function (getter)
-    return function (...)
-      local model = getter(...)
-      -- TODO: read directly from sqlite without temporary file
-      local fp = fs.tmpname()
-      fs.writefile(fp, model)
-      local t = tm.load(fp)
-      fs.rm(fp)
-      return t
-    end
-  end
-
+  -- TODO: Shouldn't store embeddings in the DB as a matrix due to max row size constraints'
   M.add_words_model = db.inserter([[
     insert into words_model (name, total, dimensions, embeddings)
     values (?1, ?2, ?3, ?4)
@@ -114,13 +103,9 @@ return function (db_file, skip_init)
 
   M.set_encoder_trained = db.runner([[
     update encoder_model
-    set trained = true, model = ?2
+    set trained = true
     where id = ?1
   ]])
-
-  M.get_encoder = decode_encoder(db.getter([[
-    select model from encoder_model where id = ?1
-  ]], "model"))
 
   M.set_words_clustered = db.runner([[
     update clusters_model
