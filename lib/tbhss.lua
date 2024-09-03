@@ -1,4 +1,3 @@
-local fs = require("santoku.fs")
 local tm = require("santoku.tsetlin")
 local err = require("santoku.error")
 local bm = require("santoku.bitmap")
