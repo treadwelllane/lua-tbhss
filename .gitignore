@@ -1,3 +1,5 @@
 build
 .old*
 tmp
+test/res/*.bin
+test/res/*.db
