@@ -21,8 +21,11 @@ local env = {
   },
 
   test = {
+    -- TODO: allow env scripts to apply to specific tests only
+    env_scripts = { "test/deps/venv/venv/bin/activate" },
     dependencies = {
       "luacov == 0.15.0-1",
+      "santoku-python >= 0.0.37-1"
     }
   },
 
