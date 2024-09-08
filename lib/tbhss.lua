@@ -22,6 +22,7 @@ local function encoder (db_file, model_name, model_file)
 
   return {
     modeler = modeler,
+    bits = encoder_model.args.encoded_bits,
     encode = function (s)
       local raw, bits = modeler.model(s)
       if raw then
