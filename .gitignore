@@ -3,3 +3,4 @@ build
 tmp
 test/res/*.bin
 test/res/*.db
+test/res/stsbenchmark
