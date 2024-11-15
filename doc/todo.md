@@ -6,6 +6,7 @@
 
 # Next
 
+- Rescue k-means from history
 - Update README
 
 - Improve performance:
