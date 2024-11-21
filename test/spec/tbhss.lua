@@ -59,6 +59,8 @@ sys.execute({
 sys.execute({
   "lua", "bin/tbhss.lua", "create", "encoder",
   "--cache", db_file,
+  "--persist-file", ".tmp.bin",
+  "--persist-state", "false",
   "--name", "snli-dev",
   "--triplets", "dev-train", "dev-test",
   "--encoded-bits", "64",

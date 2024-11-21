@@ -50,16 +50,16 @@ nohup stdbuf -oL tbhss load test-triplets \
 
 nohup stdbuf -oL tbhss create encoder \
   --cache tbhss.db \
-  --name snli6 \
+  --name snli7 \
   --persist-file snli6.bin \
   --persist-state false \
   --triplets snli1-train snli1-dev \
-  --encoded-bits 256 \
+  --encoded-bits 512 \
   --clauses 8192 \
   --state-bits 8 \
-  --threshold 36 \
+  --threshold 128 \
   --specificity 4 12 \
-  --margin 0.15 \
+  --margin 0.125 \
   --loss-alpha 0.125 \
   --active-clause 0.85 \
   --boost-true-positive true \

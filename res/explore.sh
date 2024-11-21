@@ -2,13 +2,13 @@ nohup stdbuf -oL sh -c '
 
   set -e
 
-  id=54
+  id=60
 
-  epochs=5
+  epochs=10
 
-  wave=10000
+  wave=200
   wave_step=*10
-  wave_stop=10000
+  wave_stop=200
 
   while [ $(echo "$wave <= $wave_stop" | bc) -eq 1 ]; do
 
@@ -27,9 +27,9 @@ nohup stdbuf -oL sh -c '
         tbhss load train-triplets \
           --cache tbhss.db \
           --name snli-$id-explore-train-$dimensions-$buckets-$wave \
-          --file snli-triplets.train.txt \
-          --max-records 20000 \
-          --clusters glove dbscan 2 0.645 3 \
+          --file snli.triplets.1.2.all.train.txt \
+          --clusters glove0 dbscan 2 0.645 5 \
+          --merge false \
           --dimensions $dimensions \
           --buckets $buckets \
           --wavelength $wave \
@@ -39,58 +39,70 @@ nohup stdbuf -oL sh -c '
         tbhss load test-triplets \
           --cache tbhss.db \
           --name snli-$id-explore-test-$dimensions-$buckets-$wave \
-          --file snli-triplets.test.txt \
+          --file snli.triplets.1.2.all.dev.txt \
           --max-records 2000 \
           --model snli-$id-explore-train-$dimensions-$buckets-$wave
 
-        margin=0.1
-        margin_step=+0.05
-        margin_stop=0.1
+        margin=0.05
+        margin_step=+0.025
+        margin_stop=0.5
 
         while [ $(echo "$margin <= $margin_stop" | bc) -eq 1 ]; do
 
-          bits=128
+          bits=256
           bits_step=*2
-          bits_stop=128
+          bits_stop=512
 
           while [ $(echo "$bits <= $bits_stop" | bc) -eq 1 ]; do
 
-            spec=100
-            spec_range=100
-            spec_step=+1
-            spec_stop=100
+            threshold=128
+            threshold_step=*2
+            threshold_stop=128
 
-            while [ $(echo "$spec <= $spec_stop" | bc) -eq 1 ]; do
+            while [ $(echo "$threshold <= $threshold_stop" | bc) -eq 1 ]; do
 
-              specl=$(( spec - spec_range ))
-              spech=$(( spec + spec_range ))
+              spec=100
+              spec_range=100
+              spec_step=+1
+              spec_stop=100
 
-              [ $specl -lt 2 ] && specl=2
+              while [ $(echo "$spec <= $spec_stop" | bc) -eq 1 ]; do
 
-              echo Specificity $specl $spech
-              echo Buckets $buckets
-              echo Dimensions $dimensions
-              echo Margin $margin
-              echo Wave $wave
-              echo Bits $bits
+                specl=$(( spec - spec_range ))
+                spech=$(( spec + spec_range ))
 
-              tbhss create encoder \
-                --cache tbhss.db \
-                --name snli-$id-explore-$dimensions-$buckets-$margin-$wave-$bits-$spec-$spec_range \
-                --triplets snli-$id-explore-train-$dimensions-$buckets-$wave snli-$id-explore-test-$dimensions-$buckets-$wave \
-                --encoded-bits $bits \
-                --clauses 8192 \
-                --state-bits 8 \
-                --threshold 36 \
-                --specificity $specl $spech \
-                --margin $margin \
-                --loss-alpha 0.25 \
-                --active-clause 0.85 \
-                --boost-true-positive true \
-                --evaluate-every 1 \
-                --epochs $epochs
+                [ $specl -lt 2 ] && specl=2
 
-              spec=$(echo "$spec $spec_step" | bc)
+                echo Specificity $specl $spech
+                echo Buckets $buckets
+                echo Dimensions $dimensions
+                echo Threshold $threshold
+                echo Margin $margin
+                echo Wave $wave
+                echo Bits $bits
+
+                tbhss create encoder \
+                  --cache tbhss.db \
+                  --name snli-$id-explore-$dimensions-$buckets-$margin-$wave-$bits-$spec-$spec_range-$threshold \
+                  --persist-file snli-$id-explore-$dimensions-$buckets-$margin-$wave-$bits-$spec-$spec_range-$threshold.bin \
+                  --persist-state false \
+                  --triplets snli-$id-explore-train-$dimensions-$buckets-$wave snli-$id-explore-test-$dimensions-$buckets-$wave \
+                  --max-records 6000 1000 \
+                  --encoded-bits $bits \
+                  --clauses 8192 \
+                  --state-bits 8 \
+                  --threshold $threshold \
+                  --specificity $specl $spech \
+                  --margin $margin \
+                  --loss-alpha 0.25 \
+                  --active-clause 0.85 \
+                  --boost-true-positive true \
+                  --evaluate-every 1 \
+                  --epochs $epochs
+
+                spec=$(echo "$spec $spec_step" | bc)
+              done
+              threshold=$(echo "$threshold $threshold_step" | bc)
             done
             bits=$(echo "$bits $bits_step" | bc)
           done
