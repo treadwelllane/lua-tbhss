@@ -73,9 +73,9 @@ local function filter_words (db, words_model, word_matrix, snli_name, word_idmap
   local m0 = mtx.create(#filtered, words_model.dimensions)
   for i = 1, #filtered do
     n = n + 1
-    local w = filtered[i]
-    mtx.copy(m0, word_matrix, w.id, w.id, n)
-    word_idmap[n] = w.id
+    local wid = filtered[i]
+    mtx.copy(m0, word_matrix, wid, wid, n)
+    word_idmap[n] = wid
   end
   return m0
 end
