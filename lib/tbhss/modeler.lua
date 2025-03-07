@@ -217,7 +217,7 @@ local fingerprint_algorithms = {
     if n_clusters < hash.segment_bits then
       n_clusters = hash.segment_bits
     else
-      n_clusters = n_clusters + (hash.segment_bits - (n_clusters % hash.segment_bits))
+      n_clusters = n_clusters + (hash.segment_bits - 1 - ((n_clusters - 1) % hash.segment_bits))
     end
     return function (sentence)
       return hash.set_of_clusters(sentence.tokens, n_clusters)

@@ -15,27 +15,27 @@ nohup stdbuf -oL tbhss process snli \
 
 nohup stdbuf -oL tbhss load train-triplets \
   --cache tbhss.db \
-  --name snli1-train \
+  --name snli3-train \
   --file snli-triplets.train.txt \
   --max-records 20000 \
-  --clusters glove dbscan 2 0.645 1 \
+  --clusters glove k-medoids 128 1 \
   --fingerprints set-of-clusters \
     2>&1 > log.txt & tail -f log.txt
 
 nohup stdbuf -oL tbhss load test-triplets \
   --cache tbhss.db \
-  --name snli1-test \
+  --name snli3-test \
   --file snli-triplets.test.txt \
   --max-records 2000 \
-  --model snli1-train \
+  --model snli3-train \
     2>&1 > log.txt & tail -f log.txt
 
 nohup stdbuf -oL tbhss create encoder \
   --cache tbhss.db \
-  --name snli1  \
-  --triplets snli1-train snli1-test \
+  --name snli3  \
+  --triplets snli3-train snli3-test \
   --encoded-bits 128 \
-  --clauses 2048 \
+  --clauses 512 \
   --state-bits 8 \
   --threshold 36 \
   --specificity 4 12 \
