@@ -171,7 +171,7 @@ static inline void populate_simhash_simple (
 
     lua_pop(L, 3);
 
-    uint32_t hash
+    uint32_t hash = 0;
     for (unsigned int segment = 0; segment < segments; segment ++) {
       hash = murmur32(&token, sizeof(unsigned int), hash);
       for (unsigned int bit = 0; bit < BITS; bit ++) {
