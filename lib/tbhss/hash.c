@@ -144,7 +144,58 @@ static inline void populate_set_of_clusters (
   }
 }
 
-static inline void populate_simhash (
+static inline void populate_simhash_simple (
+  lua_State *L,
+  uint32_t *result,
+  unsigned int n,
+  unsigned int segments
+) {
+  double counts[segments * BITS];
+  for (unsigned int i = 0; i < segments * BITS; i ++)
+    counts[i] = 0;
+
+  for (unsigned int i = 0; i < n; i ++) {
+
+    lua_pushinteger(L, i + 1); // n
+    lua_gettable(L, 1); // token
+
+    lua_pushinteger(L, i + 1); // token n
+    lua_gettable(L, 2); // token similarity
+
+    lua_pushvalue(L, -3); // token position similarity token
+    lua_gettable(L, 3); // token similarity weight
+
+    unsigned int token = tk_lua_checkunsigned(L, -3);
+    double similarity = tk_lua_checkposdouble(L, -2);
+    double weight = tk_lua_optposdouble(L, -1, -1);
+
+    lua_pop(L, 3);
+
+    for (unsigned int segment = 0; segment < segments; segment ++) {
+      uint32_t hash = murmur32(&token, sizeof(unsigned int), 0);
+      for (unsigned int bit = 0; bit < BITS; bit ++) {
+        if (hash & (1 << bit))
+          counts[(segment * BITS) + bit] += weight * similarity;
+        else
+          counts[(segment * BITS) + bit] -= weight * similarity;
+      }
+    }
+
+  }
+
+  for (unsigned int i = 0; i < segments; i ++)
+    result[i] = 0;
+
+  for (unsigned int i = 0; i < segments * BITS; i ++) {
+    unsigned int chunk = i / BITS;
+    unsigned int bit = i % BITS;
+    if (counts[i] > 0)
+      result[chunk] |= (1 << bit);
+  }
+
+}
+
+static inline void populate_simhash_positional (
   lua_State *L,
   uint32_t *result,
   unsigned int n,
@@ -219,7 +270,23 @@ static inline int tb_set_of_clusters (lua_State *L)
   return 2;
 }
 
-static inline int tb_simhash (lua_State *L)
+static inline int tb_simhash_simple (lua_State *L)
+{
+  luaL_checktype(L, 1, LUA_TTABLE);
+  luaL_checktype(L, 2, LUA_TTABLE);
+  luaL_checktype(L, 3, LUA_TTABLE);
+  unsigned int n = tk_lua_len(L, 1);
+  unsigned int segments = tk_lua_checkunsigned(L, 4);
+  if (!segments)
+    luaL_argerror(L, 4, "dimensions must be greater than 0");
+  uint32_t result[segments];
+  populate_simhash_simple(L, result, n, segments);
+  lua_pushlstring(L, (char *) result, segments * BYTES);
+  lua_pushinteger(L, segments * BITS);
+  return 2;
+}
+
+static inline int tb_simhash_positional (lua_State *L)
 {
   luaL_checktype(L, 1, LUA_TTABLE);
   luaL_checktype(L, 2, LUA_TTABLE);
@@ -236,7 +303,7 @@ static inline int tb_simhash (lua_State *L)
   if (!wavelength)
     luaL_argerror(L, 7, "wavelength must be greater than 0");
   uint32_t result[dimensions];
-  populate_simhash(L, result, n, dimensions, buckets, wavelength);
+  populate_simhash_positional(L, result, n, dimensions, buckets, wavelength);
   lua_pushlstring(L, (char *) result, dimensions * BYTES);
   lua_pushinteger(L, dimensions * BITS);
   return 2;
@@ -255,7 +322,8 @@ static inline int tb_position (lua_State *L)
 
 static luaL_Reg tb_fns[] =
 {
-  { "simhash", tb_simhash },
+  { "simhash_simple", tb_simhash_simple },
+  { "simhash_positional", tb_simhash_positional },
   { "set_of_clusters", tb_set_of_clusters },
   { "position", tb_position },
   { NULL, NULL }

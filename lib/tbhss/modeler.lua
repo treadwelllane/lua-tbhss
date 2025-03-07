@@ -224,9 +224,17 @@ local fingerprint_algorithms = {
     end, n_clusters
   end,
 
-  ["simhash"] = function (_, _, _, wavelength, dimensions, buckets)
+  ["simhash-simple"] = function (_, _, _, segments)
     return function (sentence, scores)
-      return hash.simhash(
+      return hash.simhash_simple(
+        sentence.tokens, sentence.similarities,
+        scores, segments)
+    end, hash.segment_bits * segments
+  end,
+
+  ["simhash-positional"] = function (_, _, _, wavelength, dimensions, buckets)
+    return function (sentence, scores)
+      return hash.simhash_positional(
         sentence.tokens, sentence.positions, sentence.similarities,
         scores, dimensions, buckets, wavelength)
     end, hash.segment_bits * dimensions
