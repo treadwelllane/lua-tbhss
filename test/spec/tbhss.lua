@@ -36,8 +36,8 @@ sys.execute({
   -- "--clusters", "glove", "dbscan", "2", "0.645", "5",
   -- "--fingerprints", "set-of-clusters",
   "--clusters", "glove", "k-medoids", "128", "1",
-  -- "--fingerprints", "simhash-simple", "8",
-  "--fingerprints", "simhash-positional", "4096", "8", "20",
+  "--fingerprints", "simhash-simple", "8",
+  -- "--fingerprints", "simhash-positional", "4096", "8", "20",
   "--weighting", "bm25", "1.2", "0.75",
 })
 

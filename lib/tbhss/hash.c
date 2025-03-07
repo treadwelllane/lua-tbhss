@@ -171,8 +171,9 @@ static inline void populate_simhash_simple (
 
     lua_pop(L, 3);
 
+    uint32_t hash
     for (unsigned int segment = 0; segment < segments; segment ++) {
-      uint32_t hash = murmur32(&token, sizeof(unsigned int), 0);
+      hash = murmur32(&token, sizeof(unsigned int), hash);
       for (unsigned int bit = 0; bit < BITS; bit ++) {
         if (hash & (1 << bit))
           counts[(segment * BITS) + bit] += weight * similarity;
