@@ -189,7 +189,8 @@ local function bm25_score_tokens (tokens, tfs, dfs, saturation, length_normaliza
 end
 
 local weighting_algorithms = {
-  bm25 = function (db, model, _, saturation, length_normalization)
+
+  ["bm25"] = function (db, model, _, saturation, length_normalization)
     local average_doc_length = db.get_average_doc_length(model.id)
     local total_docs = db.get_total_docs(model.id)
     local dfs = db.get_dfs(model.id)
@@ -205,9 +206,11 @@ local weighting_algorithms = {
         total_docs)
     end
   end
+
 }
 
 local fingerprint_algorithms = {
+
   ["set-of-clusters"] = function (db, model)
     local n_clusters = err.assert(db.get_num_clusters(model.args.id_clusters_model),
       "Missing clusters model", model.args.id_clusters_model)
@@ -220,6 +223,7 @@ local fingerprint_algorithms = {
       return hash.set_of_clusters(sentence.tokens, n_clusters)
     end, n_clusters
   end,
+
   ["simhash"] = function (_, _, _, wavelength, dimensions, buckets)
     return function (sentence, scores)
       return hash.simhash(
@@ -227,6 +231,7 @@ local fingerprint_algorithms = {
         scores, dimensions, buckets, wavelength)
     end, hash.segment_bits * dimensions
   end
+
 }
 
 local function create_fingerprints (db, id_model, args)
