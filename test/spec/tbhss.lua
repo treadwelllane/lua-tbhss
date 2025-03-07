@@ -33,7 +33,7 @@ sys.execute({
   -- "--clusters", "glove", "k-medoids", "128", "3",
   -- "--fingerprints", "simhash", "4096", "4", "4",
   -- "--weighting", "bm25", "1.2", "0.75",
-  "--clusters", "glove", "k-medoids", "128", "3",
+  "--clusters", "glove", "dbscan", "2", "0.645", "5",
   "--fingerprints", "set-of-clusters",
 })
 
@@ -52,7 +52,7 @@ sys.execute({
   "--triplets", "dev-train", "dev-test",
   "--max-records", "1000", "100",
   "--encoded-bits", "128",
-  "--clauses", "2048",
+  "--clauses", "512",
   "--state-bits", "8",
   "--threshold", "36",
   "--specificity", "4", "12",
