@@ -94,6 +94,10 @@ return function (db_file, skip_init)
     values (?, ?, ?)
   ]]))
 
+  M.get_num_clusters = db.getter([[
+    select count(distinct id) as n from clusters where id_clusters_model = ?1
+  ]], "n")
+
   M.set_words_loaded = db.runner([[
     update words_model
     set loaded = true
@@ -102,8 +106,8 @@ return function (db_file, skip_init)
 
   M.set_triplets_loaded = db.runner([[
     update triplets_model
-    set loaded = true
-    where id = ?
+    set loaded = true, bits = ?2
+    where id = ?1
   ]])
 
   M.set_triplets_args = encode_tables(db.runner([[

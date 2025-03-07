@@ -6,8 +6,6 @@ local bm = require("santoku.bitmap")
 local arr = require("santoku.array")
 local err = require("santoku.error")
 
-local hash = require("tbhss.hash")
-
 local function prep_fingerprint (fingerprint, bits)
   local flipped = bm.copy(fingerprint)
   bm.flip(flipped, 1, bits)
@@ -28,12 +26,12 @@ local function get_baseline (dataset)
   return correct / #dataset.triplets
 end
 
-local function get_dataset (db, triplets_model, args, max)
+local function get_dataset (db, triplets_model, max)
 
   print("Loading sentence triplets")
   local triplets = db.get_sentence_triplets(triplets_model.id, max)
 
-  local fingerprint_bits = hash.segment_bits * args.dimensions
+  local fingerprint_bits = triplets_model.bits
 
   for i = 1, #triplets do
     local s = triplets[i]
@@ -97,10 +95,10 @@ local function create_encoder (db, args)
   print("Loading datasets")
 
   local train_dataset = get_dataset(db, triplets_model_train,
-    triplets_model_train.args, args.max_records and args.max_records[1] or nil)
+    args.max_records and args.max_records[1] or nil)
 
   local test_dataset = get_dataset(db, triplets_model_test,
-    triplets_model_train.args, args.max_records and args.max_records[2] or nil)
+    args.max_records and args.max_records[2] or nil)
 
   print("Calculating baselines")
 

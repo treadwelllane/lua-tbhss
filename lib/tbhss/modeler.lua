@@ -1,4 +1,6 @@
 local err = require("santoku.error")
+local varg = require("santoku.varg")
+local tbl = require("santoku.table")
 local str = require("santoku.string")
 local arr = require("santoku.array")
 local fs = require("santoku.fs")
@@ -166,7 +168,7 @@ local function update_tfdf (db, id_model, args)
   end
 end
 
-local function score_tokens (tokens, tfs, dfs, saturation, length_normalization, average_doc_length, total_docs)
+local function bm25_score_tokens (tokens, tfs, dfs, saturation, length_normalization, average_doc_length, total_docs)
   local scores = {}
   local log = math.log
   for i = 1, #tokens do
@@ -186,6 +188,42 @@ local function score_tokens (tokens, tfs, dfs, saturation, length_normalization,
   return scores
 end
 
+local weighting_algorithms = {
+  bm25 = function (db, model, _, saturation, length_normalization)
+    local average_doc_length = db.get_average_doc_length(model.id)
+    local total_docs = db.get_total_docs(model.id)
+    local dfs = db.get_dfs(model.id)
+    local tfs = db.get_tfs(model.id)
+    return function (sentence)
+      return bm25_score_tokens(
+        sentence.tokens,
+        tfs[sentence.id],
+        dfs,
+        saturation,
+        length_normalization,
+        average_doc_length,
+        total_docs)
+    end
+  end
+}
+
+local fingerprint_algorithms = {
+  ["set-of-clusters"] = function (db, model)
+    local n_clusters = err.assert(db.get_num_clusters(model.args.id_clusters_model),
+      "Missing clusters model", model.args.id_clusters_model)
+    return function (sentence)
+      return hash.set_of_clusters(sentence.tokens, n_clusters)
+    end, n_clusters
+  end,
+  ["simhash"] = function (_, _, _, wavelength, dimensions, buckets)
+    return function (sentence, scores)
+      return hash.simhash(
+        sentence.tokens, sentence.positions, sentence.similarities,
+        scores, dimensions, buckets, wavelength)
+    end, hash.segment_bits * dimensions
+  end
+}
+
 local function create_fingerprints (db, id_model, args)
 
   print("Creating fingerprints")
@@ -193,17 +231,33 @@ local function create_fingerprints (db, id_model, args)
   local jobs = args.jobs or sys.get_num_cores()
   local sentences = db.get_sentences(id_model)
   local model = db.get_triplets_model_by_id(args.id_parent_model or id_model)
-  local average_doc_length = db.get_average_doc_length(model.id)
-  local total_docs = db.get_total_docs(model.id)
-  local dfs = db.get_dfs(model.id)
-  local tfs = db.get_tfs(id_model)
+
+  local weighting
+  local fingerprint, fingerprint_bits
+
+  do
+    local wa = tbl.get(weighting_algorithms, tbl.get(model, "args", "weighting", 1))
+    if wa then
+      weighting = wa(db, model, args,
+        varg.sel(2, arr.spread(model.args.weighting)))
+    end
+    local fa = err.assert(tbl.get(fingerprint_algorithms, tbl.get(model, "args", "fingerprints", 1)),
+      "fingerprint algorithm doesn't exist", model.args.fingerprints[1])
+    if fa then
+      fingerprint, fingerprint_bits =
+        fa(db, model, args, varg.sel(2, arr.spread(model.args.fingerprints)))
+    end
+  end
+
   local chunk_size
+
   if jobs > #sentences then
     jobs = #sentences
     chunk_size = 1
   else
     chunk_size = math.floor(#sentences / jobs)
   end
+
   for _ in sys.sh({
     jobs = jobs, fn = function (job)
       db = init_db(db.file, true)
@@ -213,22 +267,8 @@ local function create_fingerprints (db, id_model, args)
         or (first_id + chunk_size - 1)
       for s_id = first_id, last_id do
         local sentence = sentences[s_id]
-        local scores = score_tokens(
-          sentence.tokens,
-          tfs[sentence.id],
-          dfs,
-          model.args.saturation,
-          model.args.length_normalization,
-          average_doc_length,
-          total_docs)
-        sentence.fingerprint = hash.simhash(
-          sentence.tokens,
-          sentence.positions,
-          sentence.similarities,
-          scores,
-          model.args.dimensions,
-          model.args.buckets,
-          model.args.wavelength)
+        local scores = weighting and weighting(sentence) or nil
+        sentence.fingerprint = fingerprint(sentence, scores)
         db.add_sentence_fingerprint(id_model, sentence.id, sentence.fingerprint)
         print(sentence.id)
       end
@@ -239,7 +279,9 @@ local function create_fingerprints (db, id_model, args)
       print("Created", n)
     end
   end
+
   print("Created", n)
+  return fingerprint_bits
 
 end
 
@@ -247,7 +289,7 @@ local function load_triplets_from_file (db, model, args, is_train)
 
   print("Loading triplets from file:", args.file)
 
-  local id_model
+  local id_model, bits
 
   if is_train then
 
@@ -267,7 +309,7 @@ local function load_triplets_from_file (db, model, args, is_train)
       update_tfdf(db, id_model, args)
     end)
 
-    create_fingerprints(db, id_model, args)
+    bits = create_fingerprints(db, id_model, args)
 
   else
 
@@ -291,11 +333,11 @@ local function load_triplets_from_file (db, model, args, is_train)
       update_tfdf(db, id_model, args)
     end)
 
-    create_fingerprints(db, id_model, args)
+    bits = create_fingerprints(db, id_model, args)
 
   end
 
-  db.set_triplets_loaded(id_model)
+  db.set_triplets_loaded(id_model, bits)
 
 end
 
