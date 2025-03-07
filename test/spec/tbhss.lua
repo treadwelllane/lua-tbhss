@@ -35,7 +35,7 @@ sys.execute({
   -- "--weighting", "bm25", "1.2", "0.75",
   -- "--clusters", "glove", "dbscan", "2", "0.645", "5",
   -- "--fingerprints", "set-of-clusters",
-  "--clusters", "glove", "k-medoids", "127", "2",
+  "--clusters", "glove", "k-medoids", "128", "1",
   "--fingerprints", "set-of-clusters",
 })
 
