@@ -46,14 +46,15 @@ local cmd_load_train_triplets = cmd_load:command("train-triplets", "load NLI dat
 base_flags(cmd_load_train_triplets)
 cmd_load_train_triplets:option("--name", "name of loaded dataset", nil, nil, 1, 1)
 cmd_load_train_triplets:option("--file", "path to NLI dataset file", nil, nil, 1, 1)
-cmd_load_train_triplets:option("--clusters", "name of word clusters, algorithm, algorithm args...", nil, function (v)
+cmd_load_train_triplets:option("--clusters", "name of words model, name of clustering algorithm, algorithm args...", nil, function (v)
   return str.match(v, "^%-?%d*%.?%d+$") and tonumber(v) or v
 end, "+", "0-1")
-cmd_load_train_triplets:option("--dimensions", "number of dimensions for positions", nil, tonumber, 1, 1)
-cmd_load_train_triplets:option("--buckets", "number of buckets for positions", nil, tonumber, 1, 1)
-cmd_load_train_triplets:option("--wavelength", "wavelength for positional encoding", nil, tonumber, 1, 1)
-cmd_load_train_triplets:option("--saturation", "BM25 saturation", 1.2, tonumber, 1, 1)
-cmd_load_train_triplets:option("--length-normalization", "BM25 length normalization", 0.75, tonumber, 1, 1)
+cmd_load_train_triplets:option("--fingerprints", "name of fingerprinting algorithm, algorithm args...", nil, function (v)
+  return str.match(v, "^%-?%d*%.?%d+$") and tonumber(v) or v
+end, "+", 1)
+cmd_load_train_triplets:option("--weighting", "name of weighting algorithm, algorithm args...", nil, function (v)
+  return str.match(v, "^%-?%d*%.?%d+$") and tonumber(v) or v
+end, "+", "0-1")
 cmd_load_train_triplets:option("--max-records", "Max number of triplets to load", nil, tonumber, 1, "0-1")
 cmd_load_train_triplets:option("--jobs", "", nil, tonumber, 1, "0-1")
 
@@ -61,7 +62,6 @@ local cmd_load_test_triplets = cmd_load:command("test-triplets", "load NLI datas
 base_flags(cmd_load_test_triplets)
 cmd_load_test_triplets:option("--name", "name of loaded dataset", nil, nil, 1, 1)
 cmd_load_test_triplets:option("--file", "path to NLI dataset file", nil, nil, 1, 1)
-cmd_load_test_triplets:option("--clusters", "name of word clusters, num, min-set, max-set, min-similarity, include-raw", nil, nil, 6, "0-1")
 cmd_load_test_triplets:option("--max-records", "Max number of triplets to load", nil, tonumber, 1, "0-1")
 cmd_load_test_triplets:option("--model", "train model to use for fingerprinting", nil, nil, 1, 1)
 
@@ -123,3 +123,11 @@ else
   print(parser:get_usage())
   os.exit(1)
 end
+
+
+-- cmd_load_train_triplets:option("--dimensions", "number of dimensions for positions", nil, tonumber, 1, 1)
+-- cmd_load_train_triplets:option("--buckets", "number of buckets for positions", nil, tonumber, 1, 1)
+-- cmd_load_train_triplets:option("--wavelength", "wavelength for positional encoding", nil, tonumber, 1, 1)
+-- cmd_load_train_triplets:option("--saturation", "BM25 saturation", 1.2, tonumber, 1, 1)
+-- cmd_load_train_triplets:option("--length-normalization", "BM25 length normalization", 0.75, tonumber, 1, 1)
+-- cmd_load_test_triplets:option("--clusters", "name of word clusters, num, min-set, max-set, min-similarity, include-raw", nil, nil, 6, "0-1")

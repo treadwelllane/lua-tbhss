@@ -30,12 +30,11 @@ sys.execute({
   "--cache", db_file,
   "--name", "dev-train",
   "--file", ".train.triplets.txt",
+  -- "--clusters", "glove", "k-medoids", "128", "3",
+  -- "--fingerprints", "simhash", "4096", "4", "4",
+  -- "--weighting", "bm25", "1.2", "0.75",
   "--clusters", "glove", "k-medoids", "128", "3",
-  "--dimensions", "4",
-  "--buckets", "4",
-  "--wavelength", "4096",
-  "--saturation", "1.2",
-  "--length-normalization", "0.75",
+  "--fingerprints", "set-of-clusters",
 })
 
 sys.execute({

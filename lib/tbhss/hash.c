@@ -123,7 +123,28 @@ static inline unsigned int encode_pos (
   return (unsigned int) round((val + 1.0) / 2.0 * (buckets - 1));
 }
 
-static inline void populate_hash (
+static inline void populate_set_of_clusters (
+  lua_State *L,
+  uint32_t *result,
+  unsigned int result_len,
+  unsigned int n,
+  unsigned int n_clusters
+) {
+  // tbl, rlen
+  for (unsigned int i = 0; i < result_len; i ++)
+    result[i] = 0;
+  for (unsigned int i = 0; i < n; i ++) {
+    lua_pushinteger(L, i + 1); // tbl, rlen, i
+    lua_gettable(L, 1); // tbl, rlen, token
+    unsigned int token = tk_lua_checkunsigned(L, -1) - 1;
+    lua_pop(L, 1); // tbl, rlen
+    unsigned int chunk = token / BITS;
+    unsigned int bit = token % BITS;
+    result[chunk] |= (1 << bit);
+  }
+}
+
+static inline void populate_simhash (
   lua_State *L,
   uint32_t *result,
   unsigned int n,
@@ -184,6 +205,20 @@ static inline void populate_hash (
 
 }
 
+static inline int tb_set_of_clusters (lua_State *L)
+{
+  lua_settop(L, 2);
+  luaL_checktype(L, 1, LUA_TTABLE);
+  unsigned int n = tk_lua_len(L, 1);
+  unsigned int n_clusters = tk_lua_checkunsigned(L, 2);
+  unsigned int result_len = (n_clusters - 1) / BITS + 1;
+  uint32_t result[result_len];
+  populate_set_of_clusters(L, result, result_len, n, n_clusters);
+  lua_pushlstring(L, (char *) result, result_len);
+  lua_pushinteger(L, n_clusters);
+  return 2;
+}
+
 static inline int tb_simhash (lua_State *L)
 {
   luaL_checktype(L, 1, LUA_TTABLE);
@@ -201,7 +236,7 @@ static inline int tb_simhash (lua_State *L)
   if (!wavelength)
     luaL_argerror(L, 7, "wavelength must be greater than 0");
   uint32_t result[dimensions];
-  populate_hash(L, result, n, dimensions, buckets, wavelength);
+  populate_simhash(L, result, n, dimensions, buckets, wavelength);
   lua_pushlstring(L, (char *) result, dimensions * BYTES);
   lua_pushinteger(L, dimensions * BITS);
   return 2;
@@ -221,6 +256,7 @@ static inline int tb_position (lua_State *L)
 static luaL_Reg tb_fns[] =
 {
   { "simhash", tb_simhash },
+  { "set_of_clusters", tb_set_of_clusters },
   { "position", tb_position },
   { NULL, NULL }
 };

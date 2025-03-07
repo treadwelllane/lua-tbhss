@@ -107,3 +107,52 @@ test("position", function ()
     str.printf("\n")
   end
 end)
+
+test("set-of-clusters", function ()
+
+  print()
+
+  local sentences = {
+    { original = "The quick brown fox" },
+    { original = "The brown quick fox" },
+    { original = "A quick brown fox" },
+    { original = "A brown quick fox" },
+    { original = "The quick brown cat" },
+    { original = "The brown quick cat" },
+    { original = "The speedy brown fox" },
+    { original = "The quick green fox" },
+    { original = "The speedy brown cat" },
+    { original = "The speedy green cat" },
+  }
+
+  local ids = {}
+  local next_id = 1
+
+  for i = 1, #sentences do
+    sentences[i].split = util.split(sentences[i].original)
+    sentences[i].tokens = {}
+    sentences[i].positions = {}
+    for j = 1, #sentences[i].split do
+      local word = sentences[i].split[j]
+      local id = ids[word]
+      if not id then
+        id = next_id
+        ids[word] = next_id
+        next_id = next_id + 1
+      end
+      arr.push(sentences[i].tokens, id)
+      arr.push(sentences[i].positions, #sentences[i].tokens)
+    end
+  end
+
+  for i = 1, #sentences do
+    local raw = hash.set_of_clusters(
+      sentences[i].tokens,
+      next_id - 1)
+    sentences[i].fingerprint = bm.from_raw(raw)
+    print(require("santoku.serialize")(sentences[i].tokens, true))
+    print(bm.tostring(sentences[i].fingerprint, next_id - 1))
+  end
+
+
+end)

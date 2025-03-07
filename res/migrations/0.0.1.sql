@@ -18,6 +18,7 @@ create table clusters_model (
 create table triplets_model (
   id integer primary key,
   name varchar not null unique,
+  bits integer,
   args json,
   loaded boolean not null default false
 );
