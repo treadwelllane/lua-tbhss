@@ -18,27 +18,34 @@ sys.execute({
   "--output-test", ".test.triplets.txt",
 })
 
-sys.execute({
-  "lua", "bin/tbhss.lua", "load", "words",
-  "--cache", db_file,
-  "--name", "glove",
-  "--file", "test/res/glove_snli_dev.train.txt",
-})
+-- sys.execute({
+--   "lua", "bin/tbhss.lua", "load", "words",
+--   "--cache", db_file,
+--   "--name", "glove",
+--   "--file", "test/res/glove_snli_dev.train.txt",
+-- })
 
 sys.execute({
   "lua", "bin/tbhss.lua", "load", "train-triplets",
   "--cache", db_file,
   "--name", "dev-train",
   "--file", ".train.triplets.txt",
+
+  -- TODO: this should encapsulate omitting --tokenizer and speifying --clusters
+  -- "--tokenizer", "glove-clusters",
+
+  "--tokenizer", "bytes",
+  "--weighting", "bm25", "1.2", "0.75",
+  "--fingerprints", "simhash-positional", "4096", "4", "4",
+
+  -- "--tokenizer", "bpe", "1024",
+  -- "--clusters", "glove", "k-medoids", "1024", "3",
   -- "--clusters", "glove", "k-medoids", "128", "3",
   -- "--fingerprints", "simhash", "4096", "4", "4",
   -- "--weighting", "bm25", "1.2", "0.75",
   -- "--clusters", "glove", "dbscan", "2", "0.645", "5",
   -- "--fingerprints", "set-of-clusters",
-  "--clusters", "glove", "k-medoids", "128", "1",
-  "--fingerprints", "simhash-simple", "8",
   -- "--fingerprints", "simhash-positional", "4096", "8", "20",
-  "--weighting", "bm25", "1.2", "0.75",
 })
 
 sys.execute({

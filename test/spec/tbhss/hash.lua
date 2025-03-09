@@ -68,7 +68,7 @@ test("simhash", function ()
 
   for i = 1, #sentences do
     local raw
-    raw, bits = hash.simhash(
+    raw, bits = hash.simhash_positional(
       sentences[i].tokens,
       sentences[i].positions,
       similarities,

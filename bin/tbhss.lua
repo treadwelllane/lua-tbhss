@@ -46,9 +46,13 @@ local cmd_load_train_triplets = cmd_load:command("train-triplets", "load NLI dat
 base_flags(cmd_load_train_triplets)
 cmd_load_train_triplets:option("--name", "name of loaded dataset", nil, nil, 1, 1)
 cmd_load_train_triplets:option("--file", "path to NLI dataset file", nil, nil, 1, 1)
-cmd_load_train_triplets:option("--clusters", "name of words model, name of clustering algorithm, algorithm args...", nil, function (v)
-  return str.match(v, "^%-?%d*%.?%d+$") and tonumber(v) or v
-end, "+", "0-1")
+cmd_load_train_triplets:mutex(
+  cmd_load_train_triplets:option("--tokenizer", "name of tokenization algorithm, algorithm args...", nil, function (v)
+    return str.match(v, "^%-?%d*%.?%d+$") and tonumber(v) or v
+  end, "+", "0-1"),
+  cmd_load_train_triplets:option("--clusters", "name of clustering algorithm, algorithm args...", nil, function (v)
+    return str.match(v, "^%-?%d*%.?%d+$") and tonumber(v) or v
+  end, "+", "0-1"))
 cmd_load_train_triplets:option("--fingerprints", "name of fingerprinting algorithm, algorithm args...", nil, function (v)
   return str.match(v, "^%-?%d*%.?%d+$") and tonumber(v) or v
 end, "+", 1)
@@ -106,12 +110,6 @@ local db = init_db(args.cache)
 if args.cmd == "load" and args.cmd_load == "words" then
   words.load_words(db, args)
 elseif args.cmd == "load" and args.cmd_load == "train-triplets" then
-  if args.clusters then
-    args.clusters = {
-      words = args.clusters[1],
-      algorithm = { arr.spread(args.clusters, 2) },
-    }
-  end
   modeler.load_train_triplets(db, args)
 elseif args.cmd == "load" and args.cmd_load == "test-triplets" then
   modeler.load_test_triplets(db, args)
