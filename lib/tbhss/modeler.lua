@@ -50,25 +50,75 @@ local function load_sentence (db, id_model, args, n, sentence)
   return id, n
 end
 
-local function read_triplets (db, id_model, args)
-  local n = 0
-  local nt = 0
-  for line in fs.lines(args.file) do
-    local chunks = str.splits(line, "\t")
-    local anchor = str.sub(chunks())
-    local positive = str.sub(chunks())
-    local negative = str.sub(chunks())
-    local id_anchor, id_positive, id_negative
-    id_anchor, n = load_sentence(db, id_model, args, n, anchor)
-    id_positive, n = load_sentence(db, id_model, args, n, positive)
-    id_negative, n = load_sentence(db, id_model, args, n, negative)
-    db.add_sentence_triplet(id_model, id_anchor, id_positive, id_negative)
-    nt = nt + 1
-    if args.max_records and nt >= args.max_records then
-      break
-    end
+local function load_sentence_bytes (db, id_model, _, n, sentence, parser)
+  local words, positions, similarities = {}, {}, {}
+  for i = 1, #sentence do
+    words[i] = str.byte(sentence, i)
+    positions[i] = i
+    similarities[i] = i
   end
-  str.printf("Loaded %d triplets and %d sentences\n", nt, n)
+  local id = db.get_sentence_id(id_model, sentence)
+  if not id then
+    n = n + 1
+    id = n
+    db.add_sentence(id, id_model, sentence)
+  end
+  db.set_sentence_tokens(id_model, id, words, positions, similarities, #words, true)
+  return id, n
+end
+
+local tokenization_algorithms = {
+
+  ["bytes"] = function (db, id_model, args)
+    local n = 0
+    local nt = 0
+    for line in fs.lines(args.file) do
+      local chunks = str.splits(line, "\t")
+      local anchor = str.sub(chunks())
+      local positive = str.sub(chunks())
+      local negative = str.sub(chunks())
+      local id_anchor, id_positive, id_negative
+      id_anchor, n = load_sentence_bytes(db, id_model, args, n, anchor, parser)
+      id_positive, n = load_sentence_bytes(db, id_model, args, n, positive, parser)
+      id_negative, n = load_sentence_bytes(db, id_model, args, n, negative, parser)
+      db.add_sentence_triplet(id_model, id_anchor, id_positive, id_negative)
+      nt = nt + 1
+      if args.max_records and nt >= args.max_records then
+        break
+      end
+    end
+    str.printf("Loaded %d triplets and %d sentences\n", nt, n)
+  end,
+
+  ["default"] = function (db, id_model, args)
+    local n = 0
+    local nt = 0
+    for line in fs.lines(args.file) do
+      local chunks = str.splits(line, "\t")
+      local anchor = str.sub(chunks())
+      local positive = str.sub(chunks())
+      local negative = str.sub(chunks())
+      local id_anchor, id_positive, id_negative
+      id_anchor, n = load_sentence(db, id_model, args, n, anchor)
+      id_positive, n = load_sentence(db, id_model, args, n, positive)
+      id_negative, n = load_sentence(db, id_model, args, n, negative)
+      db.add_sentence_triplet(id_model, id_anchor, id_positive, id_negative)
+      nt = nt + 1
+      if args.max_records and nt >= args.max_records then
+        break
+      end
+    end
+    str.printf("Loaded %d triplets and %d sentences\n", nt, n)
+  end
+
+}
+
+local function read_triplets (db, id_model, args)
+  local model = err.assert(db.get_triplets_model_by_id(args.id_parent_model or id_model),
+    "Model not found", args.id_parent_model or id_model)
+  local tokenizer = model.args.tokenizer or { "default" }
+  local algo = err.assert(tokenization_algorithms[tokenizer[1]], "tokenizer not found", tokenizer[1])
+  return algo(db, id_model, args, varg.sel(2, arr.spread(tokenizer)))
 end
 
 local function create_clusters (db, args)
@@ -77,11 +127,10 @@ local function create_clusters (db, args)
   end
   local clusters_model = clusters.create_clusters(db, {
     name = args.name .. ".clusters",
-    words = args.clusters.words,
+    words = args.clusters[1],
     filter_words = args.name,
-    algorithm = args.clusters.algorithm,
+    algorithm = { varg.sel(2, arr.spread(args.clusters)) },
   })
-  args.clusters.name = clusters_model.name
   args.id_clusters_model = clusters_model.id
   db.set_triplets_args(args.id_triplets_model, args)
 end
@@ -182,7 +231,7 @@ local function bm25_score_tokens (tokens, tfs, dfs, saturation, length_normaliza
           (1 - length_normalization + length_normalization *
             (#tokens / average_doc_length)))
       local idf = log((total_docs - df + 0.5) / (df + 0.5) + 1)
-      scores[t] = tf * idf
+      scores[t] = tf * idf + 10000 -- to prevent negatives
     end
   end
   return scores
