@@ -16,7 +16,7 @@ nohup stdbuf -oL sh -c '
       --cache tbhss.db \
       --name snli-$id-explore-train-$clusters \
       --file snli-triplets.train.txt \
-      --max-records 5000 \
+      --max:
       --clusters glove dbscan 2 0.645 5 \
       --fingerprints simhash 4096 8 $clusters \
       --weighting bm25 4096 1.2 0.75

@@ -18,12 +18,12 @@ sys.execute({
   "--output-test", ".test.triplets.txt",
 })
 
--- sys.execute({
---   "lua", "bin/tbhss.lua", "load", "words",
---   "--cache", db_file,
---   "--name", "glove",
---   "--file", "test/res/glove_snli_dev.train.txt",
--- })
+sys.execute({
+  "lua", "bin/tbhss.lua", "load", "words",
+  "--cache", db_file,
+  "--name", "glove",
+  "--file", "test/res/glove_snli_dev.train.txt",
+})
 
 sys.execute({
   "lua", "bin/tbhss.lua", "load", "train-triplets",
@@ -34,12 +34,11 @@ sys.execute({
   -- TODO: this should encapsulate omitting --tokenizer and speifying --clusters
   -- "--tokenizer", "glove-clusters",
 
-  "--tokenizer", "bytes",
+  "--clusters", "glove", "k-medoids", "128", "1",
   "--weighting", "bm25", "1.2", "0.75",
-  "--fingerprints", "simhash-positional", "4096", "4", "4",
+  "--fingerprints", "set-of-positions", "4096", "4", "4"
 
   -- "--tokenizer", "bpe", "1024",
-  -- "--clusters", "glove", "k-medoids", "1024", "3",
   -- "--clusters", "glove", "k-medoids", "128", "3",
   -- "--fingerprints", "simhash", "4096", "4", "4",
   -- "--weighting", "bm25", "1.2", "0.75",

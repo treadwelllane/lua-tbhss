@@ -196,6 +196,52 @@ static inline void populate_simhash_simple (
 
 }
 
+static inline void populate_set_of_positions (
+  lua_State *L,
+  uint32_t *result,
+  unsigned int result_len,
+  unsigned int n_tokens,
+  unsigned int n_clusters,
+  unsigned int dimensions,
+  unsigned int buckets,
+  unsigned int wavelength
+) {
+  memset(result, 0, result_len * BYTES);
+
+  for (unsigned int i = 0; i < n_tokens; i ++) {
+
+    lua_pushinteger(L, i + 1); // n
+    lua_gettable(L, 1); // token
+
+    lua_pushinteger(L, i + 1); // token n
+    lua_gettable(L, 2); // token position
+
+    lua_pushinteger(L, i + 1); // token position n
+    lua_gettable(L, 3); // token position similarity
+
+    lua_pushvalue(L, -3); // token position similarity token
+    lua_gettable(L, 4); // token position similarity weight
+
+    unsigned int token = tk_lua_checkunsigned(L, -4);
+    unsigned int position = tk_lua_checkunsigned(L, -3);
+
+    // TODO: how to use these? random chance of adding?
+    // double similarity = tk_lua_checkposdouble(L, -2);
+    // double weight = tk_lua_optposdouble(L, -1, -1);
+
+
+    lua_pop(L, 4);
+
+    for (unsigned int dimension = 0; dimension < dimensions; dimension ++) {
+      unsigned int bucket = encode_pos(position, dimension, dimensions, buckets, wavelength);
+      unsigned int x = (dimension * n_clusters * buckets) + ((bucket - 1) * n_clusters) + token;
+      unsigned int chunk = x / BITS;
+      unsigned int bit = x % BITS;
+      result[chunk] |= (1 << bit);
+    }
+  }
+}
+
 static inline void populate_simhash_positional (
   lua_State *L,
   uint32_t *result,
@@ -271,6 +317,33 @@ static inline int tb_set_of_clusters (lua_State *L)
   return 2;
 }
 
+static inline int tb_set_of_positions (lua_State *L)
+{
+  luaL_checktype(L, 1, LUA_TTABLE);
+  luaL_checktype(L, 2, LUA_TTABLE);
+  luaL_checktype(L, 3, LUA_TTABLE);
+  luaL_checktype(L, 4, LUA_TTABLE);
+  unsigned int n_tokens = tk_lua_len(L, 1);
+  unsigned int n_clusters = tk_lua_checkunsigned(L, 5);
+  unsigned int dimensions = tk_lua_checkunsigned(L, 6);
+  unsigned int buckets = tk_lua_checkunsigned(L, 7);
+  unsigned int wavelength = tk_lua_checkunsigned(L, 8);
+  if (!n_clusters || (n_clusters % BITS))
+    luaL_argerror(L, 5, "n_clusters must be divisible by 32");
+  if (!dimensions)
+    luaL_argerror(L, 6, "dimensions must be greater than 0");
+  if (!buckets)
+    luaL_argerror(L, 7, "buckets must be greater than 0");
+  if (!wavelength)
+    luaL_argerror(L, 8, "wavelength must be greater than 0");
+  unsigned int result_len = (n_clusters * buckets * dimensions - 1) / BITS + 1;
+  uint32_t result[result_len];
+  populate_set_of_positions(L, result, result_len, n_tokens, n_clusters, dimensions, buckets, wavelength);
+  lua_pushlstring(L, (char *) result, result_len * BYTES);
+  lua_pushinteger(L, result_len * BITS);
+  return 2;
+}
+
 static inline int tb_simhash_simple (lua_State *L)
 {
   luaL_checktype(L, 1, LUA_TTABLE);
@@ -326,6 +399,7 @@ static luaL_Reg tb_fns[] =
   { "simhash_simple", tb_simhash_simple },
   { "simhash_positional", tb_simhash_positional },
   { "set_of_clusters", tb_set_of_clusters },
+  { "set_of_positions", tb_set_of_positions },
   { "position", tb_position },
   { NULL, NULL }
 };

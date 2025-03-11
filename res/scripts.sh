@@ -15,27 +15,27 @@ nohup stdbuf -oL tbhss process snli \
 
 nohup stdbuf -oL tbhss load train-triplets \
   --cache tbhss.db \
-  --name snli8-train \
+  --name snli10-train \
   --file snli-triplets.train.txt \
   --max-records 20000 \
-  --tokenizer bytes \
-  --fingerprints simhash-simple 8 \
+  --clusters glove dbscan 2 0.645 32 \
+  --fingerprints simhash-positional 4096 16 4 \
   --weighting bm25 1.2 0.75 \
     2>&1 > log.txt & tail -f log.txt
 
 nohup stdbuf -oL tbhss load test-triplets \
   --cache tbhss.db \
-  --name snli8-test \
+  --name snli10-test \
   --file snli-triplets.test.txt \
   --max-records 2000 \
-  --model snli8-train \
+  --model snli10-train \
     2>&1 > log.txt & tail -f log.txt
 
 nohup stdbuf -oL tbhss create encoder \
   --cache tbhss.db \
-  --name snli8  \
-  --triplets snli8-train snli8-test \
-  --encoded-bits 128 \
+  --name snli10  \
+  --triplets snli10-train snli10-test \
+  --encoded-bits 256 \
   --clauses 4096 \
   --state-bits 8 \
   --threshold 36 \
@@ -43,9 +43,9 @@ nohup stdbuf -oL tbhss create encoder \
   --margin 0.15 \
   --loss-alpha 0.25 \
   --active-clause 0.85 \
-  --boost-true-positive true \
+  --boost-true-positive false \
   --evaluate-every 1 \
-  --epochs 50 \
+  --epochs 200 \
     2>&1 > log.txt & tail -f log.txt
 
 # Medium
