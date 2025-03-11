@@ -216,21 +216,10 @@ static inline void populate_set_of_positions (
     lua_pushinteger(L, i + 1); // token n
     lua_gettable(L, 2); // token position
 
-    lua_pushinteger(L, i + 1); // token position n
-    lua_gettable(L, 3); // token position similarity
+    unsigned int token = tk_lua_checkunsigned(L, -2);
+    unsigned int position = tk_lua_checkunsigned(L, -1);
 
-    lua_pushvalue(L, -3); // token position similarity token
-    lua_gettable(L, 4); // token position similarity weight
-
-    unsigned int token = tk_lua_checkunsigned(L, -4);
-    unsigned int position = tk_lua_checkunsigned(L, -3);
-
-    // TODO: how to use these? random chance of adding?
-    // double similarity = tk_lua_checkposdouble(L, -2);
-    // double weight = tk_lua_optposdouble(L, -1, -1);
-
-
-    lua_pop(L, 4);
+    lua_pop(L, 2);
 
     for (unsigned int dimension = 0; dimension < dimensions; dimension ++) {
       unsigned int bucket = encode_pos(position, dimension, dimensions, buckets, wavelength);
@@ -321,13 +310,11 @@ static inline int tb_set_of_positions (lua_State *L)
 {
   luaL_checktype(L, 1, LUA_TTABLE);
   luaL_checktype(L, 2, LUA_TTABLE);
-  luaL_checktype(L, 3, LUA_TTABLE);
-  luaL_checktype(L, 4, LUA_TTABLE);
   unsigned int n_tokens = tk_lua_len(L, 1);
-  unsigned int n_clusters = tk_lua_checkunsigned(L, 5);
-  unsigned int dimensions = tk_lua_checkunsigned(L, 6);
-  unsigned int buckets = tk_lua_checkunsigned(L, 7);
-  unsigned int wavelength = tk_lua_checkunsigned(L, 8);
+  unsigned int n_clusters = tk_lua_checkunsigned(L, 3);
+  unsigned int dimensions = tk_lua_checkunsigned(L, 4);
+  unsigned int buckets = tk_lua_checkunsigned(L, 5);
+  unsigned int wavelength = tk_lua_checkunsigned(L, 6);
   if (!n_clusters || (n_clusters % BITS))
     luaL_argerror(L, 5, "n_clusters must be divisible by 32");
   if (!dimensions)

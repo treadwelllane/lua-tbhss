@@ -35,8 +35,7 @@ sys.execute({
   -- "--tokenizer", "glove-clusters",
 
   "--clusters", "glove", "k-medoids", "128", "1",
-  "--weighting", "bm25", "1.2", "0.75",
-  "--fingerprints", "set-of-positions", "4096", "4", "4"
+  "--fingerprints", "set-of-positions", "4096", "2", "2"
 
   -- "--tokenizer", "bpe", "1024",
   -- "--clusters", "glove", "k-medoids", "128", "3",
@@ -61,7 +60,7 @@ sys.execute({
   "--name", "snli-dev",
   "--triplets", "dev-train", "dev-test",
   "--max-records", "1000", "100",
-  "--encoded-bits", "128",
+  "--encoded-bits", "64",
   "--clauses", "512",
   "--state-bits", "8",
   "--threshold", "36",

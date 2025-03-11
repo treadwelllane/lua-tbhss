@@ -268,10 +268,10 @@ local fingerprint_algorithms = {
     else
       n_clusters = n_clusters + (hash.segment_bits - 1 - ((n_clusters - 1) % hash.segment_bits))
     end
-    return function (sentence, scores)
+    return function (sentence)
       return hash.set_of_positions(
-        sentence.tokens, sentence.positions, sentence.similarities,
-        scores, n_clusters, dimensions, buckets, wavelength)
+        sentence.tokens, sentence.positions,
+        n_clusters, dimensions, buckets, wavelength)
     end, n_clusters * dimensions * buckets
   end,
 
