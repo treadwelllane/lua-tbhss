@@ -260,6 +260,21 @@ local weighting_algorithms = {
 
 local fingerprint_algorithms = {
 
+  ["set-of-positions"] = function (db, model, _, wavelength, dimensions, buckets)
+    local n_clusters = err.assert(db.get_num_clusters(model.args.id_clusters_model),
+      "Missing clusters model", model.args.id_clusters_model)
+    if n_clusters < hash.segment_bits then
+      n_clusters = hash.segment_bits
+    else
+      n_clusters = n_clusters + (hash.segment_bits - 1 - ((n_clusters - 1) % hash.segment_bits))
+    end
+    return function (sentence, scores)
+      return hash.set_of_positions(
+        sentence.tokens, sentence.positions, sentence.similarities,
+        scores, n_clusters, dimensions, buckets, wavelength)
+    end, n_clusters * dimensions * buckets
+  end,
+
   ["set-of-clusters"] = function (db, model)
     local n_clusters = err.assert(db.get_num_clusters(model.args.id_clusters_model),
       "Missing clusters model", model.args.id_clusters_model)
