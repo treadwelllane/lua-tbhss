@@ -75,6 +75,18 @@ return function (db_file, skip_init)
     end
   end
 
+  local decode_autoencoder = function (getter)
+    return function (...)
+      local model = getter(...)
+      -- TODO: read directly from sqlite without temporary file
+      local fp = fs.tmpname()
+      fs.writefile(fp, model)
+      local t = tm.load(fp)
+      fs.rm(fp)
+      return t
+    end
+  end
+
   M.add_words_model = db.inserter([[
     insert into words_model (name, total, dimensions, embeddings)
     values (?1, ?2, ?3, ?4)
@@ -91,6 +103,11 @@ return function (db_file, skip_init)
 
   M.add_encoder_model = encode_tables(db.inserter([[
     insert into encoder_model (name, id_triplets_model, args)
+    values (?, ?, ?)
+  ]]))
+
+  M.add_autoencoder_model = encode_tables(db.inserter([[
+    insert into autoencoder_model (name, id_triplets_model, args)
     values (?, ?, ?)
   ]]))
 
@@ -122,8 +139,18 @@ return function (db_file, skip_init)
     where id = ?1
   ]])
 
+  M.set_autoencoder_trained = db.runner([[
+    update autoencoder_model
+    set trained = true, model = ?2
+    where id = ?1
+  ]])
+
   M.get_encoder = decode_encoder(db.getter([[
     select model from encoder_model where id = ?1
+  ]], "model"))
+
+  M.get_autoencoder = decode_autoencoder(db.getter([[
+    select model from autoencoder_model where id = ?1
   ]], "model"))
 
   M.set_words_clustered = db.runner([[
@@ -162,6 +189,12 @@ return function (db_file, skip_init)
     where name = ?
   ]]))
 
+  M.get_autoencoder_model_by_name = decode_args(db.getter([[
+    select *
+    from autoencoder_model
+    where name = ?
+  ]]))
+
   M.get_words_model_by_id = db.getter([[
     select id, name, loaded, total, dimensions
     from words_model
@@ -192,6 +225,12 @@ return function (db_file, skip_init)
     where id = ?
   ]]))
 
+  M.get_autoencoder_model_by_id = decode_args(db.getter([[
+    select *
+    from autoencoder_model
+    where id = ?
+  ]]))
+
   M.get_encoder_model_by_id = decode_args(db.getter([[
     select *
     from encoder_model
@@ -207,6 +246,11 @@ return function (db_file, skip_init)
   M.add_sentence = db.inserter([[
     insert into sentences (id, id_triplets_model, sentence)
     values (?, ?, ?)
+  ]])
+
+  M.add_sentence_with_fingerprint = db.inserter([[
+    insert into sentences (id, id_triplets_model, sentence, fingerprint)
+    values (?, ?, ?, ?)
   ]])
 
   M.add_sentence_fingerprint = db.runner([[
@@ -441,6 +485,25 @@ return function (db_file, skip_init)
     end
     return r
   end
+
+  M.get_sentence_fingerprints = db.all([[
+    select
+      s.id,
+      s.fingerprint,
+      s.sentence
+    from
+      sentences s
+    where
+      s.id_triplets_model = ?1
+    order by random()
+    limit coalesce(?2, -1)
+  ]])
+
+  M.copy_triplets = db.runner([[
+    insert into sentence_triplets (id_triplets_model, id_anchor, id_positive, id_negative)
+    select ?2, id_anchor, id_negative, id_positive
+    from sentence_triplets where id_triplets_model = ?1
+  ]])
 
   M.get_sentence_triplets = db.all([[
     select distinct
