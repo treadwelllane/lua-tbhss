@@ -1,8 +1,10 @@
 local serialize = require("santoku.serialize") -- luacheck: ignore
 local tm = require("santoku.tsetlin")
+local rand = require("santoku.random")
 local fs = require("santoku.fs")
 local str = require("santoku.string")
 local bm = require("santoku.bitmap")
+local mtx = require("santoku.matrix")
 local arr = require("santoku.array")
 local err = require("santoku.error")
 
@@ -53,6 +55,10 @@ local function get_dataset (db, triplets_model, max)
 
 end
 
+local function load_fingerprint (f, b)
+  return type(f) ~= "string" and f or bm.from_raw(f, b)
+end
+
 local function pack_dataset (dataset)
   local gs = {}
   for i = 1, #dataset.triplets do
@@ -64,7 +70,7 @@ end
 
 local function create_encoder (db, args)
 
-  print("Creating encoder")
+  print("Creating triplet encoder")
 
   local triplets_model_train = db.get_triplets_model_by_name(args.triplets[1])
   if not triplets_model_train or triplets_model_train.loaded ~= 1 then
@@ -76,7 +82,7 @@ local function create_encoder (db, args)
     err.error("Test triplets model not loaded", args.triplets[2])
   end
   if triplets_model_test.args.id_parent_model ~= triplets_model_train.id then
-    err.error("Test triplets model it not related to train model",
+    print("WARNING: test triplets model is not related to train model",
       triplets_model_train.name, triplets_model_test.name)
   end
 
@@ -129,7 +135,7 @@ local function create_encoder (db, args)
 
     local start = os.time()
     tm.train(t, #train_dataset.triplets, train_data, args.active_clause,
-      args.margin, args.loss_alpha)
+      args.loss_alpha, args.margin)
     local duration = os.time() - start
 
     if epoch == args.epochs or epoch % args.evaluate_every == 0 then

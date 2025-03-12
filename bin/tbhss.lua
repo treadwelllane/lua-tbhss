@@ -10,6 +10,7 @@ local words = require("tbhss.words")
 local modeler = require("tbhss.modeler")
 local clusters = require("tbhss.clusters")
 local encoder = require("tbhss.encoder")
+local autoencoder = require("tbhss.autoencoder")
 local preprocess = require("tbhss.preprocess")
 
 local fun = require("santoku.functional")
@@ -69,6 +70,13 @@ cmd_load_test_triplets:option("--file", "path to NLI dataset file", nil, nil, 1,
 cmd_load_test_triplets:option("--max-records", "Max number of triplets to load", nil, tonumber, 1, "0-1")
 cmd_load_test_triplets:option("--model", "train model to use for fingerprinting", nil, nil, 1, 1)
 
+local cmd_load_compressed_triplets = cmd_load:command("compressed-triplets", "compress a triplets model using an autoencoder")
+base_flags(cmd_load_compressed_triplets)
+cmd_load_compressed_triplets:option("--name", "name of loaded dataset", nil, nil, 1, 1)
+cmd_load_compressed_triplets:option("--triplets", "name of triplets model to compress", nil, nil, 1, 1)
+cmd_load_compressed_triplets:option("--autoencoder", "name of autoencoder to use", nil, nil, 1, 1)
+cmd_load_compressed_triplets:option("--max-records", "Max number of triplets to load", nil, tonumber, 1, "0-1")
+
 local cmd_create = parser:command("create")
 cmd_create:command_target("cmd_create")
 
@@ -98,6 +106,22 @@ cmd_create_encoder:option("--boost-true-positive", "Tsetlin Machine boost true p
 cmd_create_encoder:option("--evaluate-every", "Evaluation frequency", 5, tonumber, 1, 1)
 cmd_create_encoder:option("--epochs", "Number of epochs", nil, tonumber, 1, 1)
 
+local cmd_create_autoencoder = cmd_create:command("autoencoder", "create an autoencoder")
+base_flags(cmd_create_autoencoder)
+cmd_create_autoencoder:option("--name", "name of created autoencoder", nil, nil, 1, 1)
+cmd_create_autoencoder:option("--triplets", "name of triplets model(s) to use", nil, nil, 2, 1)
+cmd_create_autoencoder:option("--max-records", "Max number of train and test pairs", nil, tonumber, 2, "0-1")
+cmd_create_autoencoder:option("--encoded-bits", "number of bits in encoded bitmaps", nil, tonumber, 1, 1)
+cmd_create_autoencoder:option("--loss-alpha", "scale for loss function", nil, tonumber, 1, 1)
+cmd_create_autoencoder:option("--clauses", "Tsetlin Machine clauses", nil, tonumber, 1, 1)
+cmd_create_autoencoder:option("--state-bits", "Tsetlin Machine state bits", nil, tonumber, 1, 1)
+cmd_create_autoencoder:option("--threshold", "Tsetlin Machine threshold", nil, tonumber, 1, 1)
+cmd_create_autoencoder:option("--specificity", "Tsetlin Machine specificity", nil, tonumber, 2, 1)
+cmd_create_autoencoder:option("--active-clause", "Tsetlin Machine active clause", nil, tonumber, 1, 1)
+cmd_create_autoencoder:option("--boost-true-positive", "Tsetlin Machine boost true positive", nil, fun.bind(op.eq, "true"), 1, 1):choices({ "true", "false" })
+cmd_create_autoencoder:option("--evaluate-every", "Evaluation frequency", 5, tonumber, 1, 1)
+cmd_create_autoencoder:option("--epochs", "Number of epochs", nil, tonumber, 1, 1)
+
 local args = parser:parse()
 
 if args.cmd == "process" and args.cmd_process == "snli" then
@@ -113,19 +137,15 @@ elseif args.cmd == "load" and args.cmd_load == "train-triplets" then
   modeler.load_train_triplets(db, args)
 elseif args.cmd == "load" and args.cmd_load == "test-triplets" then
   modeler.load_test_triplets(db, args)
+elseif args.cmd == "load" and args.cmd_load == "compressed-triplets" then
+  modeler.load_compressed_triplets(db, args)
 elseif args.cmd == "create" and args.cmd_create == "clusters" then
   clusters.create_clusters(db, args)
+elseif args.cmd == "create" and args.cmd_create == "autoencoder" then
+  autoencoder.create_autoencoder(db, args)
 elseif args.cmd == "create" and args.cmd_create == "encoder" then
   encoder.create_encoder(db, args)
 else
   print(parser:get_usage())
   os.exit(1)
 end
-
-
--- cmd_load_train_triplets:option("--dimensions", "number of dimensions for positions", nil, tonumber, 1, 1)
--- cmd_load_train_triplets:option("--buckets", "number of buckets for positions", nil, tonumber, 1, 1)
--- cmd_load_train_triplets:option("--wavelength", "wavelength for positional encoding", nil, tonumber, 1, 1)
--- cmd_load_train_triplets:option("--saturation", "BM25 saturation", 1.2, tonumber, 1, 1)
--- cmd_load_train_triplets:option("--length-normalization", "BM25 length normalization", 0.75, tonumber, 1, 1)
--- cmd_load_test_triplets:option("--clusters", "name of word clusters, num, min-set, max-set, min-similarity, include-raw", nil, nil, 6, "0-1")
