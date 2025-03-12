@@ -30,13 +30,10 @@ sys.execute({
   "--cache", db_file,
   "--name", "dev-train",
   "--file", ".train.triplets.txt",
-
+  "--clusters", "glove", "k-medoids", "256", "1",
+  "--fingerprints", "set-of-positions", "4096", "2", "2"
   -- TODO: this should encapsulate omitting --tokenizer and speifying --clusters
   -- "--tokenizer", "glove-clusters",
-
-  "--clusters", "glove", "k-medoids", "128", "1",
-  "--fingerprints", "set-of-positions", "4096", "2", "2"
-
   -- "--tokenizer", "bpe", "1024",
   -- "--clusters", "glove", "k-medoids", "128", "3",
   -- "--fingerprints", "simhash", "4096", "4", "4",
@@ -55,12 +52,46 @@ sys.execute({
 })
 
 sys.execute({
-  "lua", "bin/tbhss.lua", "create", "encoder",
+  "lua", "bin/tbhss.lua", "create", "autoencoder",
   "--cache", db_file,
   "--name", "snli-dev",
   "--triplets", "dev-train", "dev-test",
   "--max-records", "1000", "100",
-  "--encoded-bits", "64",
+  "--encoded-bits", "256",
+  "--clauses", "128",
+  "--state-bits", "8",
+  "--threshold", "36",
+  "--specificity", "4", "12",
+  "--loss-alpha", "0.125",
+  "--active-clause", "0.85",
+  "--boost-true-positive", "false",
+  "--evaluate-every", "1",
+  "--epochs", "5"
+})
+
+sys.execute({
+  "lua", "bin/tbhss.lua", "load", "compressed-triplets",
+  "--cache", db_file,
+  "--name", "dev-train-compressed",
+  "--triplets", "dev-train",
+  "--autoencoder", "snli-dev",
+})
+
+sys.execute({
+  "lua", "bin/tbhss.lua", "load", "compressed-triplets",
+  "--cache", db_file,
+  "--name", "dev-test-compressed",
+  "--triplets", "dev-test",
+  "--autoencoder", "snli-dev",
+})
+
+sys.execute({
+  "lua", "bin/tbhss.lua", "create", "encoder",
+  "--cache", db_file,
+  "--name", "snli-dev",
+  "--triplets", "dev-train-compressed", "dev-test-compressed",
+  "--max-records", "1000", "100",
+  "--encoded-bits", "128",
   "--clauses", "512",
   "--state-bits", "8",
   "--threshold", "36",
@@ -72,4 +103,3 @@ sys.execute({
   "--evaluate-every", "1",
   "--epochs", "50"
 })
-

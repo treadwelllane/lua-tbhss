@@ -1,8 +1,10 @@
 local err = require("santoku.error")
 local varg = require("santoku.varg")
+local arr = require("santoku.array")
+local tm = require("santoku.tsetlin")
+local bm = require("santoku.bitmap")
 local tbl = require("santoku.table")
 local str = require("santoku.string")
-local arr = require("santoku.array")
 local fs = require("santoku.fs")
 local sys = require("santoku.system")
 local init_db = require("tbhss.db")
@@ -50,7 +52,7 @@ local function load_sentence (db, id_model, args, n, sentence)
   return id, n
 end
 
-local function load_sentence_bytes (db, id_model, _, n, sentence, parser)
+local function load_sentence_bytes (db, id_model, _, n, sentence)
   local words, positions, similarities = {}, {}, {}
   for i = 1, #sentence do
     words[i] = str.byte(sentence, i)
@@ -78,9 +80,9 @@ local tokenization_algorithms = {
       local positive = str.sub(chunks())
       local negative = str.sub(chunks())
       local id_anchor, id_positive, id_negative
-      id_anchor, n = load_sentence_bytes(db, id_model, args, n, anchor, parser)
-      id_positive, n = load_sentence_bytes(db, id_model, args, n, positive, parser)
-      id_negative, n = load_sentence_bytes(db, id_model, args, n, negative, parser)
+      id_anchor, n = load_sentence_bytes(db, id_model, args, n, anchor)
+      id_positive, n = load_sentence_bytes(db, id_model, args, n, positive)
+      id_negative, n = load_sentence_bytes(db, id_model, args, n, negative)
       db.add_sentence_triplet(id_model, id_anchor, id_positive, id_negative)
       nt = nt + 1
       if args.max_records and nt >= args.max_records then
@@ -440,6 +442,43 @@ local function load_test_triplets (db, args)
   return load_triplets(db, args, false)
 end
 
+local function load_compressed_triplets (db, args)
+  db.db.transaction(function ()
+    local model = db.get_triplets_model_by_name(args.name)
+    if model and model.loaded == 1 then
+      return err.error("Compressed triplets already loaded")
+    end
+    local triplets_model = db.get_triplets_model_by_name(args.triplets)
+    if not triplets_model or triplets_model.loaded ~= 1 then
+      return err.error("Source triplets model not found or not loaded")
+    end
+    local autoencoder_model = db.get_autoencoder_model_by_name(args.autoencoder)
+    if not autoencoder_model then
+      return err.error("Auto encoder model not found")
+    end
+    local autoencoder = db.get_autoencoder(autoencoder_model.id)
+    if not autoencoder then
+      return err.error("Auto encoder not found")
+    end
+    args.id_parent_model = triplets_model.id
+    local id_model = create_model(db, model, args)
+    local sentences = db.get_sentence_fingerprints(triplets_model.id, args.max_records)
+    -- TODO: multiprocess
+    local bits = autoencoder_model.args.encoded_bits
+    for i = 1, #sentences do
+      local sentence = sentences[i]
+      local fingerprint = tm.predict(autoencoder, sentence.fingerprint)
+      db.add_sentence_with_fingerprint(sentence.id, id_model, sentence.sentence, fingerprint)
+      if i % 500 == 0 then
+        print("Compresssed", i)
+      end
+    end
+    print("Compresssed", #sentences)
+    db.copy_triplets(triplets_model.id, id_model)
+    db.set_triplets_loaded(id_model, bits)
+  end)
+end
+
 local function modeler ()
   err.error("unimplemented: modeler")
 end
@@ -447,5 +486,6 @@ end
 return {
   load_train_triplets = load_train_triplets,
   load_test_triplets = load_test_triplets,
+  load_compressed_triplets = load_compressed_triplets,
   modeler = modeler
 }
