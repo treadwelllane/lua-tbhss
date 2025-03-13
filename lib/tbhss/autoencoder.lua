@@ -44,11 +44,15 @@ local function create_autoencoder (db, args)
   local triplets_model_train = db.get_triplets_model_by_name(args.triplets[1])
   if not triplets_model_train or triplets_model_train.loaded ~= 1 then
     err.error("Train triplets model not loaded", args.triplets[1])
+  elseif triplets_model_train.type ~= "triplets" then
+    err.error("Not a triplets model")
   end
 
   local triplets_model_test = db.get_triplets_model_by_name(args.triplets[2])
   if not triplets_model_test or triplets_model_test.loaded ~= 1 then
     err.error("Test triplets model not loaded", args.triplets[2])
+  elseif triplets_model_test.type ~= "triplets" then
+    err.error("Not a triplets model")
   end
 
   if triplets_model_test.args.id_parent_model ~= triplets_model_train.id then

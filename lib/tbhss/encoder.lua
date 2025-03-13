@@ -1,10 +1,8 @@
 local serialize = require("santoku.serialize") -- luacheck: ignore
 local tm = require("santoku.tsetlin")
-local rand = require("santoku.random")
 local fs = require("santoku.fs")
 local str = require("santoku.string")
 local bm = require("santoku.bitmap")
-local mtx = require("santoku.matrix")
 local arr = require("santoku.array")
 local err = require("santoku.error")
 
@@ -55,10 +53,6 @@ local function get_dataset (db, triplets_model, max)
 
 end
 
-local function load_fingerprint (f, b)
-  return type(f) ~= "string" and f or bm.from_raw(f, b)
-end
-
 local function pack_dataset (dataset)
   local gs = {}
   for i = 1, #dataset.triplets do
@@ -75,11 +69,15 @@ local function create_encoder (db, args)
   local triplets_model_train = db.get_triplets_model_by_name(args.triplets[1])
   if not triplets_model_train or triplets_model_train.loaded ~= 1 then
     err.error("Train triplets model not loaded", args.triplets[1])
+  elseif triplets_model_train.type ~= "triplets" then
+    err.error("Not a triplets model")
   end
 
   local triplets_model_test = db.get_triplets_model_by_name(args.triplets[2])
   if not triplets_model_test or triplets_model_test.loaded ~= 1 then
     err.error("Test triplets model not loaded", args.triplets[2])
+  elseif triplets_model_test.type ~= "triplets" then
+    err.error("Not a triplets model")
   end
   if triplets_model_test.args.id_parent_model ~= triplets_model_train.id then
     print("WARNING: test triplets model is not related to train model",

@@ -2,7 +2,6 @@ local err = require("santoku.error")
 local varg = require("santoku.varg")
 local arr = require("santoku.array")
 local tm = require("santoku.tsetlin")
-local bm = require("santoku.bitmap")
 local tbl = require("santoku.table")
 local str = require("santoku.string")
 local fs = require("santoku.fs")
@@ -123,6 +122,26 @@ local function read_triplets (db, id_model, args)
   return algo(db, id_model, args, varg.sel(2, arr.spread(tokenizer)))
 end
 
+local function read_pairs (db, id_model, args)
+  local n = 0
+  local nt = 0
+  for line in fs.lines(args.file) do
+    local chunks = str.splits(line, "\t")
+    local a = str.sub(chunks())
+    local b = str.sub(chunks())
+    local label = str.sub(chunks())
+    local id_a, id_b
+    id_a, n = load_sentence(db, id_model, args, n, a)
+    id_b, n = load_sentence(db, id_model, args, n, b)
+    db.add_sentence_pair(id_model, id_a, id_b, label)
+    nt = nt + 1
+    if args.max_records and nt >= args.max_records then
+      break
+    end
+  end
+  str.printf("Loaded %d pairs and %d sentences\n", nt, n)
+end
+
 local function create_clusters (db, args)
   if not args.clusters then
     return
@@ -137,10 +156,10 @@ local function create_clusters (db, args)
   db.set_triplets_args(args.id_triplets_model, args)
 end
 
-local function create_model (db, model, args)
+local function create_model (db, model, args, type)
   local id_model = model and model.id
   if not id_model then
-    id_model = db.add_triplets_model(args.name, args)
+    id_model = db.add_triplets_model(args.name, type, args)
   end
   args.id_triplets_model = id_model
   return id_model
@@ -377,7 +396,7 @@ local function load_triplets_from_file (db, model, args, is_train)
 
   if is_train then
 
-    id_model = create_model(db, model, args)
+    id_model = create_model(db, model, args, "triplets")
 
     db.db.transaction(function ()
       read_triplets(db, id_model, args)
@@ -405,7 +424,7 @@ local function load_triplets_from_file (db, model, args, is_train)
 
     args.id_parent_model = parent_model.id
 
-    id_model = create_model(db, model, args)
+    id_model = create_model(db, model, args, "triplets")
 
     db.db.transaction(function ()
       read_triplets(db, id_model, args)
@@ -461,7 +480,7 @@ local function load_compressed_triplets (db, args)
       return err.error("Auto encoder not found")
     end
     args.id_parent_model = triplets_model.id
-    local id_model = create_model(db, model, args)
+    local id_model = create_model(db, model, args, "triplets")
     local sentences = db.get_sentence_fingerprints(triplets_model.id, args.max_records)
     -- TODO: multiprocess
     local bits = autoencoder_model.args.encoded_bits
@@ -479,11 +498,86 @@ local function load_compressed_triplets (db, args)
   end)
 end
 
+local function load_pairs_from_file (db, model, args, is_train)
+
+  print("Loading pairs from file:", args.file)
+
+  local id_model, bits
+
+  if is_train then
+
+    id_model = create_model(db, model, args, "pairs")
+
+    db.db.transaction(function ()
+      read_pairs(db, id_model, args)
+    end)
+
+    db.db.transaction(function ()
+      create_clusters(db, args)
+    end)
+
+    expand_tokens(db, id_model, args)
+
+    db.db.transaction(function ()
+      update_tfdf(db, id_model, args)
+    end)
+
+    bits = create_fingerprints(db, id_model, args)
+
+  else
+
+    local parent_model = db.get_triplets_model_by_name(args.model)
+
+    if not (parent_model and parent_model.loaded == 1) then
+      err.error("Parent pairs model not loaded")
+    end
+
+    args.id_parent_model = parent_model.id
+
+    id_model = create_model(db, model, args, "pairs")
+
+    db.db.transaction(function ()
+      read_pairs(db, id_model, args)
+    end)
+
+    expand_tokens(db, id_model, args)
+
+    db.db.transaction(function ()
+      update_tfdf(db, id_model, args)
+    end)
+
+    bits = create_fingerprints(db, id_model, args)
+
+  end
+
+  db.set_triplets_loaded(id_model, bits)
+
+end
+
+local function load_pairs (db, args, is_train)
+  local model = db.get_triplets_model_by_name(args.name)
+  if not model or model.loaded ~= 1 then
+    return load_pairs_from_file(db, model, args, is_train)
+  else
+    err.error("Pairs already loaded")
+  end
+end
+
+local function load_train_pairs (db, args)
+  return load_pairs(db, args, true)
+end
+
+local function load_test_pairs (db, args)
+  return load_pairs(db, args, false)
+end
+
 local function modeler ()
   err.error("unimplemented: modeler")
 end
 
 return {
+  load_train_pairs = load_train_pairs,
+  load_test_pairs = load_test_pairs,
   load_train_triplets = load_train_triplets,
   load_test_triplets = load_test_triplets,
   load_compressed_triplets = load_compressed_triplets,

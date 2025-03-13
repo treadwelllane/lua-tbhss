@@ -11,11 +11,11 @@ fs.rm("test/res/.train.triplets.txt", true)
 fs.rm("test/res/.test.triplets.txt", true)
 
 sys.execute({
-  "lua", "bin/tbhss.lua", "process", "snli",
+  "lua", "bin/tbhss.lua", "process", "snli-pairs",
   "--inputs", "test/res/snli_1.0_dev.txt",
   "--train-test-ratio", "0.9",
-  "--output-train", ".train.triplets.txt",
-  "--output-test", ".test.triplets.txt",
+  "--output-train", ".train.pairs.txt",
+  "--output-test", ".test.pairs.txt",
 })
 
 sys.execute({
@@ -26,80 +26,90 @@ sys.execute({
 })
 
 sys.execute({
-  "lua", "bin/tbhss.lua", "load", "train-triplets",
+  "lua", "bin/tbhss.lua", "load", "train-pairs",
   "--cache", db_file,
   "--name", "dev-train",
-  "--file", ".train.triplets.txt",
+  "--file", ".train.pairs.txt",
   "--clusters", "glove", "k-medoids", "256", "1",
-  "--fingerprints", "set-of-positions", "4096", "2", "2"
-  -- TODO: this should encapsulate omitting --tokenizer and speifying --clusters
-  -- "--tokenizer", "glove-clusters",
-  -- "--tokenizer", "bpe", "1024",
-  -- "--clusters", "glove", "k-medoids", "128", "3",
-  -- "--fingerprints", "simhash", "4096", "4", "4",
-  -- "--weighting", "bm25", "1.2", "0.75",
-  -- "--clusters", "glove", "dbscan", "2", "0.645", "5",
-  -- "--fingerprints", "set-of-clusters",
-  -- "--fingerprints", "simhash-positional", "4096", "8", "20",
+  "--fingerprints", "simhash-positional", "4096", "4", "4",
+  "--weighting", "bm25", "1.2", "0.75",
+  "--max-records", "1000"
 })
 
 sys.execute({
-  "lua", "bin/tbhss.lua", "load", "test-triplets",
+  "lua", "bin/tbhss.lua", "load", "test-pairs",
   "--cache", db_file,
   "--name", "dev-test",
-  "--file", ".test.triplets.txt",
+  "--file", ".test.pairs.txt",
   "--model", "dev-train",
+  "--max-records", "100"
 })
 
 sys.execute({
-  "lua", "bin/tbhss.lua", "create", "autoencoder",
+  "lua", "bin/tbhss.lua", "create", "classifier",
   "--cache", db_file,
   "--name", "snli-dev",
-  "--triplets", "dev-train", "dev-test",
+  "--pairs", "dev-train", "dev-test",
   "--max-records", "1000", "100",
-  "--encoded-bits", "256",
-  "--clauses", "128",
+  "--clauses", "1024",
   "--state-bits", "8",
   "--threshold", "36",
   "--specificity", "4", "12",
-  "--loss-alpha", "0.125",
   "--active-clause", "0.85",
   "--boost-true-positive", "false",
   "--evaluate-every", "1",
-  "--epochs", "5"
+  "--epochs", "200"
 })
 
-sys.execute({
-  "lua", "bin/tbhss.lua", "load", "compressed-triplets",
-  "--cache", db_file,
-  "--name", "dev-train-compressed",
-  "--triplets", "dev-train",
-  "--autoencoder", "snli-dev",
-})
+-- sys.execute({
+--   "lua", "bin/tbhss.lua", "create", "autoencoder",
+--   "--cache", db_file,
+--   "--name", "snli-dev",
+--   "--triplets", "dev-train", "dev-test",
+--   "--max-records", "1000", "100",
+--   "--encoded-bits", "256",
+--   "--clauses", "128",
+--   "--state-bits", "8",
+--   "--threshold", "36",
+--   "--specificity", "4", "12",
+--   "--loss-alpha", "0.125",
+--   "--active-clause", "0.85",
+--   "--boost-true-positive", "false",
+--   "--evaluate-every", "1",
+--   "--epochs", "5"
+-- })
 
-sys.execute({
-  "lua", "bin/tbhss.lua", "load", "compressed-triplets",
-  "--cache", db_file,
-  "--name", "dev-test-compressed",
-  "--triplets", "dev-test",
-  "--autoencoder", "snli-dev",
-})
+-- sys.execute({
+--   "lua", "bin/tbhss.lua", "load", "compressed-triplets",
+--   "--cache", db_file,
+--   "--name", "dev-train-compressed",
+--   "--triplets", "dev-train",
+--   "--autoencoder", "snli-dev",
+-- })
 
-sys.execute({
-  "lua", "bin/tbhss.lua", "create", "encoder",
-  "--cache", db_file,
-  "--name", "snli-dev",
-  "--triplets", "dev-train-compressed", "dev-test-compressed",
-  "--max-records", "1000", "100",
-  "--encoded-bits", "128",
-  "--clauses", "512",
-  "--state-bits", "8",
-  "--threshold", "36",
-  "--specificity", "4", "12",
-  "--margin", "0.15",
-  "--loss-alpha", "0.25",
-  "--active-clause", "0.85",
-  "--boost-true-positive", "true",
-  "--evaluate-every", "1",
-  "--epochs", "50"
-})
+-- sys.execute({
+--   "lua", "bin/tbhss.lua", "load", "compressed-triplets",
+--   "--cache", db_file,
+--   "--name", "dev-test-compressed",
+--   "--triplets", "dev-test",
+--   "--autoencoder", "snli-dev",
+-- })
+
+-- sys.execute({
+--   "lua", "bin/tbhss.lua", "create", "encoder",
+--   "--cache", db_file,
+--   "--name", "snli-dev",
+--   "--triplets", "dev-train-compressed", "dev-test-compressed",
+--   "--max-records", "1000", "100",
+--   "--encoded-bits", "128",
+--   "--clauses", "512",
+--   "--state-bits", "8",
+--   "--threshold", "36",
+--   "--specificity", "4", "12",
+--   "--margin", "0.15",
+--   "--loss-alpha", "0.25",
+--   "--active-clause", "0.85",
+--   "--boost-true-positive", "true",
+--   "--evaluate-every", "1",
+--   "--epochs", "50"
+-- })
