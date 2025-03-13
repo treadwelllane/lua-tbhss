@@ -75,6 +75,18 @@ return function (db_file, skip_init)
     end
   end
 
+  local decode_classifier = function (getter)
+    return function (...)
+      local model = getter(...)
+      -- TODO: read directly from sqlite without temporary file
+      local fp = fs.tmpname()
+      fs.writefile(fp, model)
+      local t = tm.load(fp)
+      fs.rm(fp)
+      return t
+    end
+  end
+
   local decode_autoencoder = function (getter)
     return function (...)
       local model = getter(...)
@@ -93,7 +105,7 @@ return function (db_file, skip_init)
   ]])
 
   M.add_triplets_model = encode_tables(db.inserter([[
-    insert into triplets_model (name, args) values (?1, ?2)
+    insert into triplets_model (name, type, args) values (?1, ?2, ?3)
   ]]))
 
   M.add_clusters_model = encode_tables(db.inserter([[
@@ -103,6 +115,11 @@ return function (db_file, skip_init)
 
   M.add_encoder_model = encode_tables(db.inserter([[
     insert into encoder_model (name, id_triplets_model, args)
+    values (?, ?, ?)
+  ]]))
+
+  M.add_classifier_model = encode_tables(db.inserter([[
+    insert into classifier_model (name, id_triplets_model, args)
     values (?, ?, ?)
   ]]))
 
@@ -139,6 +156,12 @@ return function (db_file, skip_init)
     where id = ?1
   ]])
 
+  M.set_classifier_trained = db.runner([[
+    update classifier_model
+    set trained = true, model = ?2
+    where id = ?1
+  ]])
+
   M.set_autoencoder_trained = db.runner([[
     update autoencoder_model
     set trained = true, model = ?2
@@ -147,6 +170,10 @@ return function (db_file, skip_init)
 
   M.get_encoder = decode_encoder(db.getter([[
     select model from encoder_model where id = ?1
+  ]], "model"))
+
+  M.get_classifier = decode_classifier(db.getter([[
+    select model from classifier_model where id = ?1
   ]], "model"))
 
   M.get_autoencoder = decode_autoencoder(db.getter([[
@@ -186,6 +213,12 @@ return function (db_file, skip_init)
   M.get_encoder_model_by_name = decode_args(db.getter([[
     select *
     from encoder_model
+    where name = ?
+  ]]))
+
+  M.get_classifier_model_by_name = decode_args(db.getter([[
+    select *
+    from classifier_model
     where name = ?
   ]]))
 
@@ -234,6 +267,12 @@ return function (db_file, skip_init)
   M.get_encoder_model_by_id = decode_args(db.getter([[
     select *
     from encoder_model
+    where id = ?
+  ]]))
+
+  M.get_classifier_model_by_id = decode_args(db.getter([[
+    select *
+    from classifier_model
     where id = ?
   ]]))
 
@@ -288,6 +327,11 @@ return function (db_file, skip_init)
   M.add_sentence_triplet = db.inserter([[
     insert into sentence_triplets (id_triplets_model, id_anchor, id_positive, id_negative)
     values (?, ?, ?, ?) on conflict (id_triplets_model, id_anchor, id_positive, id_negative) do nothing
+  ]])
+
+  M.add_sentence_pair = db.inserter([[
+    insert into sentence_pairs (id_triplets_model, id_a, id_b, label)
+    values (?, ?, ?, ?) on conflict (id_triplets_model, id_a, id_b) do nothing
   ]])
 
   M.get_sentence_word_id = db.getter([[
@@ -485,6 +529,25 @@ return function (db_file, skip_init)
     end
     return r
   end
+
+  M.get_sentence_pairs = db.all([[
+    select
+      sa.fingerprint as a_fingerprint,
+      sb.fingerprint as b_fingerprint,
+      s.label as label
+    from
+      sentence_pairs s,
+      sentences sa,
+      sentences sb
+    where
+      s.id_triplets_model = ?1 and
+      sa.id_triplets_model = ?1 and
+      sa.id = s.id_a and
+      sb.id_triplets_model = ?1 and
+      sb.id = s.id_b
+    order by random()
+    limit coalesce(?2, -1)
+  ]])
 
   M.get_sentence_fingerprints = db.all([[
     select
