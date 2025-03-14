@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <assert.h>
 
 #define BYTES (sizeof(uint32_t))
 #define BITS (BYTES * CHAR_BIT)
@@ -231,6 +232,41 @@ static inline void populate_set_of_positions (
   }
 }
 
+static inline void populate_hashed_pos (
+  lua_State *L,
+  uint32_t *result,
+  unsigned int n,
+  unsigned int wavelength,
+  unsigned int dimensions,
+  unsigned int segments,
+  unsigned int buckets
+) {
+  memset(result, 0, dimensions * segments * BYTES);
+  unsigned int data[3];
+  for (unsigned int i = 0; i < n; i ++) {
+    lua_pushinteger(L, i + 1); // n
+    lua_gettable(L, 1); // token
+    lua_pushinteger(L, i + 1); // token n
+    lua_gettable(L, 2); // token position
+    lua_pushinteger(L, i + 1); // token position n
+    lua_gettable(L, 3); // token position pos
+    unsigned int token = tk_lua_checkunsigned(L, -3);
+    unsigned int position = tk_lua_checkunsigned(L, -2);
+    unsigned int pos = (unsigned int) luaL_checkinteger(L, -1);
+    lua_pop(L, 3);
+    data[0] = token;
+    data[1] = pos;
+    for (unsigned int dimension = 0; dimension < dimensions; dimension ++) {
+      data[2] = encode_pos(position, dimension, dimensions, buckets, wavelength);
+      uint32_t hash = murmur32(data, sizeof(unsigned int) * 3, 0);
+      unsigned int idx = hash % (segments * BITS);
+      unsigned int chunk = idx / BITS;
+      unsigned int bit = idx % BITS;
+      result[chunk + (dimension * segments)] |= (1 << bit);
+    }
+  }
+}
+
 static inline void populate_simhash_positional (
   lua_State *L,
   uint32_t *result,
@@ -301,7 +337,7 @@ static inline int tb_set_of_clusters (lua_State *L)
   unsigned int result_len = (n_clusters - 1) / BITS + 1;
   uint32_t result[result_len];
   populate_set_of_clusters(L, result, result_len, n, n_clusters);
-  lua_pushlstring(L, (char *) result, result_len);
+  lua_pushlstring(L, (char *) result, result_len * BYTES);
   lua_pushinteger(L, n_clusters);
   return 2;
 }
@@ -370,6 +406,23 @@ static inline int tb_simhash_positional (lua_State *L)
   return 2;
 }
 
+static inline int tb_hashed_pos (lua_State *L)
+{
+  luaL_checktype(L, 1, LUA_TTABLE);
+  luaL_checktype(L, 2, LUA_TTABLE);
+  luaL_checktype(L, 3, LUA_TTABLE);
+  unsigned int n = tk_lua_len(L, 1);
+  unsigned int wavelength = tk_lua_checkunsigned(L, 4);
+  unsigned int dimensions = tk_lua_checkunsigned(L, 5);
+  unsigned int segments = tk_lua_checkunsigned(L, 6);
+  unsigned int buckets = tk_lua_checkunsigned(L, 7);
+  uint32_t result[dimensions * segments];
+  populate_hashed_pos(L, result, n, wavelength, dimensions, segments, buckets);
+  lua_pushlstring(L, (char *) result, dimensions * segments * BYTES);
+  lua_pushinteger(L, dimensions * segments * BITS);
+  return 2;
+}
+
 static inline int tb_position (lua_State *L)
 {
   unsigned int position = tk_lua_checkunsigned(L, 1);
@@ -381,12 +434,28 @@ static inline int tb_position (lua_State *L)
   return 1;
 }
 
+static inline int tb_byte_ids (lua_State *L)
+{
+  lua_settop(L, 1);
+  size_t len;
+  unsigned char *str = (unsigned char *) luaL_checklstring(L, 1, &len);
+  lua_newtable(L); // tbl
+  for (size_t i = 0; i < len; i ++) {
+    lua_pushinteger(L, i + 1); // tbl i
+    lua_pushinteger(L, str[i]); // tbl i t
+    lua_settable(L, -3); // tbl
+  }
+  return 1;
+}
+
 static luaL_Reg tb_fns[] =
 {
+  { "hashed_pos", tb_hashed_pos },
   { "simhash_simple", tb_simhash_simple },
   { "simhash_positional", tb_simhash_positional },
   { "set_of_clusters", tb_set_of_clusters },
   { "set_of_positions", tb_set_of_positions },
+  { "byte_ids", tb_byte_ids },
   { "position", tb_position },
   { NULL, NULL }
 };

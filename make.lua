@@ -17,7 +17,8 @@ local env = {
     "santoku-matrix == 0.0.13-1",
     "santoku-sqlite == 0.0.22-1",
     "santoku-sqlite-migrate == 0.0.13-1",
-    "lsqlite3 >= 0.9.5-1"
+    "lsqlite3 >= 0.9.5-1",
+    "lpeg == 1.1.0-2"
   },
 
   test = {
