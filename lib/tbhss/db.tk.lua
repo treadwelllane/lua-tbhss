@@ -341,14 +341,32 @@ return function (db_file, skip_init)
     and word = ?2
   ]], "id")
 
+  M.get_sentence_pos_id = db.getter([[
+    select id
+    from sentence_pos
+    where id_triplets_model = ?1
+    and pos = ?2
+  ]], "id")
+
   local add_sentence_word = db.inserter([[
     insert into sentence_words (id_triplets_model, id, word)
+    values (?, ?, ?)
+  ]])
+
+  local add_sentence_pos = db.inserter([[
+    insert into sentence_pos (id_triplets_model, id, pos)
     values (?, ?, ?)
   ]])
 
   M.get_sentence_word_max = db.getter([[
     select max(id) as max
     from sentence_words
+    where id_triplets_model = ?1
+  ]], "max")
+
+  M.get_sentence_pos_max = db.getter([[
+    select max(id) as max
+    from sentence_pos
     where id_triplets_model = ?1
   ]], "max")
 
@@ -364,9 +382,21 @@ return function (db_file, skip_init)
     end
   end
 
+  M.add_sentence_pos = function (id_model, pos)
+    local id = M.get_sentence_pos_id(id_model, pos)
+    if id then
+      return id
+    else
+      local max = M.get_sentence_pos_max(id_model)
+      id = (max or 0) + 1
+      add_sentence_pos(id_model, id, pos)
+      return id
+    end
+  end
+
   local set_sentence_tokens = db.runner([[
     update sentences
-    set tokens = ?3, positions = ?4, similarities = ?5, length = ?6
+    set tokens = ?3, pos = ?4, positions = ?5, similarities = ?6, length = ?7
     where id_triplets_model = ?1
     and id = ?2
   ]])
@@ -379,10 +409,11 @@ return function (db_file, skip_init)
     and tokens is not null
   ]], "ok")
 
-  M.set_sentence_tokens = function (idm, id, ws, ps, ss, len, keep)
+  M.set_sentence_tokens = function (idm, id, ws, pos, ps, ss, len, keep)
     if not keep or not has_sentence_tokens(idm, id) then
       set_sentence_tokens(idm, id,
         cjson.encode(ws),
+        cjson.encode(pos),
         cjson.encode(ps),
         cjson.encode(ss),
         len)
@@ -401,6 +432,7 @@ return function (db_file, skip_init)
     for i = 1, #ss do
       local s = ss[i]
       s.tokens = cjson.decode(s.tokens)
+      s.pos = cjson.decode(s.pos)
       s.positions = cjson.decode(s.positions)
       s.similarities = cjson.decode(s.similarities)
     end

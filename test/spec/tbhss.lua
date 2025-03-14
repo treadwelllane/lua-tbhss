@@ -7,6 +7,8 @@ fs.mkdirp(fs.dirname(db_file))
 fs.rm(db_file, true)
 fs.rm(db_file .. "-wal", true)
 fs.rm(db_file .. "-shm", true)
+fs.rm("test/res/.train.pairs.txt", true)
+fs.rm("test/res/.test.pairs.txt", true)
 fs.rm("test/res/.train.triplets.txt", true)
 fs.rm("test/res/.test.triplets.txt", true)
 
@@ -30,10 +32,11 @@ sys.execute({
   "--cache", db_file,
   "--name", "dev-train",
   "--file", ".train.pairs.txt",
-  "--clusters", "glove", "k-medoids", "256", "1",
-  "--fingerprints", "simhash-positional", "4096", "4", "4",
-  "--weighting", "bm25", "1.2", "0.75",
-  "--max-records", "1000"
+  "--clusters", "glove", "dbscan", "2", "0.645", "8",
+  "--fingerprints", "hashed-pos", "4096", "8", "2", "8",
+  "--include-pos", "--pos-ancestors", "1",
+  -- "--clusters", "glove", "k-medoids", "128", "2",
+  -- "--weighting", "bm25", "1.2", "0.75",
 })
 
 sys.execute({
@@ -42,7 +45,6 @@ sys.execute({
   "--name", "dev-test",
   "--file", ".test.pairs.txt",
   "--model", "dev-train",
-  "--max-records", "100"
 })
 
 sys.execute({
@@ -50,15 +52,14 @@ sys.execute({
   "--cache", db_file,
   "--name", "snli-dev",
   "--pairs", "dev-train", "dev-test",
-  "--max-records", "1000", "100",
-  "--clauses", "1024",
+  "--clauses", "2048",
   "--state-bits", "8",
   "--threshold", "36",
-  "--specificity", "4", "12",
+  "--specificity", "2", "200",
   "--active-clause", "0.85",
   "--boost-true-positive", "false",
   "--evaluate-every", "1",
-  "--epochs", "200"
+  "--epochs", "400"
 })
 
 -- sys.execute({

@@ -22,7 +22,7 @@ local function snli_triplets (args)
       local chunks = str.splits(line, "\t")
       local label = str.sub(chunks())
       if arr.includes(valid_labels, label) then
-        chunks = it.drop(4, chunks)
+        chunks = it.drop(2, chunks)
         local a = str.sub(chunks())
         local b = str.sub(chunks())
         tbl.update(cache, a, label, function (ss)
@@ -75,7 +75,7 @@ local function snli_pairs (args)
       local chunks = str.splits(line, "\t")
       local label = str.sub(chunks())
       if arr.includes(valid_labels, label) then
-        chunks = it.drop(4, chunks)
+        chunks = it.drop(2, chunks)
         arr.push(pairs, {
           label = label,
           a = str.sub(chunks()),

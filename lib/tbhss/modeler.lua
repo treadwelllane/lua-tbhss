@@ -7,15 +7,16 @@ local str = require("santoku.string")
 local fs = require("santoku.fs")
 local sys = require("santoku.system")
 local init_db = require("tbhss.db")
-local util = require("tbhss.util")
 local clusters = require("tbhss.clusters")
 local hash = require("tbhss.hash")
+local re = require("re")
 
-local function tokenize_words (db, id_model, args, words)
+local function tokenize_words (db, id_model, args, words, pos)
+  local new_pos = {}
+  local new_words = {}
   local positions, similarities = {}, {}
   if args.id_parent_model then
     local n = 0
-    local new_words = {}
     for i = 1, #words do
       local w = db.get_sentence_word_id(args.id_parent_model, words[i])
       if w then
@@ -23,40 +24,101 @@ local function tokenize_words (db, id_model, args, words)
         new_words[n] = w
         positions[n] = n
         similarities[n] = 1
+        new_pos[n] = pos and db.get_sentence_pos_id(args.id_parent_model, pos[i]) or -1
       end
     end
-    return new_words, positions, similarities
+    return new_words, new_pos, positions, similarities
   else
     for i = 1, #words do
-      words[i] = db.add_sentence_word(id_model, words[i])
+      new_words[i] = db.add_sentence_word(id_model, words[i])
+      new_pos[i] = pos and db.add_sentence_pos(id_model, pos[i]) or -1
       positions[i] = i
       similarities[i] = 1
     end
-    return words, positions, similarities
+    return new_words, new_pos, positions, similarities
   end
+end
+
+local segment_pat = re.compile([[
+  segment <- token / node
+  node <- {| "(" {:tag:ident:} {:segments: {| (space {: ({| token |} / segment) :})* |} :} ")" |}
+  token <- {:token: ident :}
+  ident <- [^%s()]+
+  space <- %s+
+]])
+
+local function parse_pos (segment, args)
+  local tags = {}
+  local stack = {}
+  local words = {}
+  local pos = args.include_pos and {} or nil
+  local r = err.assert(re.match(segment, segment_pat), "failed to parse segment", segment)
+  err.assert(r.tag == "ROOT", "unexpected root tag")
+  err.assert(r.segments, "no root segments found")
+  arr.push(stack, r)
+  while #stack > 0 do
+    local v = stack[#stack]
+    if v.token then
+      arr.push(words, v.token)
+      if pos then
+        local ps
+        if args.pos_ancestors then
+          local idx = #tags - args.pos_ancestors + 1
+          idx = idx < 2 and 2 or idx
+          ps = { arr.spread(tags, idx) }
+        elseif args.dedupe_pos then
+          ps = arr.push({}, arr.spread(tags, 2))
+          arr.filter(ps, function (p, i)
+            return p ~= ps[i + 1]
+          end)
+        else
+          ps = { arr.spread(tags, 2) }
+        end
+        arr.push(pos, arr.concat(ps, "/"))
+      end
+      arr.pop(stack)
+    elseif v.done then
+      arr.pop(stack)
+      arr.pop(tags)
+    elseif v.tag and not v.idx then
+      v.idx = 1
+    elseif v.tag and v.segments and v.idx <= #v.segments then
+      arr.push(stack, v.segments[v.idx])
+      if v.idx == 1 then
+        arr.push(tags, v.tag)
+      end
+      v.idx = v.idx + 1
+    else
+      v.done = true
+    end
+  end
+  return words, pos
 end
 
 local function load_sentence (db, id_model, args, n, sentence)
-  local words = util.split(sentence)
+  local words, pos = parse_pos(sentence, args)
   local positions, similarities
   sentence = arr.concat(words, " ")
-  words, positions, similarities = tokenize_words(db, id_model, args, words)
+  words, pos, positions, similarities = tokenize_words(db, id_model, args, words, pos)
   local id = db.get_sentence_id(id_model, sentence)
   if not id then
     n = n + 1
     id = n
     db.add_sentence(id, id_model, sentence)
   end
-  db.set_sentence_tokens(id_model, id, words, positions, similarities, #words, true)
+  db.set_sentence_tokens(id_model, id, words, pos, positions, similarities, #words, true)
   return id, n
 end
 
-local function load_sentence_bytes (db, id_model, _, n, sentence)
-  local words, positions, similarities = {}, {}, {}
-  for i = 1, #sentence do
-    words[i] = str.byte(sentence, i)
+local function load_sentence_bytes (db, id_model, args, n, sentence)
+  local words = parse_pos(sentence, args)
+  sentence = arr.concat(words, " ")
+  local words = hash.byte_ids(sentence)
+  local positions = {}
+  local similarities = {}
+  for i = 1, #words do
     positions[i] = i
-    similarities[i] = i
+    similarities[i] = 1
   end
   local id = db.get_sentence_id(id_model, sentence)
   if not id then
@@ -64,52 +126,89 @@ local function load_sentence_bytes (db, id_model, _, n, sentence)
     id = n
     db.add_sentence(id, id_model, sentence)
   end
-  db.set_sentence_tokens(id_model, id, words, positions, similarities, #words, true)
+  db.set_sentence_tokens(id_model, id, words, nil, positions, similarities, #words, true)
   return id, n
+end
+
+local function get_fields (line, type)
+  local chunks = str.splits(line, "\t")
+  if type == "pairs" then
+    local a = str.sub(chunks())
+    local b = str.sub(chunks())
+    local label = str.sub(chunks())
+    return label, a, b
+  elseif type == "triplets" then
+    local anchor = str.sub(chunks())
+    local positive = str.sub(chunks())
+    local negative = str.sub(chunks())
+    return anchor, positive, negative
+  end
 end
 
 local tokenization_algorithms = {
 
-  ["bytes"] = function (db, id_model, args)
+  ["bytes"] = function (db, id_model, args, type)
     local n = 0
     local nt = 0
     for line in fs.lines(args.file) do
-      local chunks = str.splits(line, "\t")
-      local anchor = str.sub(chunks())
-      local positive = str.sub(chunks())
-      local negative = str.sub(chunks())
-      local id_anchor, id_positive, id_negative
-      id_anchor, n = load_sentence_bytes(db, id_model, args, n, anchor)
-      id_positive, n = load_sentence_bytes(db, id_model, args, n, positive)
-      id_negative, n = load_sentence_bytes(db, id_model, args, n, negative)
-      db.add_sentence_triplet(id_model, id_anchor, id_positive, id_negative)
-      nt = nt + 1
-      if args.max_records and nt >= args.max_records then
-        break
+      if type == "pairs" then
+        local label, a, b = get_fields(line, type, args)
+        local id_a, id_b
+        id_a, n = load_sentence_bytes(db, id_model, args, n, a)
+        id_b, n = load_sentence_bytes(db, id_model, args, n, b)
+        db.add_sentence_pair(id_model, id_a, id_b, label)
+        nt = nt + 1
+        if args.max_records and nt >= args.max_records then
+          break
+        end
+      elseif type == "triplets" then
+        local anchor, positive, negative = get_fields(line, type, args)
+        local id_anchor, id_positive, id_negative
+        id_anchor, n = load_sentence_bytes(db, id_model, args, n, anchor)
+        id_positive, n = load_sentence_bytes(db, id_model, args, n, positive)
+        id_negative, n = load_sentence_bytes(db, id_model, args, n, negative)
+        db.add_sentence_triplet(id_model, id_anchor, id_positive, id_negative)
+        nt = nt + 1
+        if args.max_records and nt >= args.max_records then
+          break
+        end
+      else
+        err.error("unexpected", type)
       end
     end
-    str.printf("Loaded %d triplets and %d sentences\n", nt, n)
+    str.printf("Loaded %d groups and %d sentences\n", nt, n)
   end,
 
-  ["default"] = function (db, id_model, args)
+  ["default"] = function (db, id_model, args, type)
     local n = 0
     local nt = 0
     for line in fs.lines(args.file) do
-      local chunks = str.splits(line, "\t")
-      local anchor = str.sub(chunks())
-      local positive = str.sub(chunks())
-      local negative = str.sub(chunks())
-      local id_anchor, id_positive, id_negative
-      id_anchor, n = load_sentence(db, id_model, args, n, anchor)
-      id_positive, n = load_sentence(db, id_model, args, n, positive)
-      id_negative, n = load_sentence(db, id_model, args, n, negative)
-      db.add_sentence_triplet(id_model, id_anchor, id_positive, id_negative)
-      nt = nt + 1
-      if args.max_records and nt >= args.max_records then
-        break
+      if type == "pairs" then
+        local label, a, b = get_fields(line, type, args)
+        local id_a, id_b
+        id_a, n = load_sentence(db, id_model, args, n, a)
+        id_b, n = load_sentence(db, id_model, args, n, b)
+        db.add_sentence_pair(id_model, id_a, id_b, label)
+        nt = nt + 1
+        if args.max_records and nt >= args.max_records then
+          break
+        end
+      elseif type == "triplets" then
+        local anchor, positive, negative = get_fields(line, type, args)
+        local id_anchor, id_positive, id_negative
+        id_anchor, n = load_sentence(db, id_model, args, n, anchor)
+        id_positive, n = load_sentence(db, id_model, args, n, positive)
+        id_negative, n = load_sentence(db, id_model, args, n, negative)
+        db.add_sentence_triplet(id_model, id_anchor, id_positive, id_negative)
+        nt = nt + 1
+        if args.max_records and nt >= args.max_records then
+          break
+        end
+      else
+        err.error("unexpected type", type)
       end
     end
-    str.printf("Loaded %d triplets and %d sentences\n", nt, n)
+    str.printf("Loaded %d groups and %d sentences\n", nt, n)
   end
 
 }
@@ -119,27 +218,15 @@ local function read_triplets (db, id_model, args)
     "Model not found", args.id_parent_model or id_model)
   local tokenizer = model.args.tokenizer or { "default" }
   local algo = err.assert(tokenization_algorithms[tokenizer[1]], "tokenizer not found", tokenizer[1])
-  return algo(db, id_model, args, varg.sel(2, arr.spread(tokenizer)))
+  return algo(db, id_model, args, "triplets", varg.sel(2, arr.spread(tokenizer)))
 end
 
 local function read_pairs (db, id_model, args)
-  local n = 0
-  local nt = 0
-  for line in fs.lines(args.file) do
-    local chunks = str.splits(line, "\t")
-    local a = str.sub(chunks())
-    local b = str.sub(chunks())
-    local label = str.sub(chunks())
-    local id_a, id_b
-    id_a, n = load_sentence(db, id_model, args, n, a)
-    id_b, n = load_sentence(db, id_model, args, n, b)
-    db.add_sentence_pair(id_model, id_a, id_b, label)
-    nt = nt + 1
-    if args.max_records and nt >= args.max_records then
-      break
-    end
-  end
-  str.printf("Loaded %d pairs and %d sentences\n", nt, n)
+  local model = err.assert(db.get_triplets_model_by_id(args.id_parent_model or id_model),
+    "Model not found", args.id_parent_model or id_model)
+  local tokenizer = model.args.tokenizer or { "default" }
+  local algo = err.assert(tokenization_algorithms[tokenizer[1]], "tokenizer not found", tokenizer[1])
+  return algo(db, id_model, args, "pairs", varg.sel(2, arr.spread(tokenizer)))
 end
 
 local function create_clusters (db, args)
@@ -165,15 +252,18 @@ local function create_model (db, model, args, type)
   return id_model
 end
 
-local function get_expanded_tokens (model, tokens0, nearest)
+local function get_expanded_tokens (model, tokens0, pos0, nearest)
   local tokens = {}
+  local pos = {}
   local positions = {}
   local similarities = {}
   local p = 1
   for i = 1, #tokens0 do
     local t = tokens0[i]
+    local ps = pos0[i]
     if not model.args.clusters then
       arr.push(tokens, t)
+      arr.push(pos, ps)
       arr.push(positions, p)
       arr.push(similarities, 1)
       p = p + 1
@@ -183,6 +273,7 @@ local function get_expanded_tokens (model, tokens0, nearest)
         for j = 1, #ns do
           local n = ns[j]
           arr.push(tokens, n.cluster)
+          arr.push(pos, ps)
           arr.push(positions, p)
           arr.push(similarities, n.similarity)
         end
@@ -190,15 +281,18 @@ local function get_expanded_tokens (model, tokens0, nearest)
       end
     end
   end
-  return tokens, positions, similarities, p - 1
+  return tokens, pos, positions, similarities, p - 1
 end
 
 local function expand_tokens (db, id_model, args)
+  local model = db.get_triplets_model_by_id(args.id_parent_model or id_model)
+  if not model or not model.args.clusters then
+    return
+  end
   print("Expanding tokens")
   local n = 0
   local jobs = args.jobs or sys.get_num_cores()
   local sentences = db.get_sentences(id_model)
-  local model = db.get_triplets_model_by_id(args.id_parent_model or id_model)
   local nearest = model.args.clusters and db.get_nearest_clusters(model.id)
   local chunk_size
   if jobs > #sentences then
@@ -216,8 +310,8 @@ local function expand_tokens (db, id_model, args)
         or (first_id + chunk_size - 1)
       for s_id = first_id, last_id do
         local s = sentences[s_id]
-        local tokens, positions, similarities, length = get_expanded_tokens(model, s.tokens, nearest)
-        db.set_sentence_tokens(id_model, s.id, tokens, positions, similarities, length)
+        local tokens, pos, positions, similarities, length = get_expanded_tokens(model, s.tokens, s.pos, nearest)
+        db.set_sentence_tokens(id_model, s.id, tokens, pos, positions, similarities, length)
         print(s.id)
       end
     end
@@ -297,8 +391,14 @@ local fingerprint_algorithms = {
   end,
 
   ["set-of-clusters"] = function (db, model)
-    local n_clusters = err.assert(db.get_num_clusters(model.args.id_clusters_model),
-      "Missing clusters model", model.args.id_clusters_model)
+    local n_clusters
+    if model.args.id_clusters_model then
+      n_clusters = db.get_num_clusters(model.args.id_clusters_model)
+    elseif model.args.tokenizer and model.args.tokenizer[1] == "bytes" then
+      n_clusters = 256
+    else
+      err.error("Can't figure out how what to use for n_clusters")
+    end
     if n_clusters < hash.segment_bits then
       n_clusters = hash.segment_bits
     else
@@ -307,6 +407,22 @@ local fingerprint_algorithms = {
     return function (sentence)
       return hash.set_of_clusters(sentence.tokens, n_clusters)
     end, n_clusters
+  end,
+
+  ["hashed-pos"] = function (_, _, _, wavelength, dimensions, segments, buckets)
+    return function (sentence)
+      return hash.hashed_pos(
+        sentence.tokens,
+        sentence.positions,
+        sentence.pos,
+        -- TODO: consider using these
+        -- sentence.similarities
+        -- scores,
+        wavelength,
+        dimensions,
+        segments,
+        buckets)
+    end, hash.segment_bits * dimensions * segments
   end,
 
   ["simhash-simple"] = function (_, _, _, segments)

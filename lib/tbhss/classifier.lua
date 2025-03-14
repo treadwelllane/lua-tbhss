@@ -41,8 +41,11 @@ end
 local function pack_dataset (dataset)
   local ss = {}
   local ps = {}
+  local sat = 0
+  local sat_total = #dataset.pairs * 2 * dataset.fingerprint_bits
   for i = 1, #dataset.pairs do
     local p = dataset.pairs[i]
+    sat = sat + bm.cardinality(p.a_fingerprint) + bm.cardinality(p.b_fingerprint)
     ps[i] = prep_fingerprint(bm.matrix({
       p.a_fingerprint,
       p.b_fingerprint,
@@ -52,7 +55,8 @@ local function pack_dataset (dataset)
   ss = mtx.create(ss)
   return
     bm.raw_matrix(ps, dataset.fingerprint_bits * 2 * 2),
-    mtx.raw(ss, nil, nil, "u32")
+    mtx.raw(ss, nil, nil, "u32"),
+    sat / sat_total
 end
 
 local function create_classifier (db, args)
@@ -99,13 +103,13 @@ local function create_classifier (db, args)
 
   print("Packing datasets")
 
-  local train_problems, train_solutions = pack_dataset(train_dataset)
-  local test_problems, test_solutions = pack_dataset(test_dataset)
+  local train_problems, train_solutions, train_sat = pack_dataset(train_dataset)
+  local test_problems, test_solutions, test_sat = pack_dataset(test_dataset)
 
   print("Input Bits", train_dataset.fingerprint_bits * 2 * 2)
   print("Labels", train_dataset.n_labels)
-  print("Total Train", #train_dataset.pairs)
-  print("Total Test", #test_dataset.pairs)
+  print("Total Train", #train_dataset.pairs, str.format("%.2f", train_sat))
+  print("Total Test", #test_dataset.pairs, str.format("%.2f", test_sat))
 
   local t = tm.classifier(
     train_dataset.n_labels,
@@ -116,6 +120,8 @@ local function create_classifier (db, args)
     args.boost_true_positive,
     args.specificity and args.specificity[1] or nil,
     args.specificity and args.specificity[2] or nil)
+
+  print(bm.tostring(train_dataset.pairs[1].a_fingerprint))
 
   print("Training")
 

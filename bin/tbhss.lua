@@ -53,9 +53,23 @@ local cmd_load_train_pairs = cmd_load:command("train-pairs", "load NLI dataset")
 base_flags(cmd_load_train_pairs)
 cmd_load_train_pairs:option("--name", "name of loaded dataset", nil, nil, 1, 1)
 cmd_load_train_pairs:option("--file", "path to NLI dataset file", nil, nil, 1, 1)
-cmd_load_train_pairs:option("--clusters", "name of clustering algorithm, algorithm args...", nil, function (v)
+local cmd_load_train_pairs_tokenizer = cmd_load_train_pairs:option("--tokenizer", "name of tokenization algorithm, algorithm args...", nil, function (v)
   return str.match(v, "^%-?%d*%.?%d+$") and tonumber(v) or v
 end, "+", "0-1")
+cmd_load_train_pairs:mutex(
+  cmd_load_train_pairs_tokenizer,
+  cmd_load_train_pairs:option("--clusters", "name of clustering algorithm, algorithm args...", nil, function (v)
+    return str.match(v, "^%-?%d*%.?%d+$") and tonumber(v) or v
+  end, "+", "0-1"))
+cmd_load_train_pairs:mutex(
+  cmd_load_train_pairs_tokenizer,
+  cmd_load_train_pairs:option("--include-pos", "", nil, nil, 0, "0-1"))
+cmd_load_train_pairs:mutex(
+  cmd_load_train_pairs_tokenizer,
+  cmd_load_train_pairs:option("--pos-ancestors", "", nil, tonumber, 1, "0-1"))
+cmd_load_train_pairs:mutex(
+  cmd_load_train_pairs_tokenizer,
+  cmd_load_train_pairs:option("--dedupe-pos", "", nil, nil, 0, "0-1"))
 cmd_load_train_pairs:option("--fingerprints", "name of fingerprinting algorithm, algorithm args...", nil, function (v)
   return str.match(v, "^%-?%d*%.?%d+$") and tonumber(v) or v
 end, "+", 1)
@@ -76,13 +90,23 @@ local cmd_load_train_triplets = cmd_load:command("train-triplets", "load NLI dat
 base_flags(cmd_load_train_triplets)
 cmd_load_train_triplets:option("--name", "name of loaded dataset", nil, nil, 1, 1)
 cmd_load_train_triplets:option("--file", "path to NLI dataset file", nil, nil, 1, 1)
+local cmd_load_train_triplets_tokenizer = cmd_load_train_triplets:option("--tokenizer", "name of tokenization algorithm, algorithm args...", nil, function (v)
+  return str.match(v, "^%-?%d*%.?%d+$") and tonumber(v) or v
+end, "+", "0-1")
 cmd_load_train_triplets:mutex(
-  cmd_load_train_triplets:option("--tokenizer", "name of tokenization algorithm, algorithm args...", nil, function (v)
-    return str.match(v, "^%-?%d*%.?%d+$") and tonumber(v) or v
-  end, "+", "0-1"),
+  cmd_load_train_triplets_tokenizer,
   cmd_load_train_triplets:option("--clusters", "name of clustering algorithm, algorithm args...", nil, function (v)
     return str.match(v, "^%-?%d*%.?%d+$") and tonumber(v) or v
   end, "+", "0-1"))
+cmd_load_train_triplets:mutex(
+  cmd_load_train_triplets_tokenizer,
+  cmd_load_train_triplets:option("--include-pos", "", nil, nil, 0, "0-1"))
+cmd_load_train_triplets:mutex(
+  cmd_load_train_triplets_tokenizer,
+  cmd_load_train_triplets:option("--pos-ancestors", "", nil, tonumber, 1, "0-1"))
+cmd_load_train_triplets:mutex(
+  cmd_load_train_triplets_tokenizer,
+  cmd_load_train_triplets:option("--dedupe-pos", "", nil, nil, 0, "0-1"))
 cmd_load_train_triplets:option("--fingerprints", "name of fingerprinting algorithm, algorithm args...", nil, function (v)
   return str.match(v, "^%-?%d*%.?%d+$") and tonumber(v) or v
 end, "+", 1)
