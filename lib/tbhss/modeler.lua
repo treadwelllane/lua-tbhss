@@ -352,6 +352,14 @@ local function bm25_score_tokens (tokens, tfs, dfs, saturation, length_normaliza
   return scores
 end
 
+local function default_weighting (sentence)
+  local weights = {}
+  for i = 1, #sentence.tokens do
+    weights[i] = 1;
+  end
+  return weights
+end
+
 local weighting_algorithms = {
 
   ["bm25"] = function (db, model, _, saturation, length_normalization)
@@ -485,7 +493,7 @@ local function create_fingerprints (db, id_model, args)
         or (first_id + chunk_size - 1)
       for s_id = first_id, last_id do
         local sentence = sentences[s_id]
-        local scores = weighting and weighting(sentence) or nil
+        local scores = weighting and weighting(sentence) or default_weighting(sentence)
         sentence.fingerprint = fingerprint(sentence, scores)
         db.add_sentence_fingerprint(id_model, sentence.id, sentence.fingerprint)
         print(sentence.id)
