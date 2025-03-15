@@ -337,7 +337,7 @@ local function bm25_score_tokens (tokens, tfs, dfs, saturation, length_normaliza
   local log = math.log
   for i = 1, #tokens do
     local t = tokens[i]
-    if not scores[t] then
+    if not scores[i] then
       local tf = tfs[t] or 0
       local df = dfs[t] or 0
       local tf =
@@ -346,7 +346,7 @@ local function bm25_score_tokens (tokens, tfs, dfs, saturation, length_normaliza
           (1 - length_normalization + length_normalization *
             (#tokens / average_doc_length)))
       local idf = log((total_docs - df + 0.5) / (df + 0.5) + 1)
-      scores[t] = tf * idf + 10000 -- to prevent negatives
+      scores[i] = tf * idf + 10000 -- to prevent negatives
     end
   end
   return scores
@@ -429,7 +429,7 @@ local fingerprint_algorithms = {
         if sentence.similarities[i] > max_similarity then
           max_similarity = sentence.similarities[i]
         end
-        if scores[i] > max_weight then
+        if scores[i] and scores[i] > max_weight then
           max_weight = scores[i]
         end
       end

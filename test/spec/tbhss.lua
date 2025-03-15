@@ -32,12 +32,12 @@ sys.execute({
   "--cache", db_file,
   "--name", "dev-train",
   "--file", ".train.pairs.txt",
-  "--clusters", "glove", "k-medoids", "32", "2",
+  "--clusters", "glove", "k-medoids", "32", "32",
   "--fingerprints", "hashed", "4096", "4", "1", "32",
+  "--weighting", "bm25", "1.2", "0.75",
   -- "--max-records", "1000",
   -- "--include-pos", "--pos-ancestors", "1",
   -- "--clusters", "glove", "k-medoids", "128", "2",
-  -- "--weighting", "bm25", "1.2", "0.75",
 })
 
 sys.execute({
