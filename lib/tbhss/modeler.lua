@@ -420,6 +420,7 @@ local fingerprint_algorithms = {
   ["hashed"] = function (db, model, _, wavelength, dimensions, buckets, fixed_bits)
     local n_tokens = db.get_num_clusters(model.args.id_clusters_model)
     local n_pos = db.get_num_pos(model.args.id_triplets_model)
+    n_pos = (not n_pos or n_pos < 1) and 1 or n_pos
     fixed_bits = fixed_bits or dimensions * buckets * n_tokens * n_pos
     fixed_bits = fixed_bits + (hash.segment_bits - 1 - ((fixed_bits - 1) % hash.segment_bits))
     return function (sentence, scores)

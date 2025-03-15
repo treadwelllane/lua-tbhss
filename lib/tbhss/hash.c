@@ -466,12 +466,12 @@ static inline int tb_hashed (lua_State *L)
   luaL_checktype(L, 4, LUA_TTABLE); // similarities
   luaL_checktype(L, 5, LUA_TTABLE); // scores
   unsigned int n = tk_lua_len(L, 1);
-  unsigned int wavelength = tk_lua_checkposinteger(L, 6) || 1; // wavelength
-  unsigned int dimensions = tk_lua_checkposinteger(L, 7) || 1; // dimensions
-  unsigned int buckets = tk_lua_checkposinteger(L, 8) || 1; // buckets
-  unsigned int n_tokens = tk_lua_checkposinteger(L, 9) || 1; // n_tokens
-  unsigned int n_pos = tk_lua_checkposinteger(L, 10) || 1; // n_pos
-  unsigned int fixed_bits = tk_lua_checkposinteger(L, 11); // fixed_bits
+  unsigned int wavelength = tk_lua_checkunsigned(L, 6); // wavelength
+  unsigned int dimensions = tk_lua_checkunsigned(L, 7); // dimensions
+  unsigned int buckets = tk_lua_checkunsigned(L, 8); // buckets
+  unsigned int n_tokens = tk_lua_checkunsigned(L, 9); // n_tokens
+  unsigned int n_pos = tk_lua_checkunsigned(L, 10); // n_pos
+  unsigned int fixed_bits = tk_lua_checkunsigned(L, 11); // fixed_bits
   double max_similarity = tk_lua_checkposdouble(L, 12); // max_similarity
   double max_weight = tk_lua_checkposdouble(L, 13); // max_weight
   fixed_bits = fixed_bits + (BITS - 1 - ((fixed_bits - 1) % BITS));
