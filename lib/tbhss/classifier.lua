@@ -122,10 +122,10 @@ local function create_classifier (db, args)
     args.specificity and args.specificity[2] or nil)
 
   print("Check")
-  print("test a", bm.tostring(test_dataset.pairs[1].a_fingerprint))
-  print("test b", bm.tostring(test_dataset.pairs[1].b_fingerprint))
-  print("train a", bm.tostring(train_dataset.pairs[1].a_fingerprint))
-  print("train b", bm.tostring(train_dataset.pairs[1].b_fingerprint))
+  print("test a", bm.tostring(test_dataset.pairs[1].a_fingerprint, train_dataset.fingerprint_bits))
+  print("test b", bm.tostring(test_dataset.pairs[1].b_fingerprint, train_dataset.fingerprint_bits))
+  print("train a", bm.tostring(train_dataset.pairs[1].a_fingerprint, train_dataset.fingerprint_bits))
+  print("train b", bm.tostring(train_dataset.pairs[1].b_fingerprint, train_dataset.fingerprint_bits))
 
   print("Training")
 
