@@ -474,7 +474,7 @@ static inline int tb_hashed (lua_State *L)
   unsigned int fixed_bits = tk_lua_checkposinteger(L, 11); // fixed_bits
   double max_similarity = tk_lua_checkposdouble(L, 12); // max_similarity
   double max_weight = tk_lua_checkposdouble(L, 13); // max_weight
-  fixed_bits = fixed_bits + (BITS - 1 - ((fixed_bits - 1) % BITS)) / BITS;
+  fixed_bits = fixed_bits + (BITS - 1 - ((fixed_bits - 1) % BITS));
   unsigned int fixed_len = fixed_bits / BITS;
   uint32_t result[fixed_len];
   populate_hashed(L, result, fixed_len, fixed_bits, n, wavelength, dimensions, buckets, n_tokens, n_pos, max_similarity, max_weight);
