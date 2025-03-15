@@ -421,7 +421,7 @@ local fingerprint_algorithms = {
     local n_tokens = db.get_num_clusters(model.args.id_clusters_model)
     local n_pos = db.get_num_pos(model.args.id_triplets_model)
     fixed_bits = fixed_bits or dimensions * buckets * n_tokens * n_pos
-    fixed_bits = fixed_bits + (hash.segment_bits - 1 - ((fixed_bits - 1) % hash.segment_bits)) / hash.segment_bits;
+    fixed_bits = fixed_bits + (hash.segment_bits - 1 - ((fixed_bits - 1) % hash.segment_bits))
     return function (sentence, scores)
       local max_weight = 0
       local max_similarity = 0
