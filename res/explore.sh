@@ -155,3 +155,39 @@ nohup stdbuf -oL sh -c '
   done
 
 ' 2>&1 >> explore.txt & tail -f explore.txt
+
+nohup stdbuf -oL sh -c '
+
+  set -e
+  id=2344
+
+  spec=26
+  spec_range=2
+  spec_step=+4
+  spec_stop=38
+
+  while [ $(echo "$spec <= $spec_stop" | bc) -eq 1 ]; do
+
+    specl=$(( spec - spec_range ))
+    spech=$(( spec + spec_range ))
+    [ $specl -lt 2 ] && specl=2
+
+    echo Specificity $specl $spech
+
+    nohup stdbuf -oL tbhss create classifier \
+      --cache tbhss.db \
+      --name snli24-$id-explore-$spec  \
+      --pairs snli23-train snli23-test \
+      --clauses 8192 \
+      --state-bits 8 \
+      --threshold 32 \
+      --specificity $specl $spech \
+      --active-clause 0.85 \
+      --boost-true-positive false \
+      --evaluate-every 10 \
+      --epochs 40
+
+    spec=$(echo "$spec $spec_step" | bc)
+  done
+
+' 2>&1 >> explore.txt & tail -f explore.txt
