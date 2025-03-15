@@ -24,14 +24,14 @@ local function tokenize_words (db, id_model, args, words, pos)
         new_words[n] = w
         positions[n] = n
         similarities[n] = 1
-        new_pos[n] = pos and db.get_sentence_pos_id(args.id_parent_model, pos[i]) or -1
+        new_pos[n] = pos and db.get_sentence_pos_id(args.id_parent_model, pos[i]) or 0
       end
     end
     return new_words, new_pos, positions, similarities
   else
     for i = 1, #words do
       new_words[i] = db.add_sentence_word(id_model, words[i])
-      new_pos[i] = pos and db.add_sentence_pos(id_model, pos[i]) or -1
+      new_pos[i] = pos and db.add_sentence_pos(id_model, pos[i]) or 0
       positions[i] = i
       similarities[i] = 1
     end
@@ -423,6 +423,16 @@ local fingerprint_algorithms = {
     fixed_bits = fixed_bits or dimensions * buckets * n_tokens * n_pos
     fixed_bits = fixed_bits + (hash.segment_bits - 1 - ((fixed_bits - 1) % hash.segment_bits)) / hash.segment_bits;
     return function (sentence, scores)
+      local max_weight = 0
+      local max_similarity = 0
+      for i = 1, #sentence.tokens do
+        if sentence.similarities[i] > max_similarity then
+          max_similarity = sentence.similarities[i]
+        end
+        if scores[i] > max_weight then
+          max_weight = scores[i]
+        end
+      end
       return hash.hashed(
         sentence.tokens,
         sentence.positions,
@@ -434,7 +444,9 @@ local fingerprint_algorithms = {
         buckets,
         n_tokens,
         n_pos,
-        fixed_bits)
+        fixed_bits,
+        max_similarity,
+        max_weight)
     end, fixed_bits
   end,
 

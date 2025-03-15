@@ -25,8 +25,8 @@ nohup stdbuf -oL tbhss load train-pairs \
   --name snli32-train \
   --file snli-pairs.train.txt \
   --max-records 40000 \
-  --clusters glove k-medoids 512 1 \
-  --fingerprints hashed 4096 8 1 \
+  --clusters glove k-medoids 32 1 \
+  --fingerprints hashed 4096 32 1 1024 \
   --include-pos --pos-ancestors 1 \
     2>&1 > log.txt & tail -f log.txt
   # --clusters glove dbscan 2 0.645 16 \
