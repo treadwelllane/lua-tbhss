@@ -199,7 +199,7 @@ static inline void populate_simhash_simple (
 
     unsigned int token = tk_lua_checkunsigned(L, -3);
     double similarity = tk_lua_checkposdouble(L, -2);
-    double weight = tk_lua_optposdouble(L, -1, -1);
+    double weight = tk_lua_checkposdouble(L, -1);
 
     lua_pop(L, 3);
 

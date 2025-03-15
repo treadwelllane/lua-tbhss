@@ -22,28 +22,27 @@ nohup stdbuf -oL tbhss process snli-pairs \
 
 nohup stdbuf -oL tbhss load train-pairs \
   --cache tbhss.db \
-  --name snli32-train \
+  --name snli33-train \
   --file snli-pairs.train.txt \
   --max-records 40000 \
-  --clusters glove k-medoids 32 1 \
-  --fingerprints hashed 4096 32 1 1024 \
+  --clusters glove k-medoids 32 32 \
+  --fingerprints hashed 4096 32 8 1024 \
   --include-pos --pos-ancestors 1 \
+  --weighting bm25 1.2 0.75 \
     2>&1 > log.txt & tail -f log.txt
-  # --clusters glove dbscan 2 0.645 16 \
-  # --fingerprints hashed-pos 4096 8 4 8 \
 
 nohup stdbuf -oL tbhss load test-pairs \
   --cache tbhss.db \
-  --name snli32-test \
+  --name snli33-test \
   --file snli-pairs.test.txt \
   --max-records 2000 \
-  --model snli32-train \
+  --model snli33-train \
     2>&1 > log.txt & tail -f log.txt
 
 nohup stdbuf -oL tbhss create classifier \
   --cache tbhss.db \
-  --name snli32  \
-  --pairs snli32-train snli32-test \
+  --name snli33  \
+  --pairs snli33-train snli33-test \
   --clauses 8192 \
   --state-bits 8 \
   --threshold 32 \
