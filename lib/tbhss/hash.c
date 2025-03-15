@@ -4,11 +4,34 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <math.h>
 #include <assert.h>
 
 #define BYTES (sizeof(uint32_t))
 #define BITS (BYTES * CHAR_BIT)
+
+static uint64_t const multiplier = 6364136223846793005u;
+__thread uint64_t mcg_state = 0xcafef00dd15ea5e5u;
+static inline uint32_t fast_rand ()
+{
+  uint64_t x = mcg_state;
+  unsigned int count = (unsigned int) (x >> 61);
+  mcg_state = x * multiplier;
+  return (uint32_t) ((x ^ x >> 22) >> (22 + count));
+}
+static inline void seed_rand ()
+{
+  mcg_state = time(NULL);
+}
+static inline double fast_drand ()
+{
+  return ((double)fast_rand()) / ((double)UINT32_MAX);
+}
+static inline bool fast_chance (double p)
+{
+  return fast_drand() <= p;
+}
 
 static inline double tk_lua_optposdouble (lua_State *L, int i, double def)
 {
@@ -32,6 +55,14 @@ static inline unsigned int tk_lua_len (lua_State *L, int i)
 {
   size_t l = lua_objlen(L, i);
   return l < 0 ? 0 : (unsigned int) l;
+}
+
+static inline lua_Integer tk_lua_checkposinteger (lua_State *L, int i)
+{
+  lua_Integer l = luaL_checkinteger(L, i);
+  if (l < 0)
+    luaL_error(L, "value can't be negative");
+  return l;
 }
 
 static inline unsigned int tk_lua_checkunsigned (lua_State *L, int i)
@@ -242,7 +273,9 @@ static inline void populate_hashed (
   unsigned int dimensions,
   unsigned int buckets,
   unsigned int n_tokens,
-  unsigned int n_pos
+  unsigned int n_pos,
+  double max_similarity,
+  double max_weight
 ) {
   memset(result, 0, fixed_len * BYTES);
   for (unsigned int i = 0; i < n; i ++) {
@@ -259,20 +292,27 @@ static inline void populate_hashed (
     unsigned int token = tk_lua_checkunsigned(L, -5);
     unsigned int position = tk_lua_checkunsigned(L, -4);
     unsigned int pos = (unsigned int) luaL_checkinteger(L, -3);
-    // TODO: use these
-    // unsigned int similarity = (unsigned int) luaL_checkinteger(L, -2);
-    // unsigned int weight = (unsigned int) luaL_checkinteger(L, -1);
+    double similarity = luaL_checknumber(L, -2) / max_similarity;
+    double weight = luaL_checknumber(L, -1) / max_weight;
     lua_pop(L, 5);
     for (unsigned int dimension = 0; dimension < dimensions; dimension ++) {
+      if (fast_chance(1.0 - similarity))
+        continue;
+      if (fast_chance(1.0 - weight))
+        continue;
       unsigned int bucket = encode_pos(position, dimension, dimensions, buckets, wavelength);
-      unsigned int idx =
-        // dimension bucket token pos
-        (dimension * buckets * n_tokens * n_pos) +
-        (bucket * n_tokens * n_pos) +
-        (token * n_pos) +
+      unsigned int bits_per_token = n_pos;
+      unsigned int bits_per_bucket = n_tokens * bits_per_token;
+      unsigned int bits_per_dimension = buckets * bits_per_bucket;
+      unsigned int idx0 =
+        (bits_per_dimension * dimension) +
+        (bits_per_bucket * bucket) +
+        (bits_per_token * token) +
         (pos);
+      unsigned int idx = idx0;
       if (dimensions * buckets * n_tokens * n_pos >= fixed_bits)
-        idx = murmur32(&idx, sizeof(unsigned int), 0) % fixed_bits;
+        idx = murmur32(&idx0, sizeof(unsigned int), 0) % fixed_bits;
+      fprintf(stderr, "test 1  %u %u %u %u\n", dimensions, buckets, n_tokens, n_pos);
       unsigned int chunk = idx / BITS;
       unsigned int bit = idx % BITS;
       result[chunk] |= (1 << bit);
@@ -427,16 +467,18 @@ static inline int tb_hashed (lua_State *L)
   luaL_checktype(L, 4, LUA_TTABLE); // similarities
   luaL_checktype(L, 5, LUA_TTABLE); // scores
   unsigned int n = tk_lua_len(L, 1);
-  unsigned int wavelength = tk_lua_checkunsigned(L, 6); // wavelength
-  unsigned int dimensions = tk_lua_checkunsigned(L, 7); // dimensions
-  unsigned int buckets = tk_lua_checkunsigned(L, 8); // buckets
-  unsigned int n_tokens = tk_lua_checkunsigned(L, 9); // n_tokens
-  unsigned int n_pos = tk_lua_checkunsigned(L, 10); // n_pos
-  unsigned int fixed_bits = tk_lua_checkunsigned(L, 11); // fixed_bits
+  unsigned int wavelength = tk_lua_checkposinteger(L, 6) || 1; // wavelength
+  unsigned int dimensions = tk_lua_checkposinteger(L, 7) || 1; // dimensions
+  unsigned int buckets = tk_lua_checkposinteger(L, 8) || 1; // buckets
+  unsigned int n_tokens = tk_lua_checkposinteger(L, 9) || 1; // n_tokens
+  unsigned int n_pos = tk_lua_checkposinteger(L, 10) || 1; // n_pos
+  unsigned int fixed_bits = tk_lua_checkposinteger(L, 11); // fixed_bits
+  double max_similarity = tk_lua_checkposdouble(L, 12); // max_similarity
+  double max_weight = tk_lua_checkposdouble(L, 13); // max_weight
   fixed_bits = fixed_bits + (BITS - 1 - ((fixed_bits - 1) % BITS)) / BITS;
   unsigned int fixed_len = fixed_bits / BITS;
   uint32_t result[fixed_len];
-  populate_hashed(L, result, fixed_len, fixed_bits, n, wavelength, dimensions, buckets, n_tokens, n_pos);
+  populate_hashed(L, result, fixed_len, fixed_bits, n, wavelength, dimensions, buckets, n_tokens, n_pos, max_similarity, max_weight);
   lua_pushlstring(L, (char *) result, fixed_len * BYTES);
   lua_pushinteger(L, fixed_bits);
   return 2;
@@ -483,6 +525,8 @@ int luaopen_tbhss_hash (lua_State *L)
 {
   lua_newtable(L); // t
   tk_lua_register(L, tb_fns, 0); // t
+
+  seed_rand();
 
   lua_pushinteger(L, BITS); // t i
   lua_setfield(L, -2, "segment_bits"); // t
