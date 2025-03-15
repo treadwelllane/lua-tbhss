@@ -128,6 +128,10 @@ return function (db_file, skip_init)
     values (?, ?, ?)
   ]]))
 
+  M.get_num_pos = db.getter([[
+    select count(distinct id) as n from sentence_pos where id_triplets_model = ?1
+  ]], "n")
+
   M.get_num_clusters = db.getter([[
     select count(distinct id) as n from clusters where id_clusters_model = ?1
   ]], "n")
