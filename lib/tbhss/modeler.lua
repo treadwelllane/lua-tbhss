@@ -417,7 +417,11 @@ local fingerprint_algorithms = {
     end, n_clusters
   end,
 
-  ["hashed"] = function (_, _, _, wavelength, dimensions, segments, buckets)
+  ["hashed"] = function (db, model, _, wavelength, dimensions, buckets, fixed_bits)
+    local n_tokens = db.get_num_clusters(model.args.id_clusters_model)
+    local n_pos = db.get_num_pos(model.args.id_triplets_model)
+    fixed_bits = fixed_bits or dimensions * buckets * n_tokens * n_pos
+    fixed_bits = fixed_bits + (hash.segment_bits - 1 - ((fixed_bits - 1) % hash.segment_bits)) / hash.segment_bits;
     return function (sentence, scores)
       return hash.hashed(
         sentence.tokens,
@@ -427,9 +431,11 @@ local fingerprint_algorithms = {
         scores,
         wavelength,
         dimensions,
-        segments,
-        buckets)
-    end, hash.segment_bits * dimensions * segments
+        buckets,
+        n_tokens,
+        n_pos,
+        fixed_bits)
+    end, fixed_bits
   end,
 
   ["simhash-simple"] = function (_, _, _, segments)
