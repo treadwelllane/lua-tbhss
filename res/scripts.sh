@@ -22,36 +22,37 @@ nohup stdbuf -oL tbhss process snli-pairs \
 
 nohup stdbuf -oL tbhss load train-pairs \
   --cache tbhss.db \
-  --name snli35-train \
+  --name snli37-train \
   --file snli-pairs.train.txt \
   --max-records 10000 \
   --clusters glove k-medoids 32 32 \
-  --fingerprints hashed 4096 32 8 1024 \
+  --fingerprints hashed 10000 256 16 1024 \
   --include-pos --pos-ancestors 1 \
   --weighting bm25 1.2 0.75 \
     2>&1 > log.txt & tail -f log.txt
 
 nohup stdbuf -oL tbhss load test-pairs \
   --cache tbhss.db \
-  --name snli35-test \
+  --name snli37-test \
   --file snli-pairs.test.txt \
   --max-records 1000 \
-  --model snli35-train \
+  --model snli37-train \
     2>&1 > log.txt & tail -f log.txt
 
 nohup stdbuf -oL tbhss create classifier \
   --cache tbhss.db \
-  --name snli35  \
-  --pairs snli35-train snli35-test \
-  --clauses 512 \
+  --name snli37  \
+  --pairs snli37-train snli37-test \
+  --clauses 8192 \
   --state-bits 8 \
-  --threshold 32 \
-  --specificity 28 32 \
+  --threshold 256 \
+  --specificity 2 200 \
   --active-clause 0.85 \
   --boost-true-positive false \
   --evaluate-every 10 \
-  --epochs 400 \
+  --epochs 1000 \
     2>&1 > log.txt & tail -f log.txt
+  # --specificity 28 32 \
 
 # nohup stdbuf -oL tbhss create encoder \
 #   --cache tbhss.db \
