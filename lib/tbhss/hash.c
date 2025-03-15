@@ -232,7 +232,7 @@ static inline void populate_set_of_positions (
   }
 }
 
-static inline void populate_hashed_pos (
+static inline void populate_hashed (
   lua_State *L,
   uint32_t *result,
   unsigned int n,
@@ -242,20 +242,30 @@ static inline void populate_hashed_pos (
   unsigned int buckets
 ) {
   memset(result, 0, dimensions * segments * BYTES);
+  bool use_pos = lua_type(L, 3) == LUA_TTABLE;
   unsigned int data[3];
   for (unsigned int i = 0; i < n; i ++) {
     lua_pushinteger(L, i + 1); // n
     lua_gettable(L, 1); // token
     lua_pushinteger(L, i + 1); // token n
     lua_gettable(L, 2); // token position
-    lua_pushinteger(L, i + 1); // token position n
-    lua_gettable(L, 3); // token position pos
-    unsigned int token = tk_lua_checkunsigned(L, -3);
-    unsigned int position = tk_lua_checkunsigned(L, -2);
-    unsigned int pos = (unsigned int) luaL_checkinteger(L, -1);
+    if (lua_type(L, 3) == LUA_TTABLE) {
+      lua_pushinteger(L, i + 1); // token position n
+      lua_gettable(L, 3); // token position pos
+    } else {
+      lua_pushinteger(L, -1); // token position pos
+    }
+    // TODO: use similarity and weight
+    // lua_pushinteger(L, i + 1); // token position pos n
+    // lua_gettable(L, 4); // token position similarity
+    // lua_pushinteger(L, i + 1); // token position pos similarity n
+    // lua_gettable(L, 5); // token position pos similarity weight
+    unsigned int token = tk_lua_checkunsigned(L, -5);
+    unsigned int position = tk_lua_checkunsigned(L, -4);
+    unsigned int pos = (unsigned int) luaL_checkinteger(L, -3);
     lua_pop(L, 3);
     data[0] = token;
-    data[1] = pos;
+    data[1] = use_pos ? pos : 0;
     for (unsigned int dimension = 0; dimension < dimensions; dimension ++) {
       data[2] = encode_pos(position, dimension, dimensions, buckets, wavelength);
       uint32_t hash = murmur32(data, sizeof(unsigned int) * 3, 0);
@@ -406,18 +416,23 @@ static inline int tb_simhash_positional (lua_State *L)
   return 2;
 }
 
-static inline int tb_hashed_pos (lua_State *L)
+static inline int tb_hashed (lua_State *L)
 {
   luaL_checktype(L, 1, LUA_TTABLE);
   luaL_checktype(L, 2, LUA_TTABLE);
-  luaL_checktype(L, 3, LUA_TTABLE);
+  if (lua_type(L, 3) != LUA_TNIL)
+    luaL_checktype(L, 3, LUA_TTABLE);
+  if (lua_type(L, 4) != LUA_TNIL)
+    luaL_checktype(L, 4, LUA_TTABLE);
+  if (lua_type(L, 5) != LUA_TNIL)
+    luaL_checktype(L, 5, LUA_TTABLE);
   unsigned int n = tk_lua_len(L, 1);
-  unsigned int wavelength = tk_lua_checkunsigned(L, 4);
-  unsigned int dimensions = tk_lua_checkunsigned(L, 5);
-  unsigned int segments = tk_lua_checkunsigned(L, 6);
-  unsigned int buckets = tk_lua_checkunsigned(L, 7);
+  unsigned int wavelength = tk_lua_checkunsigned(L, 6);
+  unsigned int dimensions = tk_lua_checkunsigned(L, 7);
+  unsigned int segments = tk_lua_checkunsigned(L, 8);
+  unsigned int buckets = tk_lua_checkunsigned(L, 9);
   uint32_t result[dimensions * segments];
-  populate_hashed_pos(L, result, n, wavelength, dimensions, segments, buckets);
+  populate_hashed(L, result, n, wavelength, dimensions, segments, buckets);
   lua_pushlstring(L, (char *) result, dimensions * segments * BYTES);
   lua_pushinteger(L, dimensions * segments * BITS);
   return 2;
@@ -450,7 +465,7 @@ static inline int tb_byte_ids (lua_State *L)
 
 static luaL_Reg tb_fns[] =
 {
-  { "hashed_pos", tb_hashed_pos },
+  { "hashed", tb_hashed },
   { "simhash_simple", tb_simhash_simple },
   { "simhash_positional", tb_simhash_positional },
   { "set_of_clusters", tb_set_of_clusters },

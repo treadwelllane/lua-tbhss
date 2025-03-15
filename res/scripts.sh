@@ -5,6 +5,13 @@ nohup stdbuf -oL tbhss load words \
     2>&1 > log.txt & tail -f log.txt
 
 nohup stdbuf -oL tbhss process snli-pairs \
+  --inputs snli_1.0/snli_1.0_dev.txt \
+  --train-test-ratio 0.9 \
+  --output-train snli-pairs.train.txt \
+  --output-test snli-pairs.test.txt \
+    2>&1 > log.txt & tail -f log.txt
+
+nohup stdbuf -oL tbhss process snli-pairs \
   --inputs snli_1.0/snli_1.0_train.txt snli_1.0/snli_1.0_test.txt snli_1.0/snli_1.0_dev.txt \
   --train-test-ratio 0.9 \
   --output-train snli-pairs.train.txt \
@@ -15,34 +22,36 @@ nohup stdbuf -oL tbhss process snli-pairs \
 
 nohup stdbuf -oL tbhss load train-pairs \
   --cache tbhss.db \
-  --name snli20-train \
+  --name snli31-train \
   --file snli-pairs.train.txt \
-  --max-records 20000 \
-  --clusters glove dbscan 2 0.645 5 \
-  --fingerprints simhash-positional 4096 16 4 \
-  --weighting bm25 1.2 0.75 \
+  --max-records 40000 \
+  --clusters glove k-medoids 512 16 \
+  --fingerprints hashed 4096 8 4 8 \
     2>&1 > log.txt & tail -f log.txt
+  # --clusters glove dbscan 2 0.645 16 \
+  # --fingerprints hashed-pos 4096 8 4 8 \
+  # --include-pos --pos-ancestors 1 \
 
 nohup stdbuf -oL tbhss load test-pairs \
   --cache tbhss.db \
-  --name snli20-test \
+  --name snli31-test \
   --file snli-pairs.test.txt \
   --max-records 2000 \
-  --model snli20-train \
+  --model snli31-train \
     2>&1 > log.txt & tail -f log.txt
 
 nohup stdbuf -oL tbhss create classifier \
   --cache tbhss.db \
-  --name snli20  \
-  --pairs snli20-train snli20-test \
+  --name snli31  \
+  --pairs snli31-train snli31-test \
   --clauses 8192 \
   --state-bits 8 \
-  --threshold 36 \
-  --specificity 4 12 \
+  --threshold 32 \
+  --specificity 28 32 \
   --active-clause 0.85 \
   --boost-true-positive false \
-  --evaluate-every 1 \
-  --epochs 200 \
+  --evaluate-every 10 \
+  --epochs 400 \
     2>&1 > log.txt & tail -f log.txt
 
 # nohup stdbuf -oL tbhss create encoder \

@@ -409,15 +409,14 @@ local fingerprint_algorithms = {
     end, n_clusters
   end,
 
-  ["hashed-pos"] = function (_, _, _, wavelength, dimensions, segments, buckets)
-    return function (sentence)
-      return hash.hashed_pos(
+  ["hashed"] = function (_, _, _, wavelength, dimensions, segments, buckets)
+    return function (sentence, scores)
+      return hash.hashed(
         sentence.tokens,
         sentence.positions,
         sentence.pos,
-        -- TODO: consider using these
-        -- sentence.similarities
-        -- scores,
+        sentence.similarities,
+        scores,
         wavelength,
         dimensions,
         segments,

@@ -32,9 +32,9 @@ sys.execute({
   "--cache", db_file,
   "--name", "dev-train",
   "--file", ".train.pairs.txt",
-  "--clusters", "glove", "dbscan", "2", "0.645", "8",
-  "--fingerprints", "hashed-pos", "4096", "8", "2", "8",
-  "--include-pos", "--pos-ancestors", "1",
+  "--clusters", "glove", "k-medoids", "128", "8",
+  "--fingerprints", "hashed", "4096", "4", "2", "8",
+  -- "--include-pos", "--pos-ancestors", "1",
   -- "--clusters", "glove", "k-medoids", "128", "2",
   -- "--weighting", "bm25", "1.2", "0.75",
 })
@@ -52,14 +52,14 @@ sys.execute({
   "--cache", db_file,
   "--name", "snli-dev",
   "--pairs", "dev-train", "dev-test",
-  "--clauses", "2048",
+  "--clauses", "512",
   "--state-bits", "8",
   "--threshold", "36",
   "--specificity", "2", "200",
   "--active-clause", "0.85",
   "--boost-true-positive", "false",
   "--evaluate-every", "1",
-  "--epochs", "400"
+  "--epochs", "10"
 })
 
 -- sys.execute({
