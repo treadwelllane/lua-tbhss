@@ -312,7 +312,6 @@ static inline void populate_hashed (
       unsigned int idx = idx0;
       if (dimensions * buckets * n_tokens * n_pos >= fixed_bits)
         idx = murmur32(&idx0, sizeof(unsigned int), 0) % fixed_bits;
-      fprintf(stderr, "test 1  %u %u %u %u\n", dimensions, buckets, n_tokens, n_pos);
       unsigned int chunk = idx / BITS;
       unsigned int bit = idx % BITS;
       result[chunk] |= (1 << bit);
