@@ -5,15 +5,17 @@ local env = {
   variable_prefix = "TBHSS",
   public = true,
 
+  cflags = { "-Wno-unused-function" },
+
   dependencies = {
     "lua == 5.1",
     "lua-cjson >= 2.1.0.10-1",
     "argparse >= 0.7.1-1",
-    "santoku == 0.0.245-1",
+    "santoku == 0.0.248-1",
     "santoku-fs == 0.0.33-1",
     "santoku-system == 0.0.46-1",
-    "santoku-tsetlin == 0.0.54-1",
-    "santoku-bitmap == 0.0.17-1",
+    "santoku-tsetlin == 0.0.58-1",
+    "santoku-bitmap == 0.0.29-1",
     "santoku-matrix == 0.0.13-1",
     "santoku-sqlite == 0.0.22-1",
     "santoku-sqlite-migrate == 0.0.13-1",
