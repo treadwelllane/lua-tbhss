@@ -1,24 +1,19 @@
 local serialize = require("santoku.serialize") -- luacheck: ignore
 local tm = require("santoku.tsetlin")
+local arr = require("santoku.array")
+local utc = require("santoku.utc")
 local fs = require("santoku.fs")
 local str = require("santoku.string")
 local bm = require("santoku.bitmap")
-local arr = require("santoku.array")
-local err = require("santoku.error")
-
-local function prep_fingerprint (fingerprint, bits)
-  local flipped = bm.copy(fingerprint)
-  bm.flip(flipped, 1, bits)
-  bm.extend(fingerprint, flipped, bits + 1)
-  return fingerprint
-end
+local modeler = require("tbhss.modeler")
+local util = require("tbhss.util")
 
 local function get_baseline (dataset)
   local correct = 0
   for i = 1, #dataset.triplets do
     local t = dataset.triplets[i]
-    local dn = bm.hamming(t.anchor_fingerprint, t.negative_fingerprint)
-    local dp = bm.hamming(t.anchor_fingerprint, t.positive_fingerprint)
+    local dn = bm.hamming(t.a, t.n)
+    local dp = bm.hamming(t.a, t.p)
     if dp < dn then
       correct = correct + 1
     end
@@ -26,136 +21,112 @@ local function get_baseline (dataset)
   return correct / #dataset.triplets
 end
 
-local function get_dataset (db, triplets_model, max)
-
+local function get_dataset (modeler, bits, fp)
   print("Loading sentence triplets")
-  local triplets = db.get_sentence_triplets(triplets_model.id, max)
-
-  local fingerprint_bits = triplets_model.bits
-
-  for i = 1, #triplets do
-    local s = triplets[i]
-    s.anchor_fingerprint = bm.from_raw(s.anchor_fingerprint, fingerprint_bits)
-    s.negative_fingerprint = bm.from_raw(s.negative_fingerprint, fingerprint_bits)
-    s.positive_fingerprint = bm.from_raw(s.positive_fingerprint, fingerprint_bits)
-    s.group = bm.matrix({
-      prep_fingerprint(s.anchor_fingerprint, fingerprint_bits),
-      prep_fingerprint(s.negative_fingerprint, fingerprint_bits),
-      prep_fingerprint(s.positive_fingerprint, fingerprint_bits),
-    }, fingerprint_bits * 2)
+  local triplets = {}
+  local bms = {}
+  for line in fs.lines(fp) do
+    local chunks = str.gmatch(line, "[^\t]+")
+    local a = chunks()
+    local n = chunks()
+    local p = chunks()
+    local af = bms[a] or util.prep_fingerprint(modeler.model(a), bits)
+    bms[a] = af
+    local nf = bms[n] or util.prep_fingerprint(modeler.model(n), bits)
+    bms[n] = nf
+    local pf = bms[p] or util.prep_fingerprint(modeler.model(p), bits)
+    bms[p] = pf
+    arr.push(triplets, {
+      a = af,
+      n = nf,
+      p = pf
+    })
   end
-
   return {
     triplets = triplets,
-    fingerprint_bits = fingerprint_bits,
-    input_bits = fingerprint_bits * 2,
+    bits = bits,
   }
-
 end
 
 local function pack_dataset (dataset)
   local gs = {}
   for i = 1, #dataset.triplets do
     local s = dataset.triplets[i]
-    arr.push(gs, s.group)
+    arr.push(gs, s.a, s.n, s.p)
   end
-  return bm.raw_matrix(gs, dataset.input_bits * 3)
+  return bm.raw_matrix(gs, dataset.bits * 2)
 end
 
-local function create_encoder (db, args)
+local function create (db, args)
 
   print("Creating triplet encoder")
+  local modeler = modeler.open(db, args.modeler)
 
-  local triplets_model_train = db.get_triplets_model_by_name(args.triplets[1])
-  if not triplets_model_train or triplets_model_train.loaded ~= 1 then
-    err.error("Train triplets model not loaded", args.triplets[1])
-  elseif triplets_model_train.type ~= "triplets" then
-    err.error("Not a triplets model")
-  end
+  print("Loading train")
+  local train_dataset = get_dataset(modeler, modeler.hidden, args.triplets[1])
+  local train_data = pack_dataset(train_dataset)
 
-  local triplets_model_test = db.get_triplets_model_by_name(args.triplets[2])
-  if not triplets_model_test or triplets_model_test.loaded ~= 1 then
-    err.error("Test triplets model not loaded", args.triplets[2])
-  elseif triplets_model_test.type ~= "triplets" then
-    err.error("Not a triplets model")
-  end
-  if triplets_model_test.args.id_parent_model ~= triplets_model_train.id then
-    print("WARNING: test triplets model is not related to train model",
-      triplets_model_train.name, triplets_model_test.name)
-  end
-
-  local encoder_model = db.get_encoder_model_by_name(args.name)
-
-  if not encoder_model then
-    local id = db.add_encoder_model(args.name, triplets_model_train.id, args)
-    encoder_model = db.get_encoder_model_by_id(id)
-    assert(encoder_model, "this is a bug! encoder model not created")
-  end
-
-  if encoder_model.trained == 1 then
-    err.error("Encoder already created")
-  end
-
-  print("Loading datasets")
-
-  local train_dataset = get_dataset(db, triplets_model_train,
-    args.max_records and args.max_records[1] or nil)
-
-  local test_dataset = get_dataset(db, triplets_model_test,
-    args.max_records and args.max_records[2] or nil)
+  print("Loading test")
+  local test_dataset = get_dataset(modeler, modeler.hidden, args.triplets[2])
+  local test_data = pack_dataset(test_dataset)
 
   print("Calculating baselines")
-
   local train_baseline = get_baseline(train_dataset)
   local test_baseline = get_baseline(test_dataset)
 
-  print("Packing datasets")
-
-  local train_data = pack_dataset(train_dataset)
-  local test_data = pack_dataset(test_dataset)
-
-  print("Input Bits", train_dataset.input_bits)
-  print("Encoded Bits", args.encoded_bits)
+  print("Input Bits", train_dataset.bits)
+  print("Encoded Bits", args.hidden)
   print("Total Train", #train_dataset.triplets)
   print("Total Test", #test_dataset.triplets)
 
-  local t = tm.encoder(
-    args.encoded_bits, train_dataset.input_bits / 2, args.clauses,
-    args.state_bits, args.threshold, args.boost_true_positive,
-    args.specificity and args.specificity[1] or nil,
-    args.specificity and args.specificity[2] or nil)
+  local t = tm.encoder({
+    visible = train_dataset.bits,
+    hidden = args.hidden,
+    clauses = args.clauses,
+    state_bits = args.state_bits,
+    target = args.target,
+    boost_true_positive = args.boost_true_positive,
+    spec_low = args.spec_low or args.specificity[1],
+    spec_high = args.spec_high or args.specificity[2],
+    evaluate_every = args.evaluate_every,
+  })
 
   print("Training")
-
-  str.printf("Initial                Test %4.2f  Train %4.2f\n", test_baseline, train_baseline)
-
-  for epoch = 1, args.epochs do
-
-    local start = os.time()
-    tm.train(t, #train_dataset.triplets, train_data, args.active_clause,
-      args.loss_alpha, args.margin)
-    local duration = os.time() - start
-
-    if epoch == args.epochs or epoch % args.evaluate_every == 0 then
-      local train_score = tm.evaluate(t, #train_dataset.triplets, train_data, args.margin)
-      local test_score = tm.evaluate(t, #test_dataset.triplets, test_data, args.margin)
-      str.printf("Epoch %-4d  Time %-4d  Test %4.2f  Train %4.2f\n",
-        epoch, duration, test_score, train_score)
-    else
-      str.printf("Epoch %-4d  Time %d\n",
-        epoch, duration)
+  str.printf("Baseline  Test %4.2f  Train %4.2f\n", test_baseline, train_baseline)
+  local stopwatch = utc.stopwatch()
+  t.train({
+    corpus = train_data,
+    samples = #train_dataset.triplets,
+    active_clause = args.active_clause,
+    loss_alpha = args.loss_alpha,
+    margin = args.margin,
+    iterations = args.iterations,
+    each = function (epoch)
+      local duration, total = stopwatch()
+      if epoch == args.epochs or epoch % args.evaluate_every == 0 then
+        local train_score = t.evaluate({
+          corpus = train_data,
+          samples = #train_dataset.triplets,
+          margin = args.margin
+        })
+        local test_score = t.evaluate({
+          corpus = test_data,
+          samples = #test_dataset.triplets,
+          margin = args.margin
+        })
+        str.printf("Epoch %-4d   Time  %6.2f  %6.2f   Test %4.2f  Train %4.2f\n",
+          epoch, duration, total, test_score, train_score)
+      else
+        str.printf("Epoch %-4d   Time  %6.2f  %6.2f\n",
+          epoch, duration, total)
+      end
     end
+  })
 
-  end
-
-  -- TODO: write directly to sqlite without temporary file
-  local fp = fs.tmpname()
-  tm.persist(t, fp)
-  db.set_encoder_trained(encoder_model.id, fs.readfile(fp))
-  fs.rm(fp)
+  db.add_encoder(args.name, modeler.name, t.persist())
 
 end
 
 return {
-  create_encoder = create_encoder,
+  create = create,
 }

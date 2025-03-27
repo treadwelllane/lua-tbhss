@@ -3,7 +3,6 @@ local varg = require("santoku.varg")
 local fs = require("santoku.fs")
 local num = require("santoku.num")
 local it = require("santoku.iter")
-local err = require("santoku.error")
 local tbl = require("santoku.table")
 local arr = require("santoku.array")
 
@@ -29,27 +28,34 @@ local function write_triplets (triplets, file, s, e)
   fs.writefile(file, arr.concat(tmp))
 end
 
-local function write_pairs (pairs, file, s, e)
+local function write_samples (samples, file, s, e)
   local tmp = {}
   s = s or 1
-  e = e or #pairs
+  e = e or #samples
   for i = s, e do
-    local t = pairs[i]
-    arr.push(tmp, t.a, "\t", t.b, "\t", t.label, "\n")
+    local t = samples[i]
+    arr.push(tmp, t.label, "\t", t.review, "\n")
   end
   fs.writefile(file, arr.concat(tmp))
 end
 
-local function pair_sentences (pairs, s, e)
+local function sample_sentences (samples, s, e)
   local out = {}
-  s = s or 1
-  e = e or #pairs
+  e = e or #samples
   for i = s, e do
-    local p = pairs[i]
-    out[p.a] = true
-    out[p.b] = true
+    local p = samples[i]
+    out[p.review] = true
   end
   out = it.collect(it.keys(out))
+  arr.shuffle(out)
+  return out
+end
+
+local function sentences_flattened (sentences)
+  local out = {}
+  for s in pairs(sentences) do
+    arr.push(out, s)
+  end
   arr.shuffle(out)
   return out
 end
@@ -91,24 +97,27 @@ local valid_labels = it.set(it.vals({ "entailment", "contradiction", "neutral" }
 
 local function snli (args)
   print("Processing SNLI")
-  if not (args.pairs or args.triplets or args.sentences) then
+  if not (args.triplets or args.sentences) then
     return
   end
-  local pairs = args.pairs and {}
   local triplets = args.triplets and {}
-  local sentences_only = not args.pairs and not args.triplets and {}
+  local sentences_only = not args.triplets and {}
+  local n = 0
   for i = 1, #args.inputs do
+    if args.max and n > args.max then
+      break
+    end
     print("Reading", args.inputs[i])
     for line in it.drop(1, fs.lines(args.inputs[i])) do
+      if args.max and n > args.max then
+        break
+      end
       local chunks = str.splits(line, "\t")
       local label = str.sub(chunks())
       if valid_labels[label] then
         chunks = it.drop(4, chunks)
         local a = str.sub(chunks())
         local b = str.sub(chunks())
-        if pairs then
-          arr.push(pairs, { label = label, a = a, b = b })
-        end
         if triplets then
           tbl.update(triplets, a, label, function (ss)
             ss = ss or {}
@@ -120,25 +129,7 @@ local function snli (args)
           sentences_only[a] = true
           sentences_only[b] = true
         end
-      end
-    end
-  end
-  if pairs then
-    print("Generating pairs")
-    arr.shuffle(pairs)
-    local train_end = args.train_test_ratio and num.floor(#pairs * args.train_test_ratio)
-    local train_start = train_end and 1
-    if train_end then
-      write_pairs(pairs, args.pairs[1], 1, train_end)
-      write_pairs(pairs, args.pairs[2], train_end + 1, #pairs)
-      if args.sentences then
-        write_sentences(pair_sentences(pairs, 1, train_end), args.sentences[1])
-        write_sentences(pair_sentences(pairs, train_end + 1, #pairs), args.sentences[2])
-      end
-    else
-      write_pairs(pairs, args.pairs[1])
-      if sentences then
-        write_sentences(pair_sentences(pairs), args.sentences[1])
+        n = n + 1
       end
     end
   end
@@ -147,7 +138,6 @@ local function snli (args)
     triplets = triplets_flattened(triplets)
     arr.shuffle(triplets)
     local train_end = args.train_test_ratio and num.floor(#triplets * args.train_test_ratio)
-    local train_start = train_end and 1
     if train_end then
       write_triplets(triplets, args.triplets[1], 1, train_end)
       write_triplets(triplets, args.triplets[2], train_end + 1, #triplets)
@@ -157,7 +147,7 @@ local function snli (args)
       end
     else
       write_triplets(triplets, args.triplets[1])
-      if sentences then
+      if args.sentences then
         write_sentences(triplet_sentences(triplets), args.sentences[1])
       end
     end
@@ -167,7 +157,70 @@ local function snli (args)
     sentences_only = sentences_flattened(sentences_only)
     arr.shuffle(sentences_only)
     local train_end = args.train_test_ratio and num.floor(#sentences_only * args.train_test_ratio)
-    local train_start = train_end and 1
+    if train_end then
+      write_sentences(sentences_only, args.sentences[1], 1, train_end)
+      write_sentences(sentences_only, args.sentences[2], train_end + 1, #sentences_only)
+    else
+      write_sentences(sentences_only, args.sentences[1])
+    end
+  end
+end
+
+local function map_imdb_files (label, fp)
+  local review = fs.readfile(fp)
+  review = str.gsub(review, "[\t\n]", "")
+  return { label = label, review = review }
+end
+
+local function imdb (args)
+  print("Processing IMDB")
+  if not (args.samples or args.sentences) then
+    return
+  end
+  local samples = args.samples and {}
+  local sentences_only = not args.samples and {}
+  for i = 1, #args.dirs do
+    print("Reading", args.dirs[i])
+    local pos = it.map(map_imdb_files, it.paste(0, fs.files(fs.join(args.dirs[i], "pos"), true)))
+    local neg = it.map(map_imdb_files, it.paste(1, fs.files(fs.join(args.dirs[i], "neg"), true)))
+    while not args.max or #samples < args.max * 2  do
+      local p = pos()
+      local n = neg()
+      if not p or not n then
+        break
+      end
+      if samples then
+        arr.push(samples, p, n)
+      end
+      if sentences_only then
+        sentences_only[p] = true
+        sentences_only[n] = true
+      end
+    end
+  end
+  if samples then
+    print("Generating samples")
+    arr.shuffle(samples)
+    local train_end = args.train_test_ratio and num.floor(#samples * args.train_test_ratio)
+    if train_end then
+      write_samples(samples, args.samples[1], 1, train_end)
+      write_samples(samples, args.samples[2], train_end + 1, #samples)
+      if args.sentences then
+        write_sentences(sample_sentences(samples, 1, train_end), args.sentences[1])
+        write_sentences(sample_sentences(samples, train_end + 1, #samples), args.sentences[2])
+      end
+    else
+      write_samples(samples, args.samples[1])
+      if args.sentences then
+        write_sentences(sample_sentences(samples), args.sentences[1])
+      end
+    end
+  end
+  if sentences_only then
+    print("Generating sentences")
+    sentences_only = sentences_flattened(sentences_only)
+    arr.shuffle(sentences_only)
+    local train_end = args.train_test_ratio and num.floor(#sentences_only * args.train_test_ratio)
     if train_end then
       write_sentences(sentences_only, args.sentences[1], 1, train_end)
       write_sentences(sentences_only, args.sentences[2], train_end + 1, #sentences_only)
@@ -179,4 +232,5 @@ end
 
 return {
   snli = snli,
+  imdb = imdb,
 }

@@ -1,160 +1,139 @@
 local serialize = require("santoku.serialize") -- luacheck: ignore
 local tm = require("santoku.tsetlin")
+local arr = require("santoku.array")
+local utc = require("santoku.utc")
 local fs = require("santoku.fs")
 local str = require("santoku.string")
 local bm = require("santoku.bitmap")
 local mtx = require("santoku.matrix")
-local err = require("santoku.error")
+local json = require("cjson")
+local modeler = require("tbhss.modeler")
+local util = require("tbhss.util")
 
-local function prep_fingerprint (fingerprint, bits)
-  local flipped = bm.copy(fingerprint)
-  bm.flip(flipped, 1, bits)
-  bm.extend(fingerprint, flipped, bits + 1)
-  return fingerprint
-end
-
-local function get_dataset (db, pairs_model, max)
-  print("Loading sentence pairs")
-  local pairs = db.get_sentence_pairs(pairs_model.id, max)
-  local fingerprint_bits = pairs_model.bits
+local function get_dataset (modeler, bits, fp)
+  print("Loading sentence samples")
   local label_id_next = 1
   local labels = {}
-  for i = 1, #pairs do
-    local s = pairs[i]
-    s.a_fingerprint = bm.from_raw(s.a_fingerprint, fingerprint_bits)
-    s.b_fingerprint = bm.from_raw(s.b_fingerprint, fingerprint_bits)
-    s.label_id = labels[s.label]
-    if not s.label_id then
-      s.label_id = label_id_next
+  local samples = {}
+  local bms = {}
+  for line in fs.lines(fp) do
+    local chunks = str.gmatch(line, "[^\t\n]+")
+    local label = chunks()
+    local sample = chunks()
+    local samplef = bms[sample] or modeler.model(sample)
+    bms[sample] = samplef
+    local label_id = labels[label]
+    if not label_id then
+      label_id = label_id_next
       label_id_next = label_id_next + 1
-      labels[s.label] = s.label_id
+      labels[label] = label_id
+      labels[label_id] = label
     end
+    arr.push(samples, { label = label_id, sample = samplef })
   end
   return {
-    pairs = pairs,
+    samples = samples,
     n_labels = label_id_next - 1,
     labels = labels,
-    fingerprint_bits = fingerprint_bits,
+    bits = bits,
   }
 end
 
 local function pack_dataset (dataset)
   local ss = {}
   local ps = {}
-  local sat = 0
-  local sat_total = #dataset.pairs * 2 * dataset.fingerprint_bits
-  for i = 1, #dataset.pairs do
-    local p = dataset.pairs[i]
-    sat = sat + bm.cardinality(p.a_fingerprint) + bm.cardinality(p.b_fingerprint)
-    ps[i] = prep_fingerprint(bm.matrix({
-      p.a_fingerprint,
-      p.b_fingerprint,
-    }, dataset.fingerprint_bits), dataset.fingerprint_bits)
-    ss[i] = p.label_id - 1 -- TODO: annoying that this is needed to translate to C-land. C should assume 1-indexing.
+  for i = 1, #dataset.samples do
+    local p = dataset.samples[i]
+    local problem = util.prep_fingerprint(p.sample, dataset.bits * 2)
+    local solution = p.label - 1 -- TODO: annoying that tsetlin is 0 and lua is 1-based
+    ps[i] = problem
+    ss[i] = solution
   end
   ss = mtx.create(ss)
   return
-    bm.raw_matrix(ps, dataset.fingerprint_bits * 2 * 2),
-    mtx.raw(ss, nil, nil, "u32"),
-    sat / sat_total
+    bm.raw_matrix(ps, dataset.bits * 2 * 2),
+    mtx.raw(ss, nil, nil, "u32")
 end
 
-local function create_classifier (db, args)
+local function create (db, args)
 
   print("Creating classifier")
+  local modeler = modeler.open(db, args.modeler)
 
-  local pairs_model_train = db.get_triplets_model_by_name(args.pairs[1])
-  if not pairs_model_train or pairs_model_train.loaded ~= 1 then
-    err.error("Train pairs model not loaded", args.pairs[1])
-  elseif pairs_model_train.type ~= "pairs" then
-    err.error("Not a pairs model")
-  end
+  print("Loading train")
+  local train_dataset = get_dataset(modeler, modeler.hidden, args.samples[1])
+  local train_problems, train_solutions = pack_dataset(train_dataset)
 
-  local pairs_model_test = db.get_triplets_model_by_name(args.pairs[2])
-  if not pairs_model_test or pairs_model_test.loaded ~= 1 then
-    err.error("Test pairs model not loaded", args.pairs[2])
-  elseif pairs_model_test.type ~= "pairs" then
-    err.error("Not a pairs model")
-  end
-  if pairs_model_test.args.id_parent_model ~= pairs_model_train.id then
-    print("WARNING: test pairs model is not related to train model",
-      pairs_model_train.name, pairs_model_test.name)
-  end
+  print("Loading test")
+  local test_dataset = get_dataset(modeler, modeler.hidden, args.samples[2])
+  local test_problems, test_solutions = pack_dataset(test_dataset)
 
-  local classifier_model = db.get_classifier_model_by_name(args.name)
-
-  if not classifier_model then
-    local id = db.add_classifier_model(args.name, pairs_model_train.id, args)
-    classifier_model = db.get_classifier_model_by_id(id)
-    assert(classifier_model, "this is a bug! classifier model not created")
-  end
-
-  if classifier_model.trained == 1 then
-    err.error("Classifier already created")
-  end
-
-  print("Loading datasets")
-
-  local train_dataset = get_dataset(db, pairs_model_train,
-    args.max_records and args.max_records[1] or nil)
-
-  local test_dataset = get_dataset(db, pairs_model_test,
-    args.max_records and args.max_records[2] or nil)
-
-  print("Packing datasets")
-
-  local train_problems, train_solutions, train_sat = pack_dataset(train_dataset)
-  local test_problems, test_solutions, test_sat = pack_dataset(test_dataset)
-
-  print("Input Bits", train_dataset.fingerprint_bits * 2 * 2)
+  print("Input Bits", train_dataset.bits * 2 * 2)
   print("Labels", train_dataset.n_labels)
-  print("Total Train", #train_dataset.pairs, str.format("%.2f", train_sat))
-  print("Total Test", #test_dataset.pairs, str.format("%.2f", test_sat))
+  print("Total Train", #train_dataset.samples)
+  print("Total Test", #test_dataset.samples)
 
-  local t = tm.classifier(
-    train_dataset.n_labels,
-    train_dataset.fingerprint_bits * 2,
-    args.clauses,
-    args.state_bits,
-    args.threshold,
-    args.boost_true_positive,
-    args.specificity and args.specificity[1] or nil,
-    args.specificity and args.specificity[2] or nil)
+  print("Creating classifier")
+  local t = tm.classifier({
+    classes = train_dataset.n_labels,
+    features = train_dataset.bits * 2,
+    clauses = args.clauses,
+    state_bits = args.state_bits,
+    target = args.target,
+    boost_true_positive = args.boost_true_positive,
+    spec_low = args.spec_low or args.specificity[1],
+    spec_high = args.spec_high or args.specificity[2],
+    evaluate_every = args.evaluate_every,
+  })
 
-  print("Check")
-  print("test a", bm.tostring(test_dataset.pairs[1].a_fingerprint, train_dataset.fingerprint_bits))
-  print("test b", bm.tostring(test_dataset.pairs[1].b_fingerprint, train_dataset.fingerprint_bits))
-  print("train a", bm.tostring(train_dataset.pairs[1].a_fingerprint, train_dataset.fingerprint_bits))
-  print("train b", bm.tostring(train_dataset.pairs[1].b_fingerprint, train_dataset.fingerprint_bits))
-
-  print("Training")
-
-  for epoch = 1, args.epochs do
-
-    local start = os.time()
-    tm.train(t, #train_dataset.pairs, train_problems, train_solutions, args.active_clause)
-    local duration = os.time() - start
-
-    if epoch == args.epochs or epoch % args.evaluate_every == 0 then
-      local train_score = tm.evaluate(t, #train_dataset.pairs, train_problems, train_solutions)
-      local test_score = tm.evaluate(t, #test_dataset.pairs, test_problems, test_solutions)
-      str.printf("Epoch %-4d  Time %-4d  Test %4.2f  Train %4.2f\n",
-        epoch, duration, test_score, train_score)
-    else
-      str.printf("Epoch %-4d  Time %d\n",
-        epoch, duration)
+  print("Training classifier")
+  local stopwatch = utc.stopwatch()
+  t.train({
+    problems = train_problems,
+    solutions = train_solutions,
+    samples = #train_dataset.samples,
+    active_clause = args.active_clause,
+    iterations = args.iterations,
+    each = function (epoch)
+      local duration, total = stopwatch()
+      if epoch == args.epochs or epoch % args.evaluate_every == 0 then
+        local train_score = t.evaluate({
+          problems = train_problems,
+          solutions = train_solutions,
+          samples = #train_dataset.samples
+        })
+        local test_score = t.evaluate({
+          problems = test_problems,
+          solutions = test_solutions,
+          samples = #test_dataset.samples
+        })
+        str.printf("Epoch %-4d   Time  %6.2f  %6.2f   Test %4.2f  Train %4.2f\n",
+          epoch, duration, total, test_score, train_score)
+      else
+        str.printf("Epoch %-4d   Time  %6.2f  %6.2f\n",
+          epoch, duration, total)
+      end
     end
+  })
 
+  db.add_classifier(args.name, modeler.name, json.encode(train_dataset.labels), t.persist())
+
+end
+
+local function open (db, name)
+  local c = db.get_classifier(name)
+  c.labels = json.decode(c.labels)
+  c.modeler = modeler.open(db, c.modeler)
+  c.classifier = tm.load(c.classifier, nil, name)
+  c.classify = function (a)
+    a = util.prep_fingerprint(c.modeler.model(a), c.modeler.hidden * 2)
+    local id = c.classifier.predict(a)
+    return id and c.labels[id]
   end
-
-  -- TODO: write directly to sqlite without temporary file
-  local fp = fs.tmpname()
-  tm.persist(t, fp)
-  db.set_classifier_trained(classifier_model.id, fs.readfile(fp))
-  fs.rm(fp)
-
+  return c
 end
 
 return {
-  create_classifier = create_classifier,
+  create = create,
+  open = open,
 }

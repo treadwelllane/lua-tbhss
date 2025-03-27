@@ -28,12 +28,19 @@ end
 local cmd_process = parser:command("process", "pre-process data files")
 cmd_process:command_target("cmd_process")
 
-local cmd_process_snli = cmd_process:command("snli", "parse SNLI dataset into pairs, triplets, and sentences")
+local cmd_process_snli = cmd_process:command("snli", "parse SNLI dataset into triplets and sentences")
 cmd_process_snli:option("--inputs", "Stanford NLI formatted input files", nil, nil, "+", 1)
-cmd_process_snli:option("--train-test-ratio", "ratio of train to test pairs", nil, tonumber, 1, "?")
-cmd_process_snli:option("--pairs", "file to write pairs to", nil, nil, "+", "?")
+cmd_process_snli:option("--train-test-ratio", "ratio of train to test triplets", nil, tonumber, 1, "?")
 cmd_process_snli:option("--triplets", "file to write triplets to", nil, nil, "+", "?")
 cmd_process_snli:option("--sentences", "file to write sentences to", nil, nil, "+", "?")
+cmd_process_snli:option("--max", "max number of triplets", nil, tonumber, 1, "?")
+
+local cmd_process_imdb = cmd_process:command("imdb", "parse IMDB dataset into samples and sentences")
+cmd_process_imdb:option("--dirs", "Path to IMDB dataset train/test subfolders", nil, nil, "+", 1)
+cmd_process_imdb:option("--train-test-ratio", "ratio of train to test samples", nil, tonumber, 1, "?")
+cmd_process_imdb:option("--samples", "file to write samples to", nil, nil, "+", "?")
+cmd_process_imdb:option("--sentences", "file to write sentences to", nil, nil, "+", "?")
+cmd_process_imdb:option("--max", "max number of samples", nil, tonumber, 1, "?")
 
 local cmd_load = parser:command("load", "load data into the cache")
 cmd_load:command_target("cmd_load")
@@ -66,58 +73,58 @@ end, 3, 1)
 cmd_create_modeler:option("--hidden", "number of hidden features to capture", nil, tonumber, 1, 1)
 cmd_create_modeler:option("--iterations", "Number of iterations", nil, tonumber, 1, 1)
 
-local cmd_create_encoder = cmd_create:command("encoder", "create an encoder")
-base_flags(cmd_create_encoder)
-cmd_create_encoder:option("--name", "name of created encoder", nil, nil, 1, 1)
-cmd_create_encoder:option("--triplets", "paths to train and test triplets.txt files", nil, nil, 2, 1)
-cmd_create_encoder:option("--modeler", "name of modeler to use", nil, nil, 1, 1)
-cmd_create_encoder:option("--max-records", "Max number of train and test pairs", nil, tonumber, 2, "0-1")
-cmd_create_encoder:option("--hidden", "number of hidden features to train", nil, tonumber, 1, 1)
-cmd_create_encoder:option("--margin", "margin for triplet loss", nil, tonumber, 1, 1)
-cmd_create_encoder:option("--loss-alpha", "scale for loss function", nil, tonumber, 1, 1)
-cmd_create_encoder:option("--clauses", "Tsetlin Machine clauses", nil, tonumber, 1, 1)
-cmd_create_encoder:option("--state-bits", "Tsetlin Machine state bits", nil, tonumber, 1, 1)
-cmd_create_encoder:option("--threshold", "Tsetlin Machine threshold", nil, tonumber, 1, 1)
-cmd_create_encoder:option("--specificity", "Tsetlin Machine specificity", nil, tonumber, 2, 1)
-cmd_create_encoder:option("--active-clause", "Tsetlin Machine active clause", nil, tonumber, 1, 1)
-cmd_create_encoder:option("--boost-true-positive", "Tsetlin Machine boost true positive", nil, fun.bind(op.eq, "true"), 1, 1):choices({ "true", "false" })
-cmd_create_encoder:option("--evaluate-every", "Evaluation frequency", 5, tonumber, 1, 1)
-cmd_create_encoder:option("--iterations", "Number of iterations", nil, tonumber, 1, 1)
-
 local cmd_create_classifier = cmd_create:command("classifier", "create a classifier")
 base_flags(cmd_create_classifier)
 cmd_create_classifier:option("--name", "name of created classifier", nil, nil, 1, 1)
-cmd_create_classifier:option("--pairs", "paths to train and test pairs.txt files", nil, nil, 2, 1)
+cmd_create_classifier:option("--samples", "paths to train and test samples.txt files", nil, nil, 2, 1)
 cmd_create_classifier:option("--modeler", "name of modeler to use", nil, nil, 1, 1)
-cmd_create_classifier:option("--max-records", "Max number of train and test pairs", nil, tonumber, 2, "0-1")
 cmd_create_classifier:option("--clauses", "Tsetlin Machine clauses", nil, tonumber, 1, 1)
 cmd_create_classifier:option("--state-bits", "Tsetlin Machine state bits", nil, tonumber, 1, 1)
-cmd_create_classifier:option("--threshold", "Tsetlin Machine threshold", nil, tonumber, 1, 1)
+cmd_create_classifier:option("--target", "Tsetlin Machine target", nil, tonumber, 1, 1)
 cmd_create_classifier:option("--specificity", "Tsetlin Machine specificity", nil, tonumber, 2, 1)
 cmd_create_classifier:option("--active-clause", "Tsetlin Machine active clause", nil, tonumber, 1, 1)
 cmd_create_classifier:option("--boost-true-positive", "Tsetlin Machine boost true positive", nil, fun.bind(op.eq, "true"), 1, 1):choices({ "true", "false" })
 cmd_create_classifier:option("--evaluate-every", "Evaluation frequency", 5, tonumber, 1, 1)
 cmd_create_classifier:option("--iterations", "Number of iterations", nil, tonumber, 1, 1)
 
+local cmd_create_encoder = cmd_create:command("encoder", "create an encoder")
+base_flags(cmd_create_encoder)
+cmd_create_encoder:option("--name", "name of created encoder", nil, nil, 1, 1)
+cmd_create_encoder:option("--triplets", "paths to train and test triplets.txt files", nil, nil, 2, 1)
+cmd_create_encoder:option("--modeler", "name of modeler to use", nil, nil, 1, 1)
+cmd_create_encoder:option("--hidden", "number of hidden features to train", nil, tonumber, 1, 1)
+cmd_create_encoder:option("--margin", "margin for triplet loss", nil, tonumber, 1, 1)
+cmd_create_encoder:option("--loss-alpha", "scale for loss function", nil, tonumber, 1, 1)
+cmd_create_encoder:option("--clauses", "Tsetlin Machine clauses", nil, tonumber, 1, 1)
+cmd_create_encoder:option("--state-bits", "Tsetlin Machine state bits", nil, tonumber, 1, 1)
+cmd_create_encoder:option("--target", "Tsetlin Machine target", nil, tonumber, 1, 1)
+cmd_create_encoder:option("--specificity", "Tsetlin Machine specificity", nil, tonumber, 2, 1)
+cmd_create_encoder:option("--active-clause", "Tsetlin Machine active clause", nil, tonumber, 1, 1)
+cmd_create_encoder:option("--boost-true-positive", "Tsetlin Machine boost true positive", nil, fun.bind(op.eq, "true"), 1, 1):choices({ "true", "false" })
+cmd_create_encoder:option("--evaluate-every", "Evaluation frequency", 5, tonumber, 1, 1)
+cmd_create_encoder:option("--iterations", "Number of iterations", nil, tonumber, 1, 1)
+
 local args = parser:parse()
 
 if args.cmd == "process" and args.cmd_process == "snli" then
   preprocess.snli(args)
+elseif args.cmd == "process" and args.cmd_process == "imdb" then
+  preprocess.imdb(args)
   return
 end
 
 local db = init_db(args.cache)
 
 if args.cmd == "load" and args.cmd_load == "words" then
-  words.load_words(db, args)
+  words.load(db, args)
 elseif args.cmd == "create" and args.cmd_create == "clusters" then
-  clusters.create_clusters(db, args)
+  clusters.create(db, args)
 elseif args.cmd == "create" and args.cmd_create == "modeler" then
-  modeler.create_modeler(db, args)
+  modeler.create(db, args)
 elseif args.cmd == "create" and args.cmd_create == "encoder" then
-  encoder.create_encoder(db, args)
+  encoder.create(db, args)
 elseif args.cmd == "create" and args.cmd_create == "classifier" then
-  classifier.create_classifier(db, args)
+  classifier.create(db, args)
 else
   print(parser:get_usage())
   os.exit(1)

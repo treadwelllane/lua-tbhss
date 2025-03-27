@@ -1,22 +1,22 @@
-local err = require("santoku.error")
 local bm = require("santoku.bitmap")
-local bmc = require("santoku.bitmap.compressor")
 local str = require("santoku.string")
-local tbl = require("santoku.table")
+local utc = require("santoku.utc")
 local arr = require("santoku.array")
 local fs = require("santoku.fs")
-local bpe = require("tbhss.bpe")
 
-local function create_modeler (db, args)
+local compressor = require("santoku.bitmap.compressor")
+local tokenizer = require("tbhss.bpe")
+
+local function create (db, args)
 
   local raw_corpus = fs.readfile(args.sentences)
 
   print("Creating tokenizer")
-  local tokenizer = bpe.create({
+  local tokenizer = tokenizer.create({
     vocab = args.vocab,
-    wavelength = args.position[1],
-    dimensions = args.position[2],
-    buckets = args.position[3],
+    wavelength = args.wavelength or args.position[1],
+    dimensions = args.dimensions or args.position[2],
+    buckets = args.buckets or args.position[3],
   })
 
   print("Training tokenizer")
@@ -33,31 +33,42 @@ local function create_modeler (db, args)
   local bit_corpus = bm.matrix(bit_sentences, visible);
 
   print("Creating compressor")
-  local compressor = bmc.create({
+  local compressor = compressor.create({
     visible = visible,
     hidden = args.hidden,
   })
 
   print("Training compressor")
   local stopwatch = utc.stopwatch()
-  local mavg = num.mavg(0.1)
   compressor.train({
     corpus = bit_corpus,
     samples = #bit_sentences,
     iterations = args.iterations,
     each = function (i, tc)
       local duration, total_duration = stopwatch()
-      local tc0 = mavg(tc)
-      str.printf("Epoch %3d  %6.4f  %6.4f  %3.2f  %3.2f\n",
-        i, tc, tc0, duration, total_duration)
+      str.printf("Epoch %3d  %10.4f  %8.2fs  %8.2fs\n",
+        i, tc, duration, total_duration)
     end
   })
 
-  -- TODO: persist compressor and tokenizer
-  err.error("todo: save model")
+  local tdata = tokenizer.persist()
+  local cdata = compressor.persist()
+
+  db.add_modeler(args.name, visible, args.hidden, tdata, cdata)
 
 end
 
+local function open (db, name)
+  local m = db.get_modeler(name)
+  m.tokenizer = tokenizer.load(m.tokenizer, nil, true)
+  m.compressor = compressor.load(m.compressor, nil, true)
+  m.model = function (s)
+    return m.compressor.compress(m.tokenizer.tokenize(s))
+  end
+  return m
+end
+
 return {
-  create_modeler = create_modeler
+  create = create,
+  open = open,
 }

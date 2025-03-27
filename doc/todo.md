@@ -1,6 +1,7 @@
 # Now
 
-- Library interace: encoder and FAISS
+- Library interface to inject cluster ids into sentence (for FTS enhancement)
+- FAISS
 - Pre-trained models for full SNLI dataset & 840B glove model
 - MTEB
 

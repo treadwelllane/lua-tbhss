@@ -1,44 +1,25 @@
-local fs = require("santoku.fs")
-local tm = require("santoku.tsetlin")
-local err = require("santoku.error")
-
-local modeler = require("tbhss.modeler")
 local util = require("tbhss.util")
+local modeler = require("tbhss.modeler")
+local classifier = require("tbhss.classifier")
+local encoder = require("tbhss.encoder")
 
-local function encoder (db_file, model_name)
-
+local function open_encoder (db_file, name)
   local db = util.get_db(db_file)
-  local encoder_model = db.get_encoder_model_by_name(model_name)
+  return encoder.open(db, name)
+end
 
-  if not encoder_model then
-    err.error("encoder model not found", model_name)
-  elseif encoder_model.trained ~= 1 then
-    err.error("encoder not trained", model_name)
-  end
+local function open_classifier (db_file, name)
+  local db = util.get_db(db_file)
+  return classifier.open(db, name)
+end
 
-  local modeler = modeler.modeler(db, encoder_model.id_triplets_model)
-
-  -- TODO: read directly from sqlite without temporary file
-  local fp = fs.tmpname()
-  fs.writefile(fp, encoder_model.model)
-  local t = tm.load(fp)
-  fs.rm(fp)
-
-  return {
-    modeler = modeler,
-    encode = function (s)
-      return db.db.transaction(function ()
-        local fingerprint = modeler.model(s)
-        if fingerprint then
-          return tm.predict(t, fingerprint)
-        end
-      end)
-    end,
-  }
-
+local function open_modeler (db_file, name)
+  local db = util.get_db(db_file)
+  return modeler.open(db, name)
 end
 
 return {
-  encoder = encoder,
-  modeler = modeler.modeler,
+  modeler = open_modeler,
+  classifier = open_classifier,
+  encoder = open_encoder,
 }

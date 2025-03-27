@@ -1,7 +1,7 @@
+local bm = require("santoku.bitmap")
+local init_db = require("tbhss.db")
 local str = require("santoku.string")
 local arr = require("santoku.array")
-
-local init_db = require("tbhss.db")
 
 local function get_db (db_file)
   return type(db_file) == "string" and init_db(db_file) or db_file
@@ -23,7 +23,15 @@ local function split (s, max, words)
   return words
 end
 
+local function prep_fingerprint (fingerprint, bits)
+  local flipped = bm.copy(fingerprint)
+  bm.flip(flipped, 1, bits)
+  bm.extend(fingerprint, flipped, bits + 1)
+  return fingerprint
+end
+
 return {
   get_db = get_db,
-  split = split
+  split = split,
+  prep_fingerprint = prep_fingerprint,
 }

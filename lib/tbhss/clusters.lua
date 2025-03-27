@@ -307,7 +307,7 @@ algorithms["dbscan"] = function (db, clusters_model, args, min_pts, eps, n_close
 end
 
 
-local function create_clusters (db, args)
+local function create (db, args)
   return db.db.transaction(function (algo, ...)
     local clusters_model = db.get_clusters_model_by_name(args.name)
     if not clusters_model or clusters_model.clustered ~= 1 then
@@ -349,5 +349,5 @@ local function create_clusters (db, args)
 end
 
 return {
-  create_clusters = create_clusters,
+  create = create,
 }

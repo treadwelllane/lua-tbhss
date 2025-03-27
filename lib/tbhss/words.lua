@@ -79,7 +79,7 @@ local function load_words_from_file (db, model, args)
 
 end
 
-local function load_words (db, args)
+local function load (db, args)
   return db.db.transaction(function ()
     local model = db.get_words_model_by_name(args.name)
     if not model or model.loaded ~= 1 then
@@ -91,5 +91,5 @@ local function load_words (db, args)
 end
 
 return {
-  load_words = load_words,
+  load = load,
 }
