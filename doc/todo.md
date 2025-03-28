@@ -10,7 +10,7 @@
 # Next
 
 - bpe: handle punctuation separately (punct can merge with punct, but nothing
-  else)
+  else, currently we just consider punct as a space)
 
 - Rescue k-means from history
 - Update README
