@@ -1,5 +1,4 @@
 local fs = require("santoku.fs")
-local arr = require("santoku.array")
 
 local db_file = ".test.db"
 fs.rm(db_file, true)
@@ -26,13 +25,14 @@ process.imdb({
 
 modeler.create(db, {
   name = "imdb",
-  vocab = 1024,
-  hidden = 256,
+  max_df = 0.2,
+  min_len = 3,
+  hidden = 1024,
   wavelength = 4096,
   dimensions = 1,
   buckets = 1,
   sentences = "test/res/imdb.train.sentences.txt",
-  iterations = 10,
+  iterations = 100,
 })
 
 classifier.create(db, {

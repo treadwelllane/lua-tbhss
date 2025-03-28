@@ -1,48 +1,51 @@
 local bm = require("santoku.bitmap")
 local str = require("santoku.string")
+local it = require("santoku.iter")
 local utc = require("santoku.utc")
-local arr = require("santoku.array")
 local fs = require("santoku.fs")
 
 local compressor = require("santoku.bitmap.compressor")
-local tokenizer = require("tbhss.bpe")
+local tokenizer = require("tbhss.tokenizer")
 
 local function create (db, args)
 
-  local raw_corpus = fs.readfile(args.sentences)
+  local corpus = it.collect(fs.lines(args.sentences))
+  local samples = #corpus
 
   print("Creating tokenizer")
   local tokenizer = tokenizer.create({
-    vocab = args.vocab,
+    max_df = args.max_df,
+    min_len = args.min_len,
     wavelength = args.wavelength or args.position[1],
     dimensions = args.dimensions or args.position[2],
     buckets = args.buckets or args.position[3],
   })
 
   print("Training tokenizer")
-  local visible = tokenizer.train({ corpus = raw_corpus })
+  tokenizer.train({ corpus = corpus })
+  local features = tokenizer.features()
+  print("Features: ", features)
 
-  print("Visible: ", visible)
-  print("Tokenizing sentences")
-  local bit_sentences = {}
-  for line in str.gmatch(raw_corpus, "[^\n]+") do
-    arr.push(bit_sentences, tokenizer.tokenize(line))
-  end
+  print("Tokenizing corpus")
+  tokenizer.tokenize(corpus)
+
+  print("Finalizing tokenizer")
+  tokenizer.finalize(corpus)
 
   print("Packing bitmaps")
-  local bit_corpus = bm.matrix(bit_sentences, visible);
+  corpus = bm.matrix(corpus, features)
 
   print("Creating compressor")
   local compressor = compressor.create({
-    visible = visible,
+    visible = features,
     hidden = args.hidden,
   })
 
   print("Training compressor")
   local stopwatch = utc.stopwatch()
   compressor.train({
-    corpus = bit_corpus,
-    samples = #bit_sentences,
+    corpus = corpus,
+    samples = samples,
     iterations = args.iterations,
     each = function (i, tc)
       local duration, total_duration = stopwatch()
@@ -54,7 +57,7 @@ local function create (db, args)
   local tdata = tokenizer.persist()
   local cdata = compressor.persist()
 
-  db.add_modeler(args.name, visible, args.hidden, tdata, cdata)
+  db.add_modeler(args.name, features, args.hidden, tdata, cdata)
 
 end
 

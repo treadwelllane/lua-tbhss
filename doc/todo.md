@@ -1,7 +1,5 @@
 # Now
 
-- BPE: performance
-
 - Library interface to inject cluster ids into sentence (for FTS enhancement)
 - FAISS
 - Pre-trained models for full SNLI dataset & 840B glove model
@@ -9,8 +7,8 @@
 
 # Next
 
-- bpe: handle punctuation separately (punct can merge with punct, but nothing
-  else, currently we just consider punct as a space)
+- Re-implement BPE. Merge alnum with alnum, punct with punct, and flatten all
+  whitespace into single space
 
 - Rescue k-means from history
 - Update README
