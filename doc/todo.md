@@ -1,6 +1,6 @@
 # Now
 
-- BPE: separate punctuation, performance
+- BPE: performance
 
 - Library interface to inject cluster ids into sentence (for FTS enhancement)
 - FAISS
@@ -8,6 +8,9 @@
 - MTEB
 
 # Next
+
+- bpe: handle punctuation separately (punct can merge with punct, but nothing
+  else)
 
 - Rescue k-means from history
 - Update README

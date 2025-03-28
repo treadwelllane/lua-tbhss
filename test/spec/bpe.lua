@@ -2,7 +2,7 @@ local tokenizer = require("tbhss.bpe")
 local str = require("santoku.string")
 
 local t = tokenizer.create({
-  vocab = 512,
+  vocab = 150,
   wavelength = 4096,
   dimensions = 1,
   buckets = 1,
@@ -10,26 +10,17 @@ local t = tokenizer.create({
 
 -- Courtesy of ChatGPT
 local corpus = [[
-  Byte by byte, it scans the lines
-  Seeking pairs that most combine...
-  Merges gather in surging waves,
-  Turning letters to shorter enclaves.
-  A shuffle of tokens, a swirl of text,
-  Pairs unite, then vanish next...
-  “at” entwines with “c” to purr
-  Then “the” emerges, bright and sure....
-  Spaces kept apart like walls,
-  Guarding boundaries in lexical halls.
-  No cross-word merges to slip astray—
-  A single “ ” stands firm in the fray.
-  Yet watch how frequency shapes the tide:
-  “ca” and “at” fuse side by side,,,
-  While lonely pairs fade from the heap,
-  Yielding to the merges we keep...
-  When all is done, the text transformed,
-  The final subwords stand informed:
-  No tokens left at higher stake—
-  BPE rests from the merges it makes.
+  The quick brown fox jumped over the lazy dog.
+  Sphinx of black quartz, judge my vow.
+  Pack my box with five dozen liquor jugs.
+  How vexingly quick daft zebras jump!
+  Quick zephyrs blow, vexing daft Jim.
+  Waltz, bad nymph, for quick jigs vex.
+  Glib jocks quiz nymph to vex dwarf.
+  Two driven jocks help fax my big quiz.
+  The five boxing wizards jump quickly.
+  Five quacking zephyrs jolt my wax bed.
+  Crazy Fredrick bought many very exquisite opal jewels.
 ]]
 
 t.train({ corpus = corpus })

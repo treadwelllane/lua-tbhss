@@ -329,6 +329,10 @@ static inline unsigned int encode_pos (
   return (unsigned int) round((val + 1.0) / 2.0 * (buckets - 1));
 }
 
+static inline bool tb_bpe_skipchar (char c) {
+  return isspace(c) || ispunct(c);
+}
+
 static inline void tb_bpe_init_tokens (
   tb_bpe_t *bpe,
   const char *doc,
@@ -337,11 +341,11 @@ static inline void tb_bpe_init_tokens (
   kb_destroy(tokens, bpe->tokens);
   bpe->tokens = kb_init(tokens, KB_DEFAULT_SIZE);
   int pos = 0;
-  for (size_t i = 0; i < len; i++) {
-    if (isspace(doc[i]) && i < len - 1 && isspace(doc[i + 1]))
+  for (size_t i = 0; i < len; i ++) {
+    if (tb_bpe_skipchar(doc[i]) && i < len - 1 && tb_bpe_skipchar(doc[i + 1]))
       continue;
     char tmp[2] = {0};
-    tmp[0] = isspace(doc[i]) ? ' ' : doc[i];
+    tmp[0] = tb_bpe_skipchar(doc[i]) ? ' ' : tolower(doc[i]);
     int absent;
     khint_t k = kh_put(ids, bpe->ids, tmp, &absent);
     int id;
@@ -538,9 +542,9 @@ static inline void tb_bpe_first_pass (
   int pos = 0;
   int id;
   for (size_t i = 0; i < len; i ++) {
-    if (isspace(corpus[i]) && i < len - 1 && isspace(corpus[i + 1]))
+    if (tb_bpe_skipchar(corpus[i]) && i < len - 1 && tb_bpe_skipchar(corpus[i + 1]))
       continue;
-    tmp[0] = isspace(corpus[i]) ? ' ' : corpus[i];
+    tmp[0] = tb_bpe_skipchar(corpus[i]) ? ' ' : corpus[i];
     k = kh_put(ids, bpe->ids, tmp, &absent);
     if (absent) {
       id = bpe->next_id ++;
