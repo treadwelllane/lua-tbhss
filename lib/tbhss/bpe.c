@@ -205,41 +205,29 @@ static inline lua_Integer tk_lua_fcheckunsigned (lua_State *L, int i, char *fiel
 
 typedef struct { int a; int b; } tb_pair_t;
 typedef struct { int t; size_t p; } tb_token_t;
-typedef struct { tb_pair_t pair; int freq; } tb_pair_freq_t;
-typedef struct { int freq; kvec_t(size_t) positions; } tb_pair_info_t;
 
 static inline khint_t tb_freqs_hash (tb_pair_t p) {
   return (khint_t) (p.a * 31 + p.b);
 }
-
 static inline int tb_freqs_equals (tb_pair_t a, tb_pair_t b) {
   return a.a == b.a && a.b == b.b;
 }
-
 static inline int tb_tok_cmp (tb_token_t a, tb_token_t b) {
   if (a.p < b.p) return -1;
   if (a.p > b.p) return 1;
   return 0;
 }
 
-static inline int tb_pair_freq_cmp(tb_pair_freq_t y, tb_pair_freq_t x) {
-  if (x.freq != y.freq) return x.freq - y.freq;
-  if (x.pair.a != y.pair.a) return x.pair.a - y.pair.a;
-  return x.pair.b - y.pair.b;
-}
-
 KHASH_MAP_INIT_STR(ids, int);
 KHASH_MAP_INIT_INT(strs, const char *);
 KBTREE_INIT(tokens, tb_token_t, tb_tok_cmp);
-KHASH_INIT(freqs, tb_pair_t, tb_pair_info_t, 1, tb_freqs_hash, tb_freqs_equals)
-KBTREE_INIT(freq_maxheap, tb_pair_freq_t, tb_pair_freq_cmp)
+KHASH_INIT(freqs, tb_pair_t, int, 1, tb_freqs_hash, tb_freqs_equals);
 
 typedef kbtree_t(tokens) tb_tokens_t;
 typedef kvec_t(int) tb_deletes_t;
 typedef khash_t(ids) tb_ids_t;
 typedef khash_t(strs) tb_strs_t;
 typedef khash_t(freqs) tb_freqs_t;
-typedef kbtree_t(freq_maxheap) tb_freqheap_t;
 
 typedef struct {
   unsigned int vocab;
@@ -253,7 +241,6 @@ typedef struct {
   tb_ids_t *ids;
   tb_strs_t *strs;
   tb_freqs_t *freqs;
-  tb_freqheap_t *freq_heap;
   bool collected;
 } tb_bpe_t;
 
@@ -330,97 +317,6 @@ static inline int tb_bpe_persist (lua_State *L)
   }
 }
 
-static inline void tb_freq_heap_insert (tb_bpe_t *bpe, tb_pair_t p, int f) {
-  tb_pair_freq_t pf = { .pair = p, .freq = f };
-  kb_put(freq_maxheap, bpe->freq_heap, pf);
-}
-
-static inline void tb_freq_heap_remove (tb_bpe_t *bpe, tb_pair_t p, int f) {
-  tb_pair_freq_t pf = { .pair = p, .freq = f };
-  kb_del(freq_maxheap, bpe->freq_heap, pf);
-}
-
-static inline void tb_bpe_load_and_count (
-  tb_bpe_t *bpe,
-  const char *doc,
-  size_t len
-) {
-  if (bpe->tokens) kb_destroy(tokens, bpe->tokens);
-  bpe->tokens = kb_init(tokens, KB_DEFAULT_SIZE);
-  if (bpe->freqs)
-    kh_clear(freqs, bpe->freqs);
-  if (bpe->freq_heap)
-    kb_destroy(freq_maxheap, bpe->freq_heap);
-  bpe->freq_heap = kb_init(freq_maxheap, KB_DEFAULT_SIZE);
-  int pos = 0;
-  tb_token_t prev_token = { .t = -1, .p = 0 };
-  for (size_t i = 0; i < len; i++) {
-    if (isspace(doc[i])) {
-      while (i + 1 < len && isspace(doc[i + 1]))
-        i ++;
-      tb_token_t t = { .t = 1, .p = pos ++ };
-      kb_put(tokens, bpe->tokens, t);
-      if (prev_token.t != -1) {
-        tb_pair_t pair = { .a = prev_token.t, .b = 1 };
-        int absent2; khint_t pk = kh_put(freqs, bpe->freqs, pair, &absent2);
-        tb_pair_info_t *pi = &kh_value(bpe->freqs, pk);
-        if (absent2) {
-          pi->freq = 1; kv_init(pi->positions);
-        } else {
-          tb_freq_heap_remove(bpe, pair, pi->freq);
-          pi->freq++;
-        }
-        kv_push(size_t, pi->positions, prev_token.p);
-        tb_freq_heap_insert(bpe, pair, pi->freq);
-      }
-      prev_token.t = 1;
-      prev_token.p = pos - 1;
-      continue;
-    }
-    char tmp[2] = { (char)(isspace(doc[i]) ? ' ' : doc[i]), 0 };
-    int absent;
-    khint_t kid = kh_put(ids, bpe->ids, tmp, &absent);
-    int id;
-    if (absent) {
-      id = bpe->next_id++;
-      char *cp = strdup(tmp);
-      kh_key(bpe->ids, kid) = cp;        /* store the string in 'ids' */
-      kh_value(bpe->ids, kid) = id;      /* map that string -> token ID */
-      khint_t sk = kh_put(strs, bpe->strs, id, &absent);
-      kh_value(bpe->strs, sk) = cp;      /* map token ID -> string */
-    } else {
-      id = kh_value(bpe->ids, kid);
-    }
-    tb_token_t t = { .t = id, .p = pos++ };
-    kb_put(tokens, bpe->tokens, t);
-    if (prev_token.t != -1) {
-      tb_pair_t pair = { .a = prev_token.t, .b = id };
-      khint_t pk; int absent2;
-      pk = kh_put(freqs, bpe->freqs, pair, &absent2);
-      tb_pair_info_t *pi = &kh_value(bpe->freqs, pk);
-      if (absent2) {
-        pi->freq = 1;
-        kv_init(pi->positions);
-      } else {
-        tb_freq_heap_remove(bpe, pair, pi->freq);
-        pi->freq++;
-      }
-      kv_push(size_t, pi->positions, prev_token.p);
-      tb_freq_heap_insert(bpe, pair, pi->freq);
-    }
-    prev_token = t;
-  }
-}
-
-static inline const char *tb_bpe_id_str (
-  tb_bpe_t *bpe,
-  int id
-) {
-  khint_t k = kh_get(strs, bpe->strs, id);
-  assert(k != kh_end(bpe->strs));
-  return kh_value(bpe->strs, k);
-}
-
 static inline unsigned int encode_pos (
   size_t pos,
   unsigned int dim,
@@ -433,40 +329,82 @@ static inline unsigned int encode_pos (
   return (unsigned int) round((val + 1.0) / 2.0 * (buckets - 1));
 }
 
-static inline void tb_bpe_populate_tokens (
+static inline void tb_bpe_init_tokens (
   tb_bpe_t *bpe,
   const char *doc,
   size_t len
 ) {
   kb_destroy(tokens, bpe->tokens);
   bpe->tokens = kb_init(tokens, KB_DEFAULT_SIZE);
-  size_t pos = 0;
-  size_t i = 0;
-  while (i < len) {
-    if (isspace(doc[i])) {
-      while (i + 1 < len && isspace(doc[i+1]))
-        i ++;
-      tb_token_t sp = { .t = 1, .p = pos ++ };
-      kb_put(tokens, bpe->tokens, sp);
-      i ++;
+  int pos = 0;
+  for (size_t i = 0; i < len; i++) {
+    if (isspace(doc[i]) && i < len - 1 && isspace(doc[i + 1]))
       continue;
+    char tmp[2] = {0};
+    tmp[0] = isspace(doc[i]) ? ' ' : doc[i];
+    int absent;
+    khint_t k = kh_put(ids, bpe->ids, tmp, &absent);
+    int id;
+    if (absent) {
+      // TODO: how to best handle unknown tokens?
+      continue;
+    } else {
+      id = kh_value(bpe->ids, k);
     }
-    int best_id = 0;  /* 0 -> UNK fallback if nothing matches */
-    size_t best_len = 1; /* at least 1 char will become a token if we don't find a match */
-    char mbuf[2 * (bpe->maxlen + 1)];
-    size_t max_try = (i + bpe->maxlen < len) ? bpe->maxlen : (len - i);
-    for (size_t seg_len = 1; seg_len <= max_try; seg_len ++) {
-      memcpy(mbuf, &doc[i], seg_len);
-      mbuf[seg_len] = '\0';
-      khint_t kid = kh_get(ids, bpe->ids, mbuf);
-      if (kid != kh_end(bpe->ids)) {
-        best_id  = kh_value(bpe->ids, kid);
-        best_len = seg_len;
+    tb_token_t t = { .t = id, .p = pos ++ };
+    kb_put(tokens, bpe->tokens, t);
+  }
+}
+
+static inline const char *tb_bpe_id_str (
+  tb_bpe_t *bpe,
+  int id
+) {
+  khint_t k = kh_get(strs, bpe->strs, id);
+  assert(k != kh_end(bpe->strs));
+  return kh_value(bpe->strs, k);
+}
+
+static inline void tb_bpe_populate_tokens (
+  tb_bpe_t *bpe,
+  const char *doc,
+  size_t len
+) {
+  tb_bpe_init_tokens(bpe, doc, len);
+  bool changed = true;
+  while (changed) {
+    changed = false;
+    kbitr_t itr;
+    kb_itr_first(tokens, bpe->tokens, &itr);
+    if (!kb_itr_valid(&itr))
+      break;
+    tb_token_t left = kb_itr_key(tb_token_t, &itr);
+    kb_itr_next(tokens, bpe->tokens, &itr);
+    char cat[bpe->maxlen * 2 + 1];
+    while (kb_itr_valid(&itr)) {
+      tb_token_t right = kb_itr_key(tb_token_t, &itr);
+      const char *left_str  = tb_bpe_id_str(bpe, left.t);
+      const char *right_str = tb_bpe_id_str(bpe, right.t);
+      strcpy(cat, left_str);
+      strcat(cat, right_str);
+      khint_t k = kh_get(ids, bpe->ids, cat);
+      if (k != kh_end(bpe->ids)) {
+        int merged_id = kh_value(bpe->ids, k);
+        kv_push(int, bpe->deletes, left.p);
+        right.t = merged_id;
+        kb_itr_key(tb_token_t, &itr) = right;
+        changed = true;
+        left = right;
+      } else {
+        left = right;
       }
+      kb_itr_next(tokens, bpe->tokens, &itr);
     }
-    tb_token_t tok = { .t = best_id, .p = pos ++ };
-    kb_put(tokens, bpe->tokens, tok);
-    i += best_len;
+    for (size_t i = 0; i < kv_size(bpe->deletes); i ++) {
+      tb_token_t tmp = { .t = 0, .p = kv_A(bpe->deletes, i) };
+      kb_del(tokens, bpe->tokens, tmp);
+    }
+    kv_size(bpe->deletes) = 0;
   }
 }
 
@@ -503,30 +441,66 @@ static inline int tb_bpe_tokenize (lua_State *L)
   const char *doc = luaL_checklstring(L, 1, &len);
   tb_bpe_populate_tokens(bpe, doc, len);
   roaring64_bitmap_t *bm = roaring64_bitmap_create();
-  if (!bm)
+  if (bm == NULL)
     luaL_error(L, "memory error creating bitmap");
-  roaring64_bitmap_t **bmp =
-    (roaring64_bitmap_t **) lua_newuserdata(L, sizeof(roaring64_bitmap_t *));
+  roaring64_bitmap_t **bmp = (roaring64_bitmap_t **)
+    lua_newuserdata(L, sizeof(roaring64_bitmap_t *));
   *bmp = bm;
   luaL_getmetatable(L, MT_BITMAP);
   lua_setmetatable(L, -2);
   kbitr_t itr;
   kb_itr_first(tokens, bpe->tokens, &itr);
-  size_t out_pos = 0;
-  while (kb_itr_valid(&itr)) {
-    int t = kb_itr_key(tb_token_t, &itr).t;
-    for (unsigned int dim = 0; dim < bpe->dimensions; dim++) {
-      unsigned int bucket = encode_pos(
-        out_pos, dim, bpe->dimensions, bpe->buckets, bpe->wavelength);
-      uint64_t idx =
-        (uint64_t) t * bpe->dimensions * bpe->buckets +
-        (uint64_t) dim * bpe->buckets + bucket;
-      roaring64_bitmap_add(bm, idx);
-    }
-    out_pos ++;
-    kb_itr_next(tokens, bpe->tokens, &itr);
-  }
+  for (; kb_itr_valid(&itr); kb_itr_next(tokens, bpe->tokens, &itr))
+    roaring64_bitmap_add(bm, kb_itr_key(tb_token_t, &itr).t);
   return 1;
+}
+
+static inline bool tb_bpe_top_pair (
+  tb_bpe_t *bpe,
+  tb_pair_t *pair,
+  int *count
+) {
+  tb_pair_t topp;
+  int topv = 0;
+  for (khint_t k = 0; k < kh_end(bpe->freqs); k ++)
+    if (kh_exist(bpe->freqs, k) && kh_value(bpe->freqs, k) > topv) {
+      topp = kh_key(bpe->freqs, k);
+      topv = kh_value(bpe->freqs, k);
+    }
+  if (topv == 0)
+    return false;
+  *pair = topp;
+  *count = topv;
+  return true;
+}
+
+static inline void tb_bpe_count_frequencies (
+  tb_bpe_t *bpe
+) {
+  khint_t k;
+  kh_destroy(freqs, bpe->freqs);
+  bpe->freqs = kh_init(freqs);
+  for (k = 0; k < kh_end(bpe->freqs); ++k)
+    if (kh_exist(bpe->freqs, k))
+      kh_del(freqs, bpe->freqs, k);
+  int absent;
+  tb_pair_t pair;
+  kbitr_t itr;
+  kb_itr_first(tokens, bpe->tokens, &itr);
+  assert(kb_itr_valid(&itr));
+  pair.a = kb_itr_key(tb_token_t, &itr).t;
+  kb_itr_next(tokens, bpe->tokens, &itr);
+  for (; kb_itr_valid(&itr); kb_itr_next(tokens, bpe->tokens, &itr)) {
+    pair.b = kb_itr_key(tb_token_t, &itr).t;
+    k = kh_put(freqs, bpe->freqs, pair, &absent);
+    if (absent) {
+      kh_key(bpe->freqs, k) = pair;
+      kh_value(bpe->freqs, k) = 1;
+    } else {
+      kh_value(bpe->freqs, k) ++;
+    }
+    pair.a = pair.b;
+  }
 }
 
 static inline int tb_bpe_new_token (
@@ -553,68 +527,63 @@ static inline int tb_bpe_new_token (
   return id;
 }
 
-static inline void tb_bpe_update_corpus (
+static inline void tb_bpe_first_pass (
   tb_bpe_t *bpe,
-  tb_pair_t pair,
-  int new_id
+  const char *corpus,
+  size_t len
 ) {
-  khint_t k = kh_get(freqs, bpe->freqs, pair);
-  if (k == kh_end(bpe->freqs)) return;
-  tb_pair_info_t *pi = &kh_value(bpe->freqs, k);
-  tb_freq_heap_remove(bpe, pair, pi->freq);
-  for (size_t i = 0; i < kv_size(pi->positions); i++) {
-    size_t pos = kv_A(pi->positions, i);
-    kbitr_t li;
-    if (!kb_itr_get(tokens, bpe->tokens, &(tb_token_t){.p=pos}, &li)) continue;
-    if (!kb_itr_valid(&li)) continue;
-    kbitr_t ri = li; kb_itr_next(tokens, bpe->tokens, &ri);
-    if (!kb_itr_valid(&ri)) continue;
-    tb_token_t lt = kb_itr_key(tb_token_t, &li);
-    tb_token_t rt = kb_itr_key(tb_token_t, &ri);
-    size_t right_pos = rt.p;
-    rt.t = new_id;
-    kb_itr_key(tb_token_t, &ri) = rt;
-    kb_del(tokens, bpe->tokens, lt);
-    kbitr_t next_itr = ri;
-    if (kb_itr_next(tokens, bpe->tokens, &next_itr)) {
-      tb_token_t nx = kb_itr_key(tb_token_t, &next_itr);
-      tb_pair_t oldp = { .a = pair.b, .b = nx.t };
-      khint_t ok = kh_get(freqs, bpe->freqs, oldp);
-      if (ok != kh_end(bpe->freqs)) {
-        tb_pair_info_t *op = &kh_value(bpe->freqs, ok);
-        tb_freq_heap_remove(bpe, oldp, op->freq);
-        op->freq--;
-        tb_freq_heap_insert(bpe, oldp, op->freq);
-      }
-      tb_pair_t newp = { .a = new_id, .b = nx.t };
-      int absent3;
-      khint_t nk = kh_put(freqs, bpe->freqs, newp, &absent3);
-      tb_pair_info_t *np = &kh_value(bpe->freqs, nk);
-      if (absent3) { np->freq = 1; kv_init(np->positions); }
-      else {
-        tb_freq_heap_remove(bpe, newp, np->freq);
-        np->freq++;
-      }
-      kv_push(size_t, np->positions, right_pos);
-      tb_freq_heap_insert(bpe, newp, np->freq);
+  khint_t k;
+  int absent;
+  char tmp[2] = {0};
+  int pos = 0;
+  int id;
+  for (size_t i = 0; i < len; i ++) {
+    if (isspace(corpus[i]) && i < len - 1 && isspace(corpus[i + 1]))
+      continue;
+    tmp[0] = isspace(corpus[i]) ? ' ' : corpus[i];
+    k = kh_put(ids, bpe->ids, tmp, &absent);
+    if (absent) {
+      id = bpe->next_id ++;
+      char *tok = strdup(tmp);
+      kh_key(bpe->ids, k) = tok;
+      kh_value(bpe->ids, k) = id;
+      k = kh_put(strs, bpe->strs, id, &absent);
+      assert(absent == 1);
+      kh_value(bpe->strs, k) = tok;
+    } else  {
+      id = kh_value(bpe->ids, k);
     }
+    tb_token_t t = { .t = id, .p = pos ++ };
+    kb_put(tokens, bpe->tokens, t);
   }
-  kv_size(pi->positions) = 0;
-  kh_del(freqs, bpe->freqs, k);
 }
 
-static inline bool tb_bpe_top_pair (
+static inline void tb_bpe_update_corpus (
   tb_bpe_t *bpe,
-  tb_pair_t *p,
-  int *count
+  tb_pair_t find,
+  int id
 ) {
-  if (!kb_size(bpe->freq_heap)) return false;
-  kbitr_t it; kb_itr_first(freq_maxheap, bpe->freq_heap, &it);
-  if (!kb_itr_valid(&it)) return false;
-  tb_pair_freq_t pf = kb_itr_key(tb_pair_freq_t, &it);
-  if (pf.freq <= 0) return false;
-  *p = pf.pair; *count = pf.freq;
-  return true;
+  tb_token_t a;
+  tb_token_t *b;
+  kbitr_t itr;
+  kb_itr_first(tokens, bpe->tokens, &itr);
+  assert(kb_itr_valid(&itr));
+  a = kb_itr_key(tb_token_t, &itr);
+  kb_itr_next(tokens, bpe->tokens, &itr);
+  while (kb_itr_valid(&itr)) {
+    b = &kb_itr_key(tb_token_t, &itr);
+    if (find.a == a.t && find.b == b->t) {
+      kv_push(int, bpe->deletes, a.p);
+      b->t = id;
+    }
+    a = *b;
+    kb_itr_next(tokens, bpe->tokens, &itr);
+  }
+  for (size_t i = 0; i < kv_size(bpe->deletes); i ++) {
+    a.p = kv_A(bpe->deletes, i);
+    kb_del(tokens, bpe->tokens, a);
+  }
+  kv_size(bpe->deletes) = 0;
 }
 
 static inline int tb_bpe_train (lua_State *L)
@@ -622,7 +591,8 @@ static inline int tb_bpe_train (lua_State *L)
   tb_bpe_t *bpe = peek_bpe(L, lua_upvalueindex(1));
   size_t len;
   const char *corpus = tk_lua_fchecklstring(L, 1, "corpus", &len);
-  tb_bpe_load_and_count(bpe, corpus, len);
+  tb_bpe_first_pass(bpe, corpus, len);
+  tb_bpe_count_frequencies(bpe);
   if (bpe->next_id >= bpe->vocab)
     return 0;
   int target = bpe->vocab - bpe->next_id;
@@ -634,13 +604,12 @@ static inline int tb_bpe_train (lua_State *L)
     } else if (top.a == 1 || top.b == 1) {
       khint_t k = kh_get(freqs, bpe->freqs, top);
       assert(k != kh_end(bpe->freqs));
-      tb_pair_info_t *pi = &kh_value(bpe->freqs, k);
-      tb_freq_heap_remove(bpe, top, pi->freq);
       kh_del(freqs, bpe->freqs, k);
       continue;
     }
     int new = tb_bpe_new_token(bpe, top);
     tb_bpe_update_corpus(bpe, top, new);
+    tb_bpe_count_frequencies(bpe);
   }
   lua_pushinteger(L, bpe->next_id * bpe->dimensions * bpe->buckets);
   return 1;
@@ -658,11 +627,11 @@ static luaL_Reg tb_mt_fns[] =
 
 static inline int tb_bpe_create (lua_State *L)
 {
-  lua_settop(L, 1);
   unsigned int vocab = tk_lua_fcheckunsigned(L, 1, "vocab");
   unsigned int wavelength = tk_lua_fcheckunsigned(L, 1, "wavelength");
   unsigned int dimensions = tk_lua_fcheckunsigned(L, 1, "dimensions");
   unsigned int buckets = tk_lua_fcheckunsigned(L, 1, "buckets");
+  // TODO: Get nthreads
   if (!dimensions)
     luaL_error(L, "dimensions must be greater than 0");
   if (!buckets)
@@ -730,7 +699,7 @@ static inline int tb_bpe_load (lua_State *L)
     tk_lua_fread(L, &len, sizeof(size_t), 1, fh);
     char tok[len + 1];
     tk_lua_fread(L, tok, len, 1, fh);
-    tok[len] = '\0';
+    tok[len] = 0;
     int id;
     tk_lua_fread(L, &id, sizeof(int), 1, fh);
     char *tokn = strdup(tok);

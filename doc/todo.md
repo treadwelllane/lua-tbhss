@@ -1,5 +1,7 @@
 # Now
 
+- BPE: separate punctuation, performance
+
 - Library interface to inject cluster ids into sentence (for FTS enhancement)
 - FAISS
 - Pre-trained models for full SNLI dataset & 840B glove model

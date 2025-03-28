@@ -12,8 +12,6 @@
 
 local sql = require("santoku.sqlite")
 local migrate = require("santoku.sqlite.migrate")
-local tm = require("santoku.tsetlin")
-local fs = require("santoku.fs")
 local varg = require("santoku.varg")
 local cjson = require("cjson")
 local sqlite = require("lsqlite3")
