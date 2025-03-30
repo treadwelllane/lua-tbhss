@@ -66,8 +66,8 @@ end
 
 local function open (db, name)
   local m = db.get_modeler(name)
-  m.tokenizer = tokenizer.load(m.tokenizer, nil, true)
-  m.compressor = compressor.load(m.compressor, nil, true)
+  m.tokenizer = tokenizer.load(m.tokenizer, nil)
+  m.compressor = compressor.load(m.compressor, nil)
   m.model = function (s)
     return m.compressor.compress(m.tokenizer.tokenize(s))
   end

@@ -130,6 +130,18 @@ local function create (db, args)
 
 end
 
+local function open (db, name)
+  local e = db.get_encoder(name)
+  e.modeler = modeler.open(db, e.modeler)
+  e.encoder = tm.load(e.encoder)
+  e.encode = function (a)
+    a = util.prep_fingerprint(e.modeler.model(a), e.modeler.hidden)
+    return e.encoder.predict(a)
+  end
+  return e
+end
+
 return {
   create = create,
+  open = open,
 }

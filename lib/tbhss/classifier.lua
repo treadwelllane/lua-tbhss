@@ -127,9 +127,9 @@ local function open (db, name)
   local c = db.get_classifier(name)
   c.labels = json.decode(c.labels)
   c.modeler = modeler.open(db, c.modeler)
-  c.classifier = tm.load(c.classifier, nil, name)
+  c.classifier = tm.load(c.classifier)
   c.classify = function (a)
-    a = util.prep_fingerprint(c.modeler.model(a), c.modeler.hidden * 2)
+    a = util.prep_fingerprint(c.modeler.model(a), c.modeler.hidden )
     local id = c.classifier.predict(a)
     return id and c.labels[id]
   end
