@@ -25,7 +25,7 @@ process.imdb({
 
 modeler.create(db, {
   name = "imdb",
-  max_df = 0.2,
+  max_df = 0.8,
   min_len = 3,
   hidden = 1024,
   wavelength = 4096,
