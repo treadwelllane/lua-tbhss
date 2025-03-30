@@ -116,7 +116,10 @@ local function create (db, args)
     end
   })
 
-  db.add_classifier(args.name, modeler.name, json.encode(train_dataset.labels), t.persist())
+  local cfp = fs.join(fs.dirname(db.file), args.name .. ".classifier.bin")
+  t.persist(cfp)
+
+  db.add_classifier(args.name, modeler.name, json.encode(train_dataset.labels), cfp)
 
 end
 

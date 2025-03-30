@@ -54,10 +54,13 @@ local function create (db, args)
     end
   })
 
-  local tdata = tokenizer.persist()
-  local cdata = compressor.persist()
+  local tfp = fs.join(fs.dirname(db.file), args.name .. ".tokenizer.bin")
+  local cfp = fs.join(fs.dirname(db.file), args.name .. ".compressor.bin")
 
-  db.add_modeler(args.name, features, args.hidden, tdata, cdata)
+  tokenizer.persist(tfp)
+  compressor.persist(cfp)
+
+  db.add_modeler(args.name, features, args.hidden, tfp, cfp)
 
 end
 

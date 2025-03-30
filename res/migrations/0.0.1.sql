@@ -43,8 +43,8 @@ create table modeler (
   name text unique,
   visible integer not null,
   hidden integer not null,
-  tokenizer blob not null,
-  compressor blob not null
+  tokenizer text not null,
+  compressor text not null
 );
 
 create table classifier (
@@ -52,12 +52,12 @@ create table classifier (
   name text unique,
   modeler text not null,
   labels json not null,
-  classifier blob not null
+  classifier text not null
 );
 
 create table encoder (
   id integer primary key,
   name text unique,
   modeler text not null,
-  encoder blob not null
+  encoder text not null
 );

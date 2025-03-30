@@ -123,7 +123,10 @@ local function create (db, args)
     end
   })
 
-  db.add_encoder(args.name, modeler.name, t.persist())
+  local efp = fs.join(fs.dirname(db.file), args.name .. ".encoder.bin")
+  t.persist(efp)
+
+  db.add_encoder(args.name, modeler.name, efp)
 
 end
 
