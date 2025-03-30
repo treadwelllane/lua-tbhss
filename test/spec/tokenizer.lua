@@ -4,6 +4,7 @@ local str = require("santoku.string")
 
 local t = tokenizer.create({
   max_df = 0.70,
+  min_len = 3,
   wavelength = 4096,
   dimensions = 1,
   buckets = 1,
@@ -24,7 +25,11 @@ local corpus = it.collect(str.gmatch([[
 ]], "[^\n]+"))
 
 print("Docs", #corpus)
-print("Features", t.train({ corpus = corpus }))
+
+t.train({ corpus = corpus })
+t.finalize()
+
+print("Features", t.features())
 
 for i = 1, #corpus do
   local tokens = t.parse(corpus[i])

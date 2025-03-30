@@ -23,6 +23,7 @@ local function create (db, args)
 
   print("Training tokenizer")
   tokenizer.train({ corpus = corpus })
+  tokenizer.finalize()
   local features = tokenizer.features()
   print("Features: ", features)
 
