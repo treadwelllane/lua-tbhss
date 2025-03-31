@@ -5,7 +5,7 @@ local env = {
   variable_prefix = "TBHSS",
   public = true,
 
-  cflags = { "-Wno-unused-function" },
+  cflags = { "-Wall", "-Wextra", "-Werror", "-Wno-unused-function" },
 
   dependencies = {
     "lua == 5.1",

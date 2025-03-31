@@ -15,10 +15,10 @@ local function create (db, args)
   print("Creating tokenizer")
   local tokenizer = tokenizer.create({
     max_df = args.max_df,
+    min_df = args.min_df,
+    max_len = args.max_len,
     min_len = args.min_len,
-    wavelength = args.wavelength or args.position[1],
-    dimensions = args.dimensions or args.position[2],
-    buckets = args.buckets or args.position[3],
+    ngrams = 1
   })
 
   print("Training tokenizer")
@@ -29,9 +29,6 @@ local function create (db, args)
 
   print("Tokenizing corpus")
   tokenizer.tokenize(corpus)
-
-  print("Finalizing tokenizer")
-  tokenizer.finalize(corpus)
 
   print("Packing bitmaps")
   corpus = bm.matrix(corpus, features)

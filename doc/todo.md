@@ -1,14 +1,16 @@
 # Now
 
+- Dont store word embeddings, just clusters
+- Log training progress & performance
+- Checkpoint to disk at various points so we can stop arbitrarily
+
 - Library interface to inject cluster ids into sentence (for FTS enhancement)
-- FAISS
+- FAISS binding for bitmaps
+- Pre-trained models for pos/neg sentiment analysis and semantic embeddings
 - Pre-trained models for full SNLI dataset & 840B glove model
 - MTEB
 
 # Next
-
-- Re-implement BPE. Merge alnum with alnum, punct with punct, and flatten all
-  whitespace into single space
 
 - Rescue k-means from history
 - Update README
@@ -21,6 +23,9 @@
 - Hyperparameter search
 
 # Eventually
+
+- Re-implement BPE. Merge alnum with alnum, punct with punct, and flatten all
+  whitespace into single space
 
 - Multi-granular DBSCAN
     - Compute fuzzy membership after initial dbscan

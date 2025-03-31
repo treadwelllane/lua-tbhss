@@ -17,22 +17,22 @@ process.imdb({
     "test/res/imdb.test.sentences.txt"
   },
   samples = {
-    "test/res/imdb.train.triplets.txt",
-    "test/res/imdb.test.triplets.txt"
+    "test/res/imdb.train.samples.txt",
+    "test/res/imdb.test.samples.txt"
   },
-  max = 2000
+  max = 4000
 })
 
 modeler.create(db, {
   name = "imdb",
-  max_df = 0.8,
+  max_df = 0.95,
+  min_df = 0.001,
+  max_len = 20,
   min_len = 3,
-  hidden = 1024,
-  wavelength = 4096,
-  dimensions = 1,
-  buckets = 1,
+  ngrams = 2,
+  hidden = 512,
   sentences = "test/res/imdb.train.sentences.txt",
-  iterations = 100,
+  iterations = 50,
 })
 
 classifier.create(db, {

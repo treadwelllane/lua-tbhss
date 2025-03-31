@@ -3,11 +3,11 @@ local it = require("santoku.iter")
 local str = require("santoku.string")
 
 local t = tokenizer.create({
-  max_df = 0.70,
+  max_df = 0.7,
+  min_df = 0.1,
   min_len = 3,
-  wavelength = 4096,
-  dimensions = 1,
-  buckets = 1,
+  max_len = 20,
+  ngrams = 2
 })
 
 -- Courtesy of ChatGPT
@@ -31,11 +31,16 @@ t.finalize()
 
 print("Features", t.features())
 
+t = tokenizer.load(t.persist(), nil, true)
+
 for i = 1, #corpus do
   local tokens = t.parse(corpus[i])
   str.printf("%d: ", i);
   for j = 1, #tokens do
-    str.printf("%s, ", tokens[j])
+    str.printf("%s", tokens[j])
+    if j < #tokens then
+      str.printf(", ")
+    end
   end
   str.printf("\n")
 end

@@ -254,18 +254,19 @@ typedef kvec_t(char) tb_token_t;
 
 typedef struct {
   double max_df;
+  double min_df;
+  unsigned int max_len;
   unsigned int min_len;
+  unsigned int ngrams;
   unsigned int ndocs;
-  unsigned int wavelength;
-  unsigned int dimensions;
-  unsigned int buckets;
   int next_id;
-  size_t maxlen;
+  size_t max_len_observed;
   tb_ids_t *ids;
   tb_strs_t *strs;
   tb_df_t *dfs;
   tb_seen_t *tmp_seen;
   tb_tokens_t tokens;
+  tb_tokens_t ngram;
   tb_token_t tmp_token;
   bool collected;
   bool finalized;
@@ -287,6 +288,7 @@ static inline int tb_tokenizer_gc (lua_State *L)
       free((char *) kh_value(tokenizer->strs, k));
   kv_destroy(tokenizer->tokens);
   kv_destroy(tokenizer->tmp_token);
+  kv_destroy(tokenizer->ngram);
   kh_destroy(ids, tokenizer->ids);
   kh_destroy(strs, tokenizer->strs);
   if (!tokenizer->finalized) {
@@ -315,13 +317,13 @@ static inline int tb_tokenizer_persist (lua_State *L)
     fh = tk_lua_fopen(L, luaL_checkstring(L, 1), "w");
   tk_lua_fwrite(L, (char *) &tokenizer->finalized, sizeof(bool), 1, fh);
   tk_lua_fwrite(L, (char *) &tokenizer->max_df, sizeof(double), 1, fh);
+  tk_lua_fwrite(L, (char *) &tokenizer->min_df, sizeof(double), 1, fh);
+  tk_lua_fwrite(L, (char *) &tokenizer->max_len, sizeof(unsigned int), 1, fh);
   tk_lua_fwrite(L, (char *) &tokenizer->min_len, sizeof(unsigned int), 1, fh);
+  tk_lua_fwrite(L, (char *) &tokenizer->ngrams, sizeof(unsigned int), 1, fh);
   tk_lua_fwrite(L, (char *) &tokenizer->ndocs, sizeof(unsigned int), 1, fh);
-  tk_lua_fwrite(L, (char *) &tokenizer->wavelength, sizeof(unsigned int), 1, fh);
-  tk_lua_fwrite(L, (char *) &tokenizer->dimensions, sizeof(unsigned int), 1, fh);
-  tk_lua_fwrite(L, (char *) &tokenizer->buckets, sizeof(unsigned int), 1, fh);
   tk_lua_fwrite(L, (char *) &tokenizer->next_id, sizeof(int), 1, fh);
-  tk_lua_fwrite(L, (char *) &tokenizer->maxlen, sizeof(size_t), 1, fh);
+  tk_lua_fwrite(L, (char *) &tokenizer->max_len_observed, sizeof(size_t), 1, fh);
   tk_lua_fwrite(L, (char *) &kh_size(tokenizer->ids), sizeof(khint_t), 1, fh);
   for (khint_t i = kh_begin(tokenizer->ids); i < kh_end(tokenizer->ids); i ++)
     if (kh_exist(tokenizer->ids, i)) {
@@ -364,54 +366,95 @@ static inline bool tb_tokenizer_skipchar (char c) {
   return !isalpha(c);
 }
 
-static inline const char *tb_tokenizer_id_str (
+static inline char *tb_tokenizer_id_str (
   tb_tokenizer_t *tokenizer,
   int id
 ) {
+  if (id == 0) return "_";
   khint_t k = kh_get(strs, tokenizer->strs, id);
-  assert(k != kh_end(tokenizer->strs));
-  return kh_value(tokenizer->strs, k);
+  return (k == kh_end(tokenizer->strs))
+    ? "_" : (char *) kh_value(tokenizer->strs, k);
 }
 
-static inline const int tb_tokenizer_str_id (
+static inline int tb_tokenizer_str_id (
   tb_tokenizer_t *tokenizer,
-  const char *str
+  char *str
 ) {
   khint_t k = kh_get(ids, tokenizer->ids, str);
   assert(k != kh_end(tokenizer->ids));
   return kh_value(tokenizer->ids, k);
 }
 
-static inline unsigned int encode_pos (
-  size_t pos,
-  unsigned int dim,
-  unsigned int n_dims,
-  unsigned int buckets,
-  unsigned int wavelength
-) {
-  double angle = (double) pos / pow(wavelength * 1.0, (2.0 * ((double) (n_dims - dim) / 2)) / (double) n_dims);
-  double val = (dim % 2 == 0) ? sin(angle) : cos(angle);
-  return (unsigned int) round((val + 1.0) / 2.0 * (buckets - 1));
-}
-
 static inline int tb_tokenizer_new_token (
   tb_tokenizer_t *tokenizer,
-  const char *tok,
-  size_t len
+  char **tokp,
+  bool train
 ) {
-  if (len > tokenizer->maxlen)
-    tokenizer->maxlen = len;
-  char *tokn = strdup(tok);
-  int absent;
-  khint_t k;
-  k = kh_put(ids, tokenizer->ids, tokn, &absent);
-  assert(absent == 1);
-  int id = tokenizer->next_id ++;
-  kh_value(tokenizer->ids, k) = id;
-  k = kh_put(strs, tokenizer->strs, id, &absent);
-  assert(absent == 1);
-  kh_value(tokenizer->strs, k) = tokn;
+  char *tok = *tokp;
+  size_t len = strlen(tok);
+  int id, absent;
+  khint_t k = kh_get(ids, tokenizer->ids, tok);
+  if (k != kh_end(tokenizer->ids)) {
+    id = kh_value(tokenizer->ids, k);
+    *tokp = (char *) kh_key(tokenizer->ids, k);
+  } else if (!train) {
+    id = 0;
+    *tokp = "_";
+  } else {
+    if (len > tokenizer->max_len_observed)
+      tokenizer->max_len_observed = len;
+    *tokp = strndup(tok, len);
+    id = tokenizer->next_id ++;
+    k = kh_put(ids, tokenizer->ids, *tokp, &absent);
+    assert(absent);
+    kh_value(tokenizer->ids, k) = id;
+    k = kh_put(strs, tokenizer->strs, id, &absent);
+    assert(absent);
+    kh_value(tokenizer->strs, k) = *tokp;
+  }
+  if (id && train) {
+    k = kh_put(seen, tokenizer->tmp_seen, id, &absent);
+    if (absent) {
+      k = kh_put(dfs, tokenizer->dfs, id, &absent);
+      kh_value(tokenizer->dfs, k) = (absent ? 0 : kh_value(tokenizer->dfs, k)) + 1;
+    }
+  }
   return id;
+}
+
+static inline void tb_tokenizer_append_token (
+  tb_tokenizer_t *tokenizer,
+  char *tok,
+  bool train
+) {
+  int id = tb_tokenizer_new_token(tokenizer, &tok, train);
+
+  khint_t ngrams = kv_size(tokenizer->ngram);
+  for (khint_t i = 1; i < ngrams; i ++)
+    kv_A(tokenizer->ngram, i - 1) = kv_A(tokenizer->ngram, i);
+  if (ngrams)
+    kv_size(tokenizer->ngram) = ngrams - 1;
+
+  kv_push(int, tokenizer->ngram, id);
+  ngrams = kv_size(tokenizer->ngram);
+
+  char tmp[tokenizer->max_len_observed * tokenizer->ngrams + tokenizer->ngrams];
+  char *tmps[tokenizer->ngrams + 1];
+  tmps[0] = tmp;
+  for (khint_t i = 0; i < kv_size(tokenizer->ngram); i ++) {
+    tok = tb_tokenizer_id_str(tokenizer, kv_A(tokenizer->ngram, i));
+    size_t tokl = strlen(tok);
+    memcpy(tmps[i], tok, tokl);
+    tmps[i][tokl] = (i + 1 == kv_size(tokenizer->ngram)) ? '\0' : ' ';
+    tmps[i + 1] = tmps[i] + tokl + 1;
+  }
+
+  for (khint_t i = 0; i < kv_size(tokenizer->ngram); i ++) {
+    char *tok = tmps[i];
+    char *tokp = tok;
+    id = tb_tokenizer_new_token(tokenizer, &tokp, train);
+    kv_push(int, tokenizer->tokens, id);
+  }
 }
 
 static inline void tb_tokenizer_populate_tokens (
@@ -420,49 +463,26 @@ static inline void tb_tokenizer_populate_tokens (
   size_t len,
   bool train
 ) {
-  khint_t k;
-  int id, absent;
-  char *tok, *tokn;
+  bool skipping = false;
   kh_clear(seen, tokenizer->tmp_seen);
   kv_size(tokenizer->tmp_token) = 0;
   kv_size(tokenizer->tokens) = 0;
+  kv_size(tokenizer->ngram) = 0;
   for (size_t e = 0; e <= len; e ++) {
+    if (skipping && !tb_tokenizer_skipchar(doc[e]))
+      continue;
+    if (skipping && tb_tokenizer_skipchar(doc[e]))
+      skipping = false;
     if (e < len && !tb_tokenizer_skipchar(doc[e])) {
       kv_push(char, tokenizer->tmp_token, tolower(doc[e]));
+      if (kv_size(tokenizer->tmp_token) > tokenizer->max_len) {
+        kv_size(tokenizer->tmp_token) = 0;
+        skipping = true;
+      }
     } else if (kv_size(tokenizer->tmp_token) >= tokenizer->min_len) {
       kv_push(char, tokenizer->tmp_token, 0);
-      tok = tokenizer->tmp_token.a;
-      k = kh_get(ids, tokenizer->ids, tok);
-      if (k != kh_end(tokenizer->ids)) {
-        kv_push(int, tokenizer->tokens, kh_value(tokenizer->ids, k));
-        kv_size(tokenizer->tmp_token) = 0;
-        if (train) {
-          id = kh_value(tokenizer->ids, k);
-          k = kh_put(seen, tokenizer->tmp_seen, id, &absent);
-          if (absent) {
-            k = kh_put(dfs, tokenizer->dfs, id, &absent);
-            kh_value(tokenizer->dfs, k) = (absent ? 0 : kh_value(tokenizer->dfs, k)) + 1;
-          }
-        }
-      } else if (train) {
-        tokn = strdup(tok);
-        id = tokenizer->next_id ++;
-        kv_push(int, tokenizer->tokens, id);
-        kv_size(tokenizer->tmp_token) = 0;
-        k = kh_put(ids, tokenizer->ids, tokn, &absent);
-        assert(absent);
-        kh_value(tokenizer->ids, k) = id;
-        k = kh_put(strs, tokenizer->strs, id, &absent);
-        assert(absent);
-        kh_value(tokenizer->strs, k) = tokn;
-        k = kh_put(seen, tokenizer->tmp_seen, id, &absent);
-        assert(absent);
-        k = kh_put(dfs, tokenizer->dfs, id, &absent);
-        kh_value(tokenizer->dfs, k) = (absent ? 0 : kh_value(tokenizer->dfs, k)) + 1;
-      } else {
-        kv_push(int, tokenizer->tokens, 0);
-        kv_size(tokenizer->tmp_token) = 0;
-      }
+      tb_tokenizer_append_token(tokenizer, tokenizer->tmp_token.a, train);
+      kv_size(tokenizer->tmp_token) = 0;
     } else {
       kv_size(tokenizer->tmp_token) = 0;
     }
@@ -474,18 +494,13 @@ static inline void _tb_tokenizer_parse (lua_State *L, tb_tokenizer_t *tokenizer)
   size_t len;
   const char *doc = luaL_checklstring(L, 1, &len);
   tb_tokenizer_populate_tokens(tokenizer, doc, len, false);
-  khint_t k;
   lua_Integer n = 1;
   lua_newtable(L);
   for (khint_t i = 0; i < kv_size(tokenizer->tokens); i ++) {
+    lua_pushinteger(L, n ++);
     int t = kv_A(tokenizer->tokens, i);
-    k = kh_get(strs, tokenizer->strs, t);
-    if (k != kh_end(tokenizer->strs)) {
-      lua_pushinteger(L, n);
-      lua_pushstring(L, kh_value(tokenizer->strs, k));
-      lua_settable(L, -3);
-      n = n + 1;
-    }
+    lua_pushstring(L, tb_tokenizer_id_str(tokenizer, t));
+    lua_settable(L, -3);
   }
 }
 
@@ -513,7 +528,7 @@ static inline int tb_tokenizer_parse (lua_State *L)
   if (lua_type(L, 1) != LUA_TTABLE) {
     _tb_tokenizer_parse(L, tokenizer);
   } else {
-    for (lua_Integer i = 1; i <= lua_objlen(L, 1); i ++) {
+    for (size_t i = 1; i <= lua_objlen(L, 1); i ++) {
       lua_pushinteger(L, i); // t n
       lua_gettable(L, -2); // t s
       _tb_tokenizer_parse(L, tokenizer); // t s tt
@@ -532,7 +547,7 @@ static inline int tb_tokenizer_tokenize (lua_State *L)
   if (lua_type(L, 1) != LUA_TTABLE) {
     _tb_tokenizer_tokenize(L, tokenizer);
   } else {
-    for (lua_Integer i = 1; i <= lua_objlen(L, 1); i ++) {
+    for (size_t i = 1; i <= lua_objlen(L, 1); i ++) {
       lua_pushinteger(L, i); // t n
       lua_gettable(L, -2); // t s
       _tb_tokenizer_tokenize(L, tokenizer); // t s bm
@@ -549,7 +564,7 @@ static inline int tb_tokenizer_finalize (lua_State *L)
   tb_tokenizer_t *tokenizer = peek_tokenizer(L, lua_upvalueindex(1));
 
   if (tokenizer->finalized)
-    return 0;
+    return luaL_error(L, "already finalized");;
 
   tokenizer->finalized = true;
 
@@ -567,8 +582,8 @@ static inline int tb_tokenizer_finalize (lua_State *L)
       id = kh_value(tokenizer->ids, i);
       k = kh_get(dfs, tokenizer->dfs, id);
       assert(k != kh_end(tokenizer->dfs));
-      df = kh_value(tokenizer->dfs, k);
-      if ((df / (double) tokenizer->ndocs) > tokenizer->max_df) {
+      df = (double) kh_value(tokenizer->dfs, k) / (double) tokenizer->ndocs;
+      if (df > tokenizer->max_df || df < tokenizer->min_df) {
         kh_del(ids, tokenizer->ids, i);
         k = kh_get(strs, tokenizer->strs, id);
         assert(k != kh_end(tokenizer->strs));
@@ -608,7 +623,7 @@ static inline int tb_tokenizer_features (lua_State *L)
 {
   lua_settop(L, 1);
   tb_tokenizer_t *tokenizer = peek_tokenizer(L, lua_upvalueindex(1));
-  lua_pushinteger(L, tokenizer->next_id * tokenizer->dimensions * tokenizer->buckets);
+  lua_pushinteger(L, tokenizer->next_id);
   return 1;
 }
 
@@ -649,35 +664,38 @@ static luaL_Reg tb_mt_fns[] =
 static inline int tb_tokenizer_create (lua_State *L)
 {
   double max_df = tk_lua_fcheckposdouble(L, 1, "max_df");
+  double min_df = tk_lua_fcheckposdouble(L, 1, "min_df");
+  unsigned int max_len = tk_lua_fcheckunsigned(L, 1, "max_len");
   unsigned int min_len = tk_lua_fcheckunsigned(L, 1, "min_len");
-  unsigned int wavelength = tk_lua_fcheckunsigned(L, 1, "wavelength");
-  unsigned int dimensions = tk_lua_fcheckunsigned(L, 1, "dimensions");
-  unsigned int buckets = tk_lua_fcheckunsigned(L, 1, "buckets");
+  unsigned int ngrams = tk_lua_fcheckunsigned(L, 1, "ngrams");
   // TODO: Get nthreads
-  if (!dimensions)
-    luaL_error(L, "dimensions must be greater than 0");
-  if (!buckets)
-    luaL_error(L, "buckets must be greater than 0");
-  if (!wavelength)
-    luaL_error(L, "wavelength must be greater than 0");
+  if (min_df < 0 || max_df > 1 || max_df < min_df)
+    luaL_error(L, "min_df and max_df must be an interval between 0 and 1");
+  if (min_len == 0)
+    luaL_error(L, "min_len must be greater than or equal to 1");
+  if (max_len < min_len)
+    luaL_error(L, "max_len must be greater than or equal to min_len");
+  if (ngrams == 0)
+    luaL_error(L, "ngrams must be greater than or equal to 1");
   tb_tokenizer_t *tokenizer = lua_newuserdata(L, sizeof(tb_tokenizer_t));
   memset(tokenizer, 0, sizeof(tb_tokenizer_t));
   luaL_getmetatable(L, MT_TOKENIZER);
   lua_setmetatable(L, -2);
   kv_init(tokenizer->tokens);
   kv_init(tokenizer->tmp_token);
+  kv_init(tokenizer->ngram);
   tokenizer->ids = kh_init(ids);
   tokenizer->strs = kh_init(strs);
   tokenizer->dfs = kh_init(dfs);
   tokenizer->tmp_seen = kh_init(seen);
   tokenizer->next_id = 1;
-  tokenizer->maxlen = 0;
+  tokenizer->max_len_observed = 0;
   tokenizer->ndocs = 0;
   tokenizer->max_df = max_df;
+  tokenizer->min_df = min_df;
+  tokenizer->max_len = max_len;
   tokenizer->min_len = min_len;
-  tokenizer->wavelength = wavelength;
-  tokenizer->dimensions = dimensions;
-  tokenizer->buckets = buckets;
+  tokenizer->ngrams = ngrams;
   lua_newtable(L);
   lua_pushvalue(L, -2);
   tk_lua_register(L, tb_mt_fns, 1);
@@ -698,19 +716,20 @@ static inline int tb_tokenizer_load (lua_State *L)
   lua_setmetatable(L, -2);
   kv_init(tokenizer->tokens);
   kv_init(tokenizer->tmp_token);
+  kv_init(tokenizer->ngram);
   tokenizer->ids = kh_init(ids);
   tokenizer->strs = kh_init(strs);
   tokenizer->dfs = kh_init(dfs);
   tokenizer->tmp_seen = kh_init(seen);
   tk_lua_fread(L, &tokenizer->finalized, sizeof(bool), 1, fh);
   tk_lua_fread(L, &tokenizer->max_df, sizeof(double), 1, fh);
+  tk_lua_fread(L, &tokenizer->min_df, sizeof(double), 1, fh);
+  tk_lua_fread(L, &tokenizer->max_len, sizeof(unsigned int), 1, fh);
   tk_lua_fread(L, &tokenizer->min_len, sizeof(unsigned int), 1, fh);
+  tk_lua_fread(L, &tokenizer->ngrams, sizeof(unsigned int), 1, fh);
   tk_lua_fread(L, &tokenizer->ndocs, sizeof(unsigned int), 1, fh);
-  tk_lua_fread(L, &tokenizer->wavelength, sizeof(unsigned int), 1, fh);
-  tk_lua_fread(L, &tokenizer->dimensions, sizeof(unsigned int), 1, fh);
-  tk_lua_fread(L, &tokenizer->buckets, sizeof(unsigned int), 1, fh);
   tk_lua_fread(L, &tokenizer->next_id, sizeof(int), 1, fh);
-  tk_lua_fread(L, &tokenizer->maxlen, sizeof(size_t), 1, fh);
+  tk_lua_fread(L, &tokenizer->max_len_observed, sizeof(size_t), 1, fh);
   khint_t nkeys;
   khint_t k;
   int absent;
@@ -725,10 +744,10 @@ static inline int tb_tokenizer_load (lua_State *L)
     tk_lua_fread(L, &id, sizeof(int), 1, fh);
     char *tokn = strdup(tok);
     k = kh_put(ids, tokenizer->ids, tokn, &absent);
-    assert(absent == 1);
+    assert(absent);
     kh_value(tokenizer->ids, k) = id;
     k = kh_put(strs, tokenizer->strs, id, &absent);
-    assert(absent == 1);
+    assert(absent);
     kh_value(tokenizer->strs, k) = tokn;
   }
   if (!tokenizer->finalized) {
@@ -739,8 +758,8 @@ static inline int tb_tokenizer_load (lua_State *L)
       tk_lua_fread(L, &id, sizeof(int), 1, fh);
       tk_lua_fread(L, &df, sizeof(unsigned int), 1, fh);
       k = kh_put(dfs, tokenizer->dfs, id, &absent);
-      assert(absent == 1);
-      kh_value(tokenizer->ids, k) = df;
+      assert(absent);
+      kh_value(tokenizer->dfs, k) = df;
     }
   }
   tk_lua_fclose(L, fh);
