@@ -1,5 +1,7 @@
 # Now
 
+- Allow early stopping when average change from (-10,-5) is less than eps
+  differant than average change from (-5,0)
 - Dont store word embeddings, just clusters
 - Log training progress & performance
 - Checkpoint to disk at various points so we can stop arbitrarily

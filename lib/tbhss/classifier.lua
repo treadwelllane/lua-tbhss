@@ -44,14 +44,14 @@ local function pack_dataset (dataset)
   local ps = {}
   for i = 1, #dataset.samples do
     local p = dataset.samples[i]
-    local problem = util.prep_fingerprint(p.sample, dataset.bits * 2)
+    local problem = util.prep_fingerprint(p.sample, dataset.bits)
     local solution = p.label - 1 -- TODO: annoying that tsetlin is 0 and lua is 1-based
     ps[i] = problem
     ss[i] = solution
   end
   ss = mtx.create(ss)
   return
-    bm.raw_matrix(ps, dataset.bits * 2 * 2),
+    bm.raw_matrix(ps, dataset.bits * 2),
     mtx.raw(ss, nil, nil, "u32")
 end
 
@@ -68,7 +68,7 @@ local function create (db, args)
   local test_dataset = get_dataset(modeler, modeler.hidden, args.samples[2])
   local test_problems, test_solutions = pack_dataset(test_dataset)
 
-  print("Input Bits", train_dataset.bits * 2 * 2)
+  print("Input Bits", train_dataset.bits * 2)
   print("Labels", train_dataset.n_labels)
   print("Total Train", #train_dataset.samples)
   print("Total Test", #test_dataset.samples)
@@ -129,7 +129,7 @@ local function open (db, name)
   c.modeler = modeler.open(db, c.modeler)
   c.classifier = tm.load(c.classifier)
   c.classify = function (a)
-    a = util.prep_fingerprint(c.modeler.model(a), c.modeler.hidden )
+    a = util.prep_fingerprint(c.modeler.model(a), c.modeler.hidden)
     local id = c.classifier.predict(a)
     return id and c.labels[id]
   end

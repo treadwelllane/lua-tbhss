@@ -20,13 +20,13 @@ process.imdb({
     "test/res/imdb.train.samples.txt",
     "test/res/imdb.test.samples.txt"
   },
-  max = 4000
+  max = 10000
 })
 
 modeler.create(db, {
   name = "imdb",
-  max_df = 0.95,
-  min_df = 0.001,
+  max_df = 0.90,
+  min_df = 0.005,
   max_len = 20,
   min_len = 3,
   ngrams = 2,
