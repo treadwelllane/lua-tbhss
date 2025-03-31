@@ -118,8 +118,8 @@ static inline void tk_lua_fwrite (lua_State *L, char *data, size_t size, size_t 
 
 static inline void tk_lua_fread (lua_State *L, void *data, size_t size, size_t memb, FILE *fh)
 {
-  (void) fread(data, size, memb, fh);
-  if (!ferror(fh)) return;
+  size_t r = fread(data, size, memb, fh);
+  if (!(ferror(fh) || r < memb)) return;
   int e = errno;
   lua_settop(L, 0);
   lua_pushstring(L, "Error reading from file");
