@@ -1,102 +1,26 @@
-nohup stdbuf -oL tbhss load words \
+nohup stdbuf -oL tbhss create modeler \
   --cache tbhss.db \
-  --name glove \
-  --file glove.6B.300d.txt \
-    2>&1 > log.txt & tail -f log.txt
-
-nohup stdbuf -oL tbhss process snli-pairs \
-  --inputs snli_1.0/snli_1.0_dev.txt \
-  --train-test-ratio 0.9 \
-  --output-train snli-pairs.train.txt \
-  --output-test snli-pairs.test.txt \
-    2>&1 > log.txt & tail -f log.txt
-
-nohup stdbuf -oL tbhss process snli-pairs \
-  --inputs snli_1.0/snli_1.0_train.txt snli_1.0/snli_1.0_test.txt snli_1.0/snli_1.0_dev.txt \
-  --train-test-ratio 0.9 \
-  --output-train snli-pairs.train.txt \
-  --output-test snli-pairs.test.txt \
-    2>&1 > log.txt & tail -f log.txt
-
-# Small
-
-nohup stdbuf -oL tbhss load train-pairs \
-  --cache tbhss.db \
-  --name snli37-train \
-  --file snli-pairs.train.txt \
-  --max-records 10000 \
-  --clusters glove k-medoids 32 32 \
-  --fingerprints hashed 10000 256 16 1024 \
-  --include-pos --pos-ancestors 1 \
-  --weighting bm25 1.2 0.75 \
-    2>&1 > log.txt & tail -f log.txt
-
-nohup stdbuf -oL tbhss load test-pairs \
-  --cache tbhss.db \
-  --name snli37-test \
-  --file snli-pairs.test.txt \
-  --max-records 1000 \
-  --model snli37-train \
+  --name imdb-test1  \
+  --max-df 0.95 \
+  --min-df 0.005 \
+  --max-len 20 \
+  --min-len 20 \
+  --hidden 2048 \
+  --sentences imdb.train.sentences.txt \
+  --iterations 1000 \
     2>&1 > log.txt & tail -f log.txt
 
 nohup stdbuf -oL tbhss create classifier \
   --cache tbhss.db \
-  --name snli37  \
-  --pairs snli37-train snli37-test \
+  --name imdb-test0  \
+  --modeler imdb-test \
+  --samples imdb.train.samples.txt imdb.test.samples.txt \
   --clauses 8192 \
   --state-bits 8 \
-  --threshold 256 \
+  --target 256 \
   --specificity 2 200 \
   --active-clause 0.85 \
   --boost-true-positive false \
   --evaluate-every 10 \
-  --epochs 1000 \
+  --iterations 1000 \
     2>&1 > log.txt & tail -f log.txt
-  # --specificity 28 32 \
-
-# nohup stdbuf -oL tbhss create encoder \
-#   --cache tbhss.db \
-#   --name snli18  \
-#   --triplets snli18-train snli18-test \
-#   --encoded-bits 32 \
-#   --clauses 4096 \
-#   --state-bits 8 \
-#   --threshold 36 \
-#   --specificity 4 12 \
-#   --margin 0.15 \
-#   --loss-alpha 0.25 \
-#   --active-clause 0.85 \
-#   --boost-true-positive false \
-#   --evaluate-every 1 \
-#   --epochs 200 \
-#     2>&1 > log.txt & tail -f log.txt
-
-# nohup stdbuf -oL tbhss create autoencoder \
-#   --cache tbhss.db \
-#   --name snli18-compressor  \
-#   --triplets snli18-train snli18-test \
-#   --encoded-bits 128 \
-#   --clauses 1024 \
-#   --state-bits 8 \
-#   --threshold 36 \
-#   --specificity 4 12 \
-#   --loss-alpha 0.5 \
-#   --active-clause 0.85 \
-#   --boost-true-positive false \
-#   --evaluate-every 1 \
-#   --epochs 200 \
-#     2>&1 > log.txt & tail -f log.txt
-
-# nohup stdbuf -oL tbhss load compressed-triplets \
-#   --cache tbhss.db \
-#   --name snli18-train-compressed \
-#   --triplets snli18-train \
-#   --autoencoder snli18-compressor \
-#     2>&1 > log.txt & tail -f log.txt
-
-# nohup stdbuf -oL tbhss load compressed-triplets \
-#   --cache tbhss.db \
-#   --name snli18-test-compressed \
-#   --triplets snli18-test \
-#   --autoencoder snli18-compressor \
-#     2>&1 > log.txt & tail -f log.txt

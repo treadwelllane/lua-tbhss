@@ -67,10 +67,10 @@ base_flags(cmd_create_modeler)
 cmd_create_modeler:option("--name", "name of created modeler", nil, nil, 1, 1)
 cmd_create_modeler:option("--sentences", "path to sentences.txt to train on", nil, nil, 1, 1)
 cmd_create_modeler:option("--max-df", "max document frequency for filtering common words", nil, tonumber, 1, 1)
+cmd_create_modeler:option("--min-df", "min document frequency for filtering common words", nil, tonumber, 1, 1)
+cmd_create_modeler:option("--max-len", "maximum token length", nil, tonumber, 1, 1)
 cmd_create_modeler:option("--min-len", "minimum token length", nil, tonumber, 1, 1)
-cmd_create_modeler:option("--position", "wavelength, dimensions, and buckets for sinusoidal positions", nil, function (v)
-  return str.match(v, "^%-?%d*%.?%d+$") and tonumber(v) or v
-end, 3, 1)
+cmd_create_modeler:option("--ngrams", "# of ngrams", nil, tonumber, 1, 1)
 cmd_create_modeler:option("--hidden", "number of hidden features to capture", nil, tonumber, 1, 1)
 cmd_create_modeler:option("--iterations", "Number of iterations", nil, tonumber, 1, 1)
 

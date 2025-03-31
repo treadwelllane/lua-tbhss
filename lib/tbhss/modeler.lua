@@ -18,7 +18,7 @@ local function create (db, args)
     min_df = args.min_df,
     max_len = args.max_len,
     min_len = args.min_len,
-    ngrams = 1
+    ngrams = args.ngrams
   })
 
   print("Training tokenizer")
