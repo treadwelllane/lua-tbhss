@@ -41,26 +41,19 @@ modeler.create(db, {
 })
 
 classifier.create(db, {
-
   name = "imdb",
   modeler = "imdb",
-
   clauses = 8192,
   state = 8,
   target = 32,
   boost = true,
   specificity = 200,
-  replicas = 0,
   threads = 6,
-
   active = 0.75,
-  negatives = 1,
   samples = {
     "test/res/imdb.train.samples.txt",
     "test/res/imdb.test.samples.txt"
   },
-
   evaluate_every = 1,
   iterations = 50,
-
 })

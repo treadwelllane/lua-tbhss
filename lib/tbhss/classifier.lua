@@ -68,7 +68,6 @@ local function create (db, args)
     clauses = args.clauses,
     state = args.state,
     target = args.target,
-    replicas = args.replicas,
     threads = args.threads,
     boost = args.boost,
     specificity = args.specificity,
@@ -81,7 +80,6 @@ local function create (db, args)
     problems = ps_train,
     solutions = ss_train,
     samples = n_train,
-    negatives = args.negatives,
     active = args.active,
     iterations = args.iterations,
     each = function (epoch)
