@@ -104,6 +104,18 @@ return function (db_file, skip_init)
     where id = ?
   ]])
 
+  M.modeler_exists = db.getter([[
+    select 1 from modeler where name = ?1
+  ]])
+
+  M.classifier_exists = db.getter([[
+    select 1 from classifier where name = ?1
+  ]])
+
+  M.encoder_exists = db.getter([[
+    select 1 from encoder where name = ?1
+  ]])
+
   M.set_words_clustered = db.runner([[
     update clusters_model
     set clustered = true

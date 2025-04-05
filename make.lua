@@ -1,21 +1,23 @@
 local env = {
 
   name = "tbhss",
-  version = "0.0.46-1",
+  version = "0.0.48-1",
   variable_prefix = "TBHSS",
   public = true,
 
-  cflags = { "-Wall", "-Wextra", "-Werror", "-Wno-unused-function" },
+  cflags = { "-march=native", "-O3", "-Wall", "-Wextra", "-Wno-unused-function", "-Wno-sign-conversion", "-Wsign-compare", "-Wstrict-overflow", "-Wpointer-sign", },
+  ldflags = { "-march=native", "-O3", "-lm", },
+
 
   dependencies = {
     "lua == 5.1",
     "lua-cjson >= 2.1.0.10-1",
     "argparse >= 0.7.1-1",
-    "santoku == 0.0.248-1",
+    "santoku == 0.0.256-1",
     "santoku-fs == 0.0.33-1",
     "santoku-system == 0.0.46-1",
-    "santoku-tsetlin == 0.0.61-1",
-    "santoku-bitmap == 0.0.35-1",
+    "santoku-tsetlin == 0.0.64-1",
+    "santoku-bitmap == 0.0.40-1",
     "santoku-matrix == 0.0.13-1",
     "santoku-sqlite == 0.0.22-1",
     "santoku-sqlite-migrate == 0.0.13-1",
@@ -24,6 +26,8 @@ local env = {
   },
 
   test = {
+    cflags = { "-g3" },
+    ldflags = { "-g3" },
     dependencies = {
       "luacov == 0.15.0-1",
     }

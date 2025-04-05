@@ -44,7 +44,7 @@ create table modeler (
   visible integer not null,
   hidden integer not null,
   tokenizer text not null,
-  compressor text not null
+  compressor text
 );
 
 create table classifier (

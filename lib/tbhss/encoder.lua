@@ -1,6 +1,7 @@
 local serialize = require("santoku.serialize") -- luacheck: ignore
 local tm = require("santoku.tsetlin")
 local arr = require("santoku.array")
+local err = require("santoku.error")
 local utc = require("santoku.utc")
 local fs = require("santoku.fs")
 local str = require("santoku.string")
@@ -59,6 +60,10 @@ end
 
 local function create (db, args)
 
+  if db.encoder_exists(args.name) then
+    return err.error("Encoder exists", args.name)
+  end
+
   print("Creating triplet encoder")
   local modeler = modeler.open(db, args.modeler)
 
@@ -79,7 +84,7 @@ local function create (db, args)
   print("Total Train", #train_dataset.triplets)
   print("Total Test", #test_dataset.triplets)
 
-  local t = tm.encoder({
+  local encoder = tm.encoder({
     visible = train_dataset.bits,
     hidden = args.hidden,
     clauses = args.clauses,
@@ -94,7 +99,7 @@ local function create (db, args)
   print("Training")
   str.printf("Baseline  Test %4.2f  Train %4.2f\n", test_baseline, train_baseline)
   local stopwatch = utc.stopwatch()
-  t.train({
+  encoder.train({
     corpus = train_data,
     samples = #train_dataset.triplets,
     active_clause = args.active_clause,
@@ -104,12 +109,12 @@ local function create (db, args)
     each = function (epoch)
       local duration, total = stopwatch()
       if epoch == args.epochs or epoch % args.evaluate_every == 0 then
-        local train_score = t.evaluate({
+        local train_score = encoder.evaluate({
           corpus = train_data,
           samples = #train_dataset.triplets,
           margin = args.margin
         })
-        local test_score = t.evaluate({
+        local test_score = encoder.evaluate({
           corpus = test_data,
           samples = #test_dataset.triplets,
           margin = args.margin
@@ -124,7 +129,7 @@ local function create (db, args)
   })
 
   local efp = fs.join(fs.dirname(db.file), args.name .. ".encoder.bin")
-  t.persist(efp)
+  encoder.persist(efp)
 
   db.add_encoder(args.name, modeler.name, efp)
 
@@ -132,6 +137,9 @@ end
 
 local function open (db, name)
   local e = db.get_encoder(name)
+  if not e then
+    return err.error("Encoder not found", name)
+  end
   e.modeler = modeler.open(db, e.modeler)
   e.encoder = tm.load(e.encoder)
   e.encode = function (a)

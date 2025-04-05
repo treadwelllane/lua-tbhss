@@ -1,28 +1,25 @@
 # Now
 
-- Allow early stopping when average change from (-10,-5) is less than eps
-  differant than average change from (-5,0)
+- Refine explore api
+    - rename explore imdb/snli to explore classifier/encoder (allowing generic
+      datasets created via the process command)
+
+- Accept ranges for ngrams and cgrams
 - Dont store word embeddings, just clusters
 - Log training progress & performance
 - Checkpoint to disk at various points so we can stop arbitrarily
 
-- Library interface to inject cluster ids into sentence (for FTS enhancement)
 - FAISS binding for bitmaps
-- Pre-trained models for pos/neg sentiment analysis and semantic embeddings
-- Pre-trained models for full SNLI dataset & 840B glove model
+- Pre-trained classifier models (imdb, what else?)
+- Pre-trained encoder models (snli, what else?)
+
 - MTEB
+- Library interface to inject cluster ids into sentence (for FTS enhancement)
 
 # Next
 
 - Rescue k-means from history
 - Update README
-
-- Improve performance:
-    - Find initial centroids
-    - Load embeddings
-    - Pack datasets
-
-- Hyperparameter search
 
 # Eventually
 

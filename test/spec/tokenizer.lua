@@ -7,7 +7,8 @@ local t = tokenizer.create({
   min_df = 0.1,
   min_len = 3,
   max_len = 20,
-  ngrams = 2
+  ngrams = 2,
+  cgrams = 3
 })
 
 -- Courtesy of ChatGPT
