@@ -25,7 +25,8 @@ return {
     replicas         = it.ivals({ 0 }),
     clauses          = it.ivals({ 32784 }),
     target           = it.ivals({ 256 }),
-    specificity      = it.range(40, 60, fun.add(2)),
-    threads          = it.ivals({ 6 }),
+    specificity_low  = it.ivals({ 2 }),
+    specificity_high = it.ivals({ 200 }),
+    threads          = nil
   },
 }

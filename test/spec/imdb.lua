@@ -28,32 +28,38 @@ modeler.create(db, {
   min_df = 0.001,
   max_len = 20,
   min_len = 3,
-  ngrams = 1,
-  cgrams = 0,
+  ngrams = 3,
+  cgrams = 3,
   compress = true,
   hidden = 128,
   -- Note: Training the modeler with train and test sentences to simulate a
   -- larger unsupervised corpus. Can we avoid this?
-  sentences = { "test/res/imdb.train.sentences.txt", "test/res/imdb.train.sentences.txt" },
+  sentences = {
+    "test/res/imdb.train.sentences.txt",
+    "test/res/imdb.test.sentences.txt"
+  },
   iterations = 100,
-  eps = 0.001,
-  threads = 6,
+  eps = 0.0001,
+  threads = nil,
 })
 
 classifier.create(db, {
   name = "imdb",
   modeler = "imdb",
-  clauses = 8192,
+  clauses = 8192 * 4,
   state = 8,
-  target = 32,
+  target = 32 * 4,
   boost = true,
-  specificity = 200,
-  threads = 6,
   active = 0.75,
+  negatives = 0.25,
+  replicas = 0,
+  specificity_low = 2,
+  specificity_high = 200,
   samples = {
     "test/res/imdb.train.samples.txt",
     "test/res/imdb.test.samples.txt"
   },
   evaluate_every = 1,
   iterations = 50,
+  threads = nil,
 })

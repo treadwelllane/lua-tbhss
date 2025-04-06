@@ -73,8 +73,11 @@ return function (db, args)
         state = o_classifier.state,
         target = o_classifier.target,
         active = o_classifier.active,
+        negatives = o_classifier.negatives,
         boost = o_classifier.boost,
-        specificity = o_classifier.specificity,
+        specificity_low = o_classifier.specificity_low,
+        specificity_high = o_classifier.specificity_high,
+        replicas = o_classifier.replicas,
         threads = o_classifier.threads,
         samples = {
           fs.join(dir, name_modeler .. ".train.samples.txt"),

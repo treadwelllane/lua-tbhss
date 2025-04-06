@@ -91,8 +91,6 @@ local function create (db, args)
     state_bits = args.state_bits,
     target = args.target,
     boost_true_positive = args.boost_true_positive,
-    spec_low = args.spec_low or args.specificity[1],
-    spec_high = args.spec_high or args.specificity[2],
     evaluate_every = args.evaluate_every,
   })
 
