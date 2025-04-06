@@ -10,15 +10,18 @@ local mtx = require("santoku.matrix")
 local json = require("cjson")
 local modeler = require("tbhss.modeler")
 
-local function get_dataset (modeler, fp)
+local function get_dataset (modeler, fp, labels)
   print("Loading sentence samples")
-  local labels = { n = 0, id_to_label = {}, label_to_id = {} }
+  local has_labels = labels
+  local labels = has_labels or { n = 0, id_to_label = {}, label_to_id = {} }
   local ss = {}
   local ps = {}
   for r in fs.lines(fp) do
     local label, sample = str.match(r, "(%d)\t(.*)")
     local label_id = labels.label_to_id[label]
-    if not label_id then
+    if not label_id and has_labels then
+      err.error("unexpected label", label, label_id)
+    elseif not label_id then
       label_id = labels.n
       labels.n = labels.n + 1
       labels.label_to_id[label] = label_id
@@ -54,7 +57,7 @@ local function create (db, args)
 
   print("Loading test")
   local n_test, ps_test, ss_test =
-    get_dataset(modeler, args.samples[2])
+    get_dataset(modeler, args.samples[2], labels)
 
   print("Input Bits", modeler.hidden * 2)
   print("Labels", labels.n)

@@ -28,8 +28,8 @@ modeler.create(db, {
   min_df = 0.001,
   max_len = 20,
   min_len = 3,
-  ngrams = 3,
-  cgrams = 3,
+  ngrams = 1,
+  cgrams = 0,
   compress = true,
   hidden = 128,
   -- Note: Training the modeler with train and test sentences to simulate a
@@ -38,7 +38,7 @@ modeler.create(db, {
     "test/res/imdb.train.sentences.txt",
     "test/res/imdb.test.sentences.txt"
   },
-  iterations = 100,
+  iterations = 10,
   eps = 0.0001,
   threads = nil,
 })
@@ -46,9 +46,9 @@ modeler.create(db, {
 classifier.create(db, {
   name = "imdb",
   modeler = "imdb",
-  clauses = 8192 * 4,
+  clauses = 8192,
   state = 8,
-  target = 32 * 4,
+  target = 32,
   boost = true,
   active = 0.75,
   negatives = 0.25,
