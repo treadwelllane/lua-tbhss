@@ -21,10 +21,8 @@ return {
     evaluate_every   = it.ivals({ 1 }),
     iterations       = it.ivals({ 100 }),
     active           = it.ivals({ 0.85 }),
-    negatives        = it.ivals({ 0.05, 0.25, 0.5, 1.0 }),
-    replicas         = it.ivals({ 0 }),
-    clauses          = it.ivals({ 65536 }),
-    target           = it.ivals({ 512 }),
+    clauses          = it.range(8192, 65536, fun.mul(2)),
+    target           = it.range(32, 1024, fun.mul(2)),
     specificity_low  = it.ivals({ 2 }),
     specificity_high = it.ivals({ 200 }),
     threads          = nil
