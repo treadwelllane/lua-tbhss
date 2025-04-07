@@ -51,8 +51,6 @@ classifier.create(db, {
   target = 32,
   boost = true,
   active = 0.75,
-  negatives = 0.25,
-  replicas = 0,
   specificity_low = 2,
   specificity_high = 200,
   samples = {
