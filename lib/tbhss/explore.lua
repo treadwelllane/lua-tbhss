@@ -19,19 +19,25 @@ return function (db, args)
     local name_modeler = "explore " .. k_modeler
     local name_classifier = "explore " .. k_classifier
 
-    print()
-    print(name_modeler)
-    print(name_classifier)
-    print()
-    print(serialize({
-      modeler = o_modeler,
-      classifier = o_classifier,
-    }))
-    print()
+    local has_data = fs.exists(name_modeler .. ".train.sentences.txt")
+    local has_modeler = db.modeler_exists(name_modeler)
+    local has_classifier = db.classifier_exists(name_classifier)
+
+    if not has_modeler or not has_classifier then
+      print()
+      print(name_modeler)
+      print(name_classifier)
+      print()
+      print(serialize({
+        modeler = o_modeler,
+        classifier = o_classifier,
+      }))
+      print()
+    end
 
     local dir = fs.dirname(db.file)
 
-    if not fs.exists(name_modeler .. ".train.sentences.txt") then
+    if not has_data then
       process.imdb({
         dirs = args.dirs,
         train_test_ratio = 0.95,
@@ -47,7 +53,7 @@ return function (db, args)
       })
     end
 
-    if not db.modeler_exists(name_modeler) then
+    if not has_modeler then
       modeler.create(db, {
         name = name_modeler,
         max_df = o_modeler.max_df,
@@ -65,7 +71,7 @@ return function (db, args)
       })
     end
 
-    if not db.classifier_exists(name_classifier) then
+    if not has_classifier then
       classifier.create(db, {
         name = name_classifier,
         modeler = name_modeler,

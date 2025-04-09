@@ -14,6 +14,7 @@
 #include "roaring.h"
 #include "roaring.c"
 #include "khash.h"
+#include "kbtree.h"
 #include "kvec.h"
 
 #define MT_BITMAP "santoku_bitmap"
@@ -240,11 +241,23 @@ static inline lua_Integer tk_lua_fcheckunsigned (lua_State *L, int i, char *fiel
   return n;
 }
 
+typedef struct {
+  unsigned int id;
+  unsigned int df;
+} tk_sort_pair_t;
+
+static inline int tk_sort_pair_cmp (tk_sort_pair_t a, tk_sort_pair_t b)
+{
+  return (int) (a.df < b.df) - (int) (b.df < a.df);
+}
+
+KBTREE_INIT(sort, tk_sort_pair_t, tk_sort_pair_cmp);
 KHASH_MAP_INIT_STR(ids, int);
 KHASH_MAP_INIT_INT(strs, char *);
 KHASH_MAP_INIT_INT(dfs, unsigned int);
 KHASH_SET_INIT_INT(seen);
 
+typedef kbtree_t(sort) tb_sort_t;
 typedef khash_t(ids) tb_ids_t;
 typedef khash_t(strs) tb_strs_t;
 typedef khash_t(dfs) tb_df_t;
@@ -442,20 +455,20 @@ static inline void tb_tokenizer_append_cgrams (
 
   while (e < len)
   {
-    for (unsigned int i = 0; i < tokenizer->cgrams; i ++)
+    for (unsigned int i = 0; i < tokenizer->cgrams; i ++) {
       tmp[i] = tok[s + i];
-    tmp[tokenizer->cgrams] = 0;
+      tmp[i + 1] = 0;
+      char *tmpp = tmp;
+      if (strlen(tmp) < tokenizer->min_len)
+        continue;
+      int id = tb_tokenizer_new_token(tokenizer, &tmpp, train);
+      if (id == -1)
+        continue;
+      kv_push(int, tokenizer->tokens, id);
+    }
 
     s ++;
     e ++;
-
-    char *tmpp = tmp;
-    int id = tb_tokenizer_new_token(tokenizer, &tmpp, train);
-
-    if (id == -1)
-      continue;
-
-    kv_push(int, tokenizer->tokens, id);
   }
 }
 
@@ -471,14 +484,13 @@ static inline void tb_tokenizer_append_token (
 
   tb_tokenizer_append_cgrams(tokenizer, tok, train);
 
-  khint_t ngrams = kv_size(tokenizer->ngram);
-  for (khint_t i = 1; i < ngrams; i ++)
-    kv_A(tokenizer->ngram, i - 1) = kv_A(tokenizer->ngram, i);
-  if (ngrams)
-    kv_size(tokenizer->ngram) = ngrams - 1;
+  if (kv_size(tokenizer->ngram) == tokenizer->ngrams) {
+    for (khint_t i = 1; i < kv_size(tokenizer->ngram); i++)
+      kv_A(tokenizer->ngram, i - 1) = kv_A(tokenizer->ngram, i);
+    kv_size(tokenizer->ngram)--;
+  }
 
   kv_push(int, tokenizer->ngram, id);
-  ngrams = kv_size(tokenizer->ngram);
 
   char tmp[tokenizer->max_len_observed * tokenizer->ngrams + tokenizer->ngrams];
   char *tmps[tokenizer->ngrams + 1];
@@ -560,7 +572,8 @@ static inline void _tb_tokenizer_tokenize (lua_State *L, tb_tokenizer_t *tokeniz
   luaL_getmetatable(L, MT_BITMAP); // s bm mt
   lua_setmetatable(L, -2); // s bm
   for (khint_t i = 0; i < kv_size(tokenizer->tokens); i ++)
-    roaring64_bitmap_add(bm, kv_A(tokenizer->tokens, i));
+    if (kv_A(tokenizer->tokens, i) >= 0)
+      roaring64_bitmap_add(bm, kv_A(tokenizer->tokens, i));
 }
 
 static inline int tb_tokenizer_parse (lua_State *L)
@@ -617,6 +630,8 @@ static inline int tb_tokenizer_finalize (lua_State *L)
   tb_ids_t *ids0 = kh_init(ids);
   tb_strs_t *strs0 = kh_init(strs);
 
+  tb_sort_t *sort = kb_init(sort, KB_DEFAULT_SIZE);
+
   // Delete tokens with df > max_df
   for (i = kh_begin(tokenizer->ids); i < kh_end(tokenizer->ids); i ++)
     if (kh_exist(tokenizer->ids, i)) {
@@ -631,6 +646,9 @@ static inline int tb_tokenizer_finalize (lua_State *L)
         assert(k != kh_end(tokenizer->strs));
         kh_del(strs, tokenizer->strs, k);
         free(tok);
+      } else {
+        tk_sort_pair_t p = { .id = id, .df = df };
+        kb_put(sort, sort, p);
       }
     }
   kh_destroy(dfs, tokenizer->dfs);
@@ -640,19 +658,23 @@ static inline int tb_tokenizer_finalize (lua_State *L)
 
   // Renumber tokens
   tokenizer->next_id = 0;
-  for (i = kh_begin(tokenizer->ids); i < kh_end(tokenizer->ids); i ++)
-    if (kh_exist(tokenizer->ids, i)) {
-      tok = (char *) kh_key(tokenizer->ids, i);
-      id = kh_value(tokenizer->ids, i);
-      id0 = tokenizer->next_id ++;
-      k = kh_put(ids, ids0, tok, &absent);
-      assert(absent);
-      kh_value(ids0, k) = id0;
-      k = kh_put(strs, strs0, id0, &absent);
-      assert(absent);
-      kh_value(strs0, k) = tok;
-    }
+  kbitr_t itr;
+  kb_itr_first(sort, sort, &itr);
+  for (; kb_itr_valid(&itr); kb_itr_next(sort, sort, &itr)) {
+    id = kb_itr_key(tk_sort_pair_t, &itr).id;
+    k = kh_get(strs, tokenizer->strs, id);
+    assert(k != kh_end(tokenizer->strs));
+    tok = (char *) kh_value(tokenizer->strs, k);
+    id0 = tokenizer->next_id ++;
+    k = kh_put(ids, ids0, tok, &absent);
+    assert(absent);
+    kh_value(ids0, k) = id0;
+    k = kh_put(strs, strs0, id0, &absent);
+    assert(absent);
+    kh_value(strs0, k) = tok;
+  }
 
+  kb_destroy(sort, sort);
   kh_destroy(ids, tokenizer->ids);
   kh_destroy(strs, tokenizer->strs);
   tokenizer->ids = ids0;

@@ -3,13 +3,17 @@ local it = require("santoku.iter")
 local str = require("santoku.string")
 
 local t = tokenizer.create({
-  max_df = 0.7,
-  min_df = 0.1,
+  max_df = 1.0,
+  min_df = 0.0,
   min_len = 3,
   max_len = 20,
-  ngrams = 2,
+  ngrams = 3,
   cgrams = 3
 })
+
+-- The quick brown fox jumped over the lazy dog
+-- the, qui, uic, ick, the quick, quick, bro, row, own, quick brown, fox, brown
+-- fox, jum, ump, mpe, ped, fox jumped
 
 -- Courtesy of ChatGPT
 local corpus = it.collect(str.gmatch([[

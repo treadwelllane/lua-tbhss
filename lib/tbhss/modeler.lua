@@ -46,7 +46,7 @@ local function create (db, args)
   local features = tokenizer.features()
   print("Features: ", features)
 
-  print("Tokenizing corpus")
+  print("Tokenizing corpus", #corpus)
   tokenizer.tokenize(corpus)
 
   print("Packing bitmaps")

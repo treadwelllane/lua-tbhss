@@ -10,7 +10,7 @@ return {
     ngrams           = it.ivals({ 3 }),
     cgrams           = it.ivals({ 3 }),
     compress         = it.ivals({ true }),
-    hidden           = it.ivals({ 512 }),
+    hidden           = it.ivals({ 1024 }),
     iterations       = it.ivals({ 1000 }),
     eps              = it.ivals({ 0.00001 }),
     threads          = nil
