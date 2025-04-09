@@ -4,7 +4,6 @@
     - rename explore imdb/snli to explore classifier/encoder (allowing generic
       datasets created via the process command)
 
-- Accept ranges for ngrams and cgrams
 - Dont store word embeddings, just clusters
 - Log training progress & performance
 - Checkpoint to disk at various points so we can stop arbitrarily
