@@ -25,21 +25,18 @@ process.imdb({
 modeler.create(db, {
   name = "imdb",
   max_df = 0.95,
-  min_df = 0.001,
+  min_df = 0.005,
   max_len = 20,
   min_len = 3,
-  ngrams = 3,
-  cgrams = 3,
+  ngrams = 1,
+  cgrams = 0,
   compress = true,
-  hidden = 256,
-  -- Note: Training the modeler with train and test sentences to simulate a
-  -- larger unsupervised corpus. Can we avoid this?
-  sentences = {
-    "test/res/imdb.train.sentences.txt",
-    "test/res/imdb.test.sentences.txt"
-  },
-  iterations = 100,
-  eps = 0.0001,
+  hidden = 512,
+  -- sentences = { "test/res/imdb.train.sentences.txt", },
+  samples = { "test/res/imdb.train.samples.txt", },
+  supervision = 0.5,
+  iterations = 5,
+  eps = 0.001,
   threads = nil,
 })
 
@@ -50,14 +47,11 @@ classifier.create(db, {
   state = 8,
   target = 64,
   boost = true,
-  active = 0.75,
+  active = 0.85,
   specificity_low = 2,
   specificity_high = 200,
-  samples = {
-    "test/res/imdb.train.samples.txt",
-    "test/res/imdb.test.samples.txt"
-  },
+  samples = { "test/res/imdb.train.samples.txt", "test/res/imdb.test.samples.txt" },
   evaluate_every = 1,
-  iterations = 50,
+  iterations = 200,
   threads = nil,
 })

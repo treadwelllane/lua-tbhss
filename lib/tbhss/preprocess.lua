@@ -181,8 +181,8 @@ local function imdb (args)
   local sentences_only = not args.samples and {}
   for i = 1, #args.dirs do
     print("Reading", args.dirs[i])
-    local pos = it.map(map_imdb_files, it.paste(0, fs.files(fs.join(args.dirs[i], "pos"), true)))
-    local neg = it.map(map_imdb_files, it.paste(1, fs.files(fs.join(args.dirs[i], "neg"), true)))
+    local pos = it.map(map_imdb_files, it.paste(1, fs.files(fs.join(args.dirs[i], "pos"), true)))
+    local neg = it.map(map_imdb_files, it.paste(0, fs.files(fs.join(args.dirs[i], "neg"), true)))
     while not args.max or #samples < args.max * 2  do
       local p = pos()
       local n = neg()

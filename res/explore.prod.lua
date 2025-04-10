@@ -10,9 +10,9 @@ return {
     ngrams           = it.ivals({ 3 }),
     cgrams           = it.ivals({ 3 }),
     compress         = it.ivals({ true }),
-    hidden           = it.ivals({ 1024 }),
+    hidden           = it.ivals({ 512 }),
     iterations       = it.ivals({ 1000 }),
-    eps              = it.ivals({ 0.00001 }),
+    eps              = it.ivals({ 0.0001 }),
     threads          = nil
   },
   classifier = {
@@ -21,8 +21,8 @@ return {
     evaluate_every   = it.ivals({ 1 }),
     iterations       = it.ivals({ 100 }),
     active           = it.ivals({ 0.85 }),
-    clauses          = it.range(8192, 65536, fun.mul(2)),
-    target           = it.range(32, 1024, fun.mul(2)),
+    clauses          = it.ivals({ 65536 }),
+    target           = it.ivals({ 64 }),
     specificity_low  = it.ivals({ 2 }),
     specificity_high = it.ivals({ 200 }),
     threads          = nil

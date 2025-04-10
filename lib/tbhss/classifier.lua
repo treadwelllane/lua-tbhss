@@ -64,7 +64,7 @@ local function create (db, args)
   print("Total Train", n_train)
   print("Total Test", n_test)
 
-  print("Creating classifier")
+  print("Creating classifier", modeler.hidden)
   local classifier = tm.classifier({
     classes = labels.n,
     features = modeler.hidden,

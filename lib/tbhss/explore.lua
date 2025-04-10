@@ -104,7 +104,7 @@ return function (db, args)
 
   rand.options(cfg.classifier, function (opts, n, k)
     opts.k = k
-    if opts.target < opts.clauses / 2 then
+    if opts.target <= opts.clauses / 2 then
       arr.push(cs, opts)
     end
     return n < 100

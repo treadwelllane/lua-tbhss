@@ -1,4 +1,5 @@
 local bm = require("santoku.bitmap")
+local mtx = require("santoku.matrix")
 local str = require("santoku.string")
 local arr = require("santoku.array")
 local err = require("santoku.error")
@@ -9,6 +10,10 @@ local fs = require("santoku.fs")
 
 local compressor = require("santoku.bitmap.compressor")
 local tokenizer = require("tbhss.tokenizer")
+
+num.round_multiple = function (n, m)
+  return num.ceil(n / m) * m
+end
 
 local function create (db, args)
 
@@ -24,13 +29,51 @@ local function create (db, args)
     return err.error("Modeler exists", args.name)
   end
 
-  local corpus = type(args.sentences) ~= "table"
-    and it.collect(fs.lines(args.sentences))
-    or it.collect(it.flatten(it.map(fs.lines, it.ivals(args.sentences))))
+  local data, supervise
+  if (args.sentences and args.samples) or not (args.sentences or args.samples) then
+    return err.error("either samples or sentences must be provided")
+  elseif args.sentences then
+    data = args.sentences
+    supervise = false
+  elseif args.samples then
+    data = args.samples
+    supervise = true
+  else
+    -- Shouldn't get here
+    return err.error("Unexpected, this is a bug!")
+  end
+
+  local n_labels, labels, corpus
+
+  corpus = type(data) ~= "table"
+    and it.collect(fs.lines(data))
+    or it.collect(it.flatten(it.map(fs.lines, it.ivals(data))))
+
+  if supervise then
+    labels = {}
+    n_labels = 0
+    for i = 1, #corpus do
+      local r = corpus[i]
+      local l, s = str.match(r, "^([^\t]+)\t(.*)")
+      if not l or not s then
+        return err.error("Error parsing line:", r)
+      end
+      local ln = tonumber(l)
+      if not ln then
+        return err.error("Label is not a number", l)
+      end
+      if ln + 1 > n_labels  then
+        n_labels = ln + 1
+      end
+      corpus[i] = s
+      labels[i] = ln
+    end
+    labels = mtx.raw(mtx.create(labels), nil, nil, "u32")
+  end
 
   local samples = #corpus
 
-  print("Creating tokenizer")
+  print("Creating tokenizer", n_labels)
   local tokenizer = tokenizer.create({
     max_df = args.max_df,
     min_df = args.min_df,
@@ -69,6 +112,9 @@ local function create (db, args)
     compressor.train({
       corpus = corpus,
       samples = samples,
+      labels = labels,
+      supervision = args.supervision,
+      n_labels = n_labels,
       iterations = args.iterations,
       each = function (i, tc)
         local duration, total_duration = stopwatch()
@@ -105,6 +151,9 @@ local function open (db, name)
   m.tokenizer = tokenizer.load(m.tokenizer)
   m.compressor = m.compressor and compressor.load(m.compressor)
   m.visible = m.tokenizer.features()
+  if not m.compressor then
+    m.visible = num.round_multiple(m.visible, 128)
+  end
   m.hidden = m.compressor and m.compressor.hidden() or m.visible
   m.model = function (s)
     local n = 1

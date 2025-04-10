@@ -17,7 +17,7 @@ local env = {
     "santoku-fs == 0.0.33-1",
     "santoku-system == 0.0.46-1",
     "santoku-tsetlin == 0.0.73-1",
-    "santoku-bitmap == 0.0.44-1",
+    "santoku-bitmap == 0.0.45-1",
     "santoku-matrix == 0.0.13-1",
     "santoku-sqlite == 0.0.22-1",
     "santoku-sqlite-migrate == 0.0.13-1",

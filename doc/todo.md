@@ -1,5 +1,8 @@
 # Now
 
+- Class-specific compressors, concatenated then fed to TM
+- Use compressor as feature selector instead of directly using latent space
+
 - Refine explore api
     - rename explore imdb/snli to explore classifier/encoder (allowing generic
       datasets created via the process command)
