@@ -1,13 +1,9 @@
 # Now
 
-- Class-specific compressors, concatenated then fed to TM
-- Use compressor as feature selector instead of directly using latent space
-
 - Refine explore api
     - rename explore imdb/snli to explore classifier/encoder (allowing generic
       datasets created via the process command)
 
-- Dont store word embeddings, just clusters
 - Log training progress & performance
 - Checkpoint to disk at various points so we can stop arbitrarily
 
@@ -16,14 +12,17 @@
 - Pre-trained encoder models (snli, what else?)
 
 - MTEB
-- Library interface to inject cluster ids into sentence (for FTS enhancement)
 
 # Next
 
+- Dont store word embeddings, just clusters
+- Library interface to inject cluster ids into sentence (for FTS enhancement)
 - Rescue k-means from history
 - Update README
 
 # Eventually
+
+# Consider
 
 - Re-implement BPE. Merge alnum with alnum, punct with punct, and flatten all
   whitespace into single space
@@ -36,12 +35,6 @@
     - Run DBSCAN with varying eps/min_pts values and (like in k-means/medoids)
       represent each token with multiple (in this case equally-weighted) cluster
       ids.
-
-- Support selecting different hashing algorithms
-    - Each dimension is a hash segment
-    - All dimensions merged into single "segments" long hash
-
-# Consider
 
 - Fuzzy c-means clustering
 - Fuzzy c-medoids clustering

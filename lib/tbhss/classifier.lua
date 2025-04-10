@@ -99,10 +99,10 @@ local function create (db, args)
           solutions = ss_test,
           samples = n_test
         })
-        str.printf("Epoch %-4d   Time  %6.2f  %6.2f   Test %4.2f  Train %4.2f\n",
+        str.printf("[classifier]  Epoch %3d  %6.2f  %6.2f  %4.2f  %4.2f\n",
           epoch, duration, total, test_score, train_score)
       else
-        str.printf("Epoch %-4d   Time  %6.2f  %6.2f\n",
+        str.printf("[classifier]  Epoch %3d  %6.2f  %6.2f\n",
           epoch, duration, total)
       end
     end

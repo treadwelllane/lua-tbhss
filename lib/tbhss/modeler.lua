@@ -116,10 +116,10 @@ local function create (db, args)
       supervision = args.supervision,
       n_labels = n_labels,
       iterations = args.iterations,
-      each = function (i, tc)
+      each = function (i, tc, dev)
         local duration, total_duration = stopwatch()
-        str.printf("Epoch %3d  %10.4f  %8.2fs  %8.2fs\n",
-          i, tc, duration, total_duration)
+        str.printf("[modeler]  Epoch %3d  %10.4f  %10.4f   %10.4f   %8.2fs  %8.2fs\n",
+          i, tc, dev, dev / tc, duration, total_duration)
         arr.push(tcs, tc)
         if args.eps and #tcs >= 10 then
           local tc0 = arr.mean(tcs, #tcs - 9, #tcs - 5)
