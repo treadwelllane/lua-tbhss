@@ -19,6 +19,7 @@ local function create (db, args)
 
   if args.compress then
     args.hidden = tonumber(args.hidden or args.compress[1] or nil)
+    args.hidden = args.hidden and num.round_multiple(args.hidden, 128) or nil
     args.iterations = tonumber(args.iterations or args.compress[2] or nil)
     args.eps = tonumber(args.eps or args.compress[3] or nil)
   else

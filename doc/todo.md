@@ -1,5 +1,18 @@
 # Now
 
+- Better handling of round_multiple(x, 128). Currently, hidden and visible
+  features are rounded to the next multiple of 128 so that tsetlin doesn't
+  complain. Perhaps this should be configurable?
+
+- Tokenizer:
+    - Add a .filter() function, accepting a list of token IDs to filter tokens
+      by. Keep only these tokens.
+    - Discrete-sinusoidal positional encoding
+        - User-selectable wavelength and buckets
+        - Configurable apply to uni/bi/tri/etc-grams (e.g. specify 1 for
+          unigrams, 2 for unigrams and bigrams, etc.)
+        - Not applied to cgrams
+
 - Refine explore api
     - rename explore imdb/snli to explore classifier/encoder (allowing generic
       datasets created via the process command)

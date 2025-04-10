@@ -399,6 +399,17 @@ static inline int tb_tokenizer_str_id (
   return kh_value(tokenizer->ids, k);
 }
 
+
+// static inline unsigned int tb_tokenizer_encode_pos (
+//   size_t pos,
+//   unsigned int buckets,
+//   unsigned int wavelength
+// ) {
+//   double angle = (double) pos / wavelength;
+//   double val = sin(angle)
+//   return (unsigned int) round((val + 1.0) / 2.0 * (buckets - 1));
+// }
+
 static inline int tb_tokenizer_new_token (
   tb_tokenizer_t *tokenizer,
   char **tokp,
